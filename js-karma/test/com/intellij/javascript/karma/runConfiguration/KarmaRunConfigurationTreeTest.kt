@@ -123,4 +123,66 @@ class KarmaRunConfigurationTreeTest: KarmaRunConfigurationTestsBase() {
       )
     )
   }
+
+  // WEB-52234
+  fun `test asyncKarmaConfiguration`() {
+    doTreeTest(
+      {
+        it.setScopeKind(KarmaScopeKind.TEST_FILE)
+          .setTestFilePath(getAbsolutePathToProjectDirOrFile("/tests/a.spec.js"))
+          .setConfigPath(getAbsolutePathToProjectDirOrFile("/karma.conf.js"))
+      },
+      PassedTest(
+        "karma.conf.js",
+        PassedTest(
+          "Chrome Headless .*",
+          PassedTest(
+            "a test"
+          )
+        ).withNameAsRegex()
+      )
+    )
+  }
+
+  // WEB-73647
+  fun `test notAsyncKarmaConfigCompatibleKarmaVersion`() {
+    doTreeTest(
+      {
+        it.setScopeKind(KarmaScopeKind.TEST_FILE)
+          .setTestFilePath(getAbsolutePathToProjectDirOrFile("/tests/a.spec.js"))
+          .setConfigPath(getAbsolutePathToProjectDirOrFile("/karma.conf.js"))
+      },
+      PassedTest(
+        "karma.conf.js",
+        PassedTest(
+          "Chrome Headless .*",
+          PassedTest(
+            "a test"
+          )
+        ).withNameAsRegex()
+      )
+    )
+  }
+
+  // WEB-73868
+  fun `test karmaConfigV1_5_0`() {
+    doTreeTest(
+      {
+        it.setScopeKind(KarmaScopeKind.TEST_FILE)
+          .setTestFilePath(getAbsolutePathToProjectDirOrFile("/tests/person.test.js"))
+          .setConfigPath(getAbsolutePathToProjectDirOrFile("/karma.conf.js"))
+      },
+      PassedTest(
+        "karma.conf.js",
+        PassedTest(
+          "HeadlessChrome .*",
+          PassedTest(
+            "person",
+            PassedTest("should have name"),
+          )
+        ).withNameAsRegex()
+      )
+    )
+  }
+
 }

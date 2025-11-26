@@ -1,8 +1,11 @@
 Feature: Shopping
+
   Scenario: Subtraction
     Given my step definition
     Given my java8 step
 
+  Scenario: Fix resolve bug
+    When my java8 step with cast
 
 
   Scenario: my test
@@ -14,3 +17,45 @@ Feature: Shopping
     Examples:
       | color |
       | red   |
+
+  Scenario Outline: Single caret test
+    Given my another step definition with param "<param>"
+    Examples:
+      | param |
+      | hello |
+      | there |
+
+  Scenario Outline: Double caret test
+    Given my another step definition with param "<<param>>"
+    Examples:
+      | param |
+      | hello |
+      | there |
+
+  Scenario Outline: Some title 1
+    Given I expect inspection warning on <type> with messages 1
+    Examples:
+      | type   |
+      | class  |
+      | method |
+      | field  |
+
+  Scenario Outline: Some title 2
+    Given I expect inspection warning on <<type>> with messages 2
+    Examples:
+      | type   |
+      | class  |
+      | method |
+      | field  |
+    
+  Scenario Outline: Some title 3
+    Given I expect inspection warning on <<<type>>> with messages 3
+    Examples:
+      | type   |
+      | class  |
+      | method |
+      | field  |
+
+  Scenario: Escaping is consistent in "annotation style" and "Java 8 style"
+    And my \ step java 8
+    And my \ step java ann

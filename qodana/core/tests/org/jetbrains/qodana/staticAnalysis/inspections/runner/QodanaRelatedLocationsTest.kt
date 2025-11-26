@@ -11,11 +11,12 @@ import com.intellij.psi.PsiElementVisitor
 import com.intellij.psi.PsiMethod
 import com.intellij.testFramework.TestDataPath
 import org.jetbrains.qodana.staticAnalysis.inspections.config.QodanaProfileConfig
+import org.jetbrains.qodana.staticAnalysis.testFramework.QodanaRunnerTestCase
 import org.jetbrains.qodana.staticAnalysis.testFramework.reinstantiateInspectionRelatedServices
 import org.junit.Test
 
 
-@TestDataPath("\$CONTENT_ROOT/testData/QodanaRunnerTest")
+@TestDataPath($$"$CONTENT_ROOT/testData/QodanaRunnerTest")
 class QodanaRelatedLocationsTest : QodanaRunnerTestCase(){
   @Test
   fun testRelatedLocations() {

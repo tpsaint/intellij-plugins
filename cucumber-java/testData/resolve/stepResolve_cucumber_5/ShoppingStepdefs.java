@@ -1,19 +1,44 @@
 package cucumber.examples.java.calculator;
 
 import io.cucumber.java8.En;
+import io.cucumber.java8.StepDefinitionBody;
 import io.cucumber.java.en.Given;
+import io.cucumber.java.en.When;
+import io.cucumber.java.en.And;
+import io.cucumber.java.en.When;
 import io.cucumber.java.ParameterType;
 import java.util.List;
-
-import static org.junit.Assert.assertEquals;
 
 public class ShoppingStepdefs implements En {
   public ShoppingStepdefs() {
     Given("my java8 step", () -> System.out.println("step"));
+
+    And("my java8 step with cast", (StepDefinitionBody.A0) () -> {});
+
+    When("^my \\\\ step java 8$", () -> {});
   }
+
+  @When("^my \\\\ step java ann$")
+  public void my_step_java_ann() {}
 
   @Given("my step definition")
   public void my_step_definition() {
+  }
+  
+  @Given("my another step definition with param {string}")
+  public void my_another_step_definition(String param) {
+  }
+
+  @Given("^I expect inspection warning on ([^>]+) with messages 1$")
+  public void iExpectInspection1(String type) {
+  }
+
+  @Given("^I expect inspection warning on <([^>]+)> with messages 2$")
+  public void iExpectInspection2(String type) {
+  }
+
+  @Given("^I expect inspection warning on <<([^>]+)>> with messages 3$")
+  public void iExpectInspection3(String type) {
   }
 
   @Given("^step (red|black):$")
@@ -32,4 +57,15 @@ public class ShoppingStepdefs implements En {
   public String color(String color) {
     return "Text with color: " + color;
   }
+
+  @When("the {customMoodName} mood is chosen")
+  public void task_choose_mood(Mood mood) {
+  }
+
+  @ParameterType(value = ".*", name = "customMoodName")
+  public Mood mood(String moodName) {
+    return Mood.valueOf(moodName);
+  }
+
+  public enum Mood {HAPPY, SAD}
 }

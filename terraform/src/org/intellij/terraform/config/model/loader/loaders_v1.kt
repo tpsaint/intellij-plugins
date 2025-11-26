@@ -1,10 +1,11 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.config.model.loader
 
 import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.node.TextNode
 import org.intellij.terraform.config.Constants
+import org.intellij.terraform.config.Constants.HCL_PROVISIONER_IDENTIFIER
 import org.intellij.terraform.config.model.*
 import org.intellij.terraform.config.model.loader.TfMetadataLoader.Companion.LOG
 
@@ -58,7 +59,7 @@ object BaseLoaderV1 : BaseLoader {
       } else if (et == "SchemaInfo") {
         val o = elem.obj("Info") ?: elem.obj("info")
         if (o != null) {
-          innerTypeProperties = o.fields().asSequence().map { parseSchemaElement(context, it, fqn) }.toList()
+          innerTypeProperties = o.properties().asSequence().map { parseSchemaElement(context, it, fqn) }.toList()
           if (type == Types.Array) {
             isBlock = true
           }
@@ -129,10 +130,10 @@ object BaseLoaderV1 : BaseLoader {
                         computed = computed,
                         deprecated = deprecated?.pool(context),
                         conflictsWith = conflicts,
-                        has_default = has_default || has_default_function).pool(context)
+                        hasDefault = has_default || has_default_function).pool(context)
   }
 
-  override fun parseType(context: LoadContext, string: String?): Type {
+  override fun parseType(context: LoadContext, string: String?): HclType {
     /*
     From  terraform/helper/schema/valuetype.go
     const (
@@ -184,12 +185,12 @@ abstract class ProviderLoader(protected val base: BaseLoader) : VersionedMetadat
     if (resources == null && dataSources == null) {
       LOG.warn("No resources nor data-sources defined for provider '$name' in file '$fileName'")
     }
-    resources?.let { it.fields().asSequence().mapTo(model.resources) { parseResourceInfo(context, it, info) } }
-    dataSources?.let { it.fields().asSequence().mapTo(model.dataSources) { parseDataSourceInfo(context, it, info) } }
+    resources?.let { it.properties().mapTo(model.resources) { parseResourceInfo(context, it, info) } }
+    dataSources?.let { it.properties().mapTo(model.dataSources) { parseDataSourceInfo(context, it, info) } }
   }
 
   private fun parseProviderInfo(context: LoadContext, name: String, obj: ObjectNode): ProviderType {
-    return ProviderType(name, obj.fields().asSequence().map { base.parseSchemaElement(context, it, name) }.toList())
+    return ProviderType(name, obj.properties().asSequence().map { base.parseSchemaElement(context, it, name) }.toList())
   }
 
   private fun parseResourceInfo(context: LoadContext, entry: Map.Entry<String, Any?>, info: ProviderType): ResourceType {
@@ -197,7 +198,7 @@ abstract class ProviderLoader(protected val base: BaseLoader) : VersionedMetadat
     assert(entry.value is ObjectNode) { "Right part of resource should be object" }
     val obj = entry.value as ObjectNode
     val timeouts = getTimeoutsBlock(context, obj)
-    return ResourceType(name, info, obj.fields().asSequence().map { base.parseSchemaElement(context, it, name) }.plus(timeouts).filterNotNull().toList())
+    return ResourceType(name, info, obj.properties().asSequence().map { base.parseSchemaElement(context, it, name) }.plus(timeouts).filterNotNull().toList())
   }
 
   private fun parseDataSourceInfo(context: LoadContext, entry: Map.Entry<String, Any?>, info: ProviderType): DataSourceType {
@@ -205,7 +206,7 @@ abstract class ProviderLoader(protected val base: BaseLoader) : VersionedMetadat
     assert(entry.value is ObjectNode) { "Right part of data-source should be object" }
     val obj = entry.value as ObjectNode
     val timeouts = getTimeoutsBlock(context, obj)
-    return DataSourceType(name, info, obj.fields().asSequence().map { base.parseSchemaElement(context, it, name) }.plus(timeouts).filterNotNull().toList())
+    return DataSourceType(name, info, obj.properties().asSequence().map { base.parseSchemaElement(context, it, name) }.plus(timeouts).filterNotNull().toList())
   }
 
   private fun getTimeoutsBlock(context: LoadContext, obj: ObjectNode): PropertyOrBlockType? {
@@ -226,7 +227,7 @@ abstract class ProviderLoader(protected val base: BaseLoader) : VersionedMetadat
 }
 
 abstract class ProvisionerLoader(protected val base: BaseLoader) : VersionedMetadataLoader {
-  override fun isSupportedType(type: String): Boolean = type == "provisioner"
+  override fun isSupportedType(type: String): Boolean = type == HCL_PROVISIONER_IDENTIFIER
   override fun load(context: LoadContext, json: ObjectNode, fileName: String) {
     val model = context.model
     val provisioner_schema = json.obj("schemas") ?: json
@@ -241,7 +242,7 @@ abstract class ProvisionerLoader(protected val base: BaseLoader) : VersionedMeta
       return
     }
     model.loaded["provisioner.$name"] = fileName
-    val info = ProvisionerType(name, provisioner.fields().asSequence().map { base.parseSchemaElement(context, it, name) }.toList())
+    val info = ProvisionerType(name, provisioner.properties().asSequence().map { base.parseSchemaElement(context, it, name) }.toList())
     model.provisioners.add(info)
   }
 }
@@ -262,7 +263,7 @@ abstract class BackendLoader(protected val base: BaseLoader) : VersionedMetadata
       return
     }
     model.loaded["backend.$name"] = fileName
-    val info = BackendType(name, backend.fields().asSequence().map { base.parseSchemaElement(context, it, name) }.toList())
+    val info = BackendType(name, backend.properties().asSequence().map { base.parseSchemaElement(context, it, name) }.toList())
     model.backends.add(info)
   }
 }
@@ -296,7 +297,7 @@ class FunctionsLoaderV1 : VersionedMetadataLoader {
       return
     }
     model.loaded["functions"] = fileName
-    for ((k, v) in functions.fields()) {
+    for ((k, v) in functions.properties()) {
       if (v !is ObjectNode) continue
       assert(v.string("Name").equals(k)) { "Name mismatch: $k != ${v.string("Name")}" }
       val returnType = BaseLoaderV1.parseType(context, v.string("ReturnType")!!)

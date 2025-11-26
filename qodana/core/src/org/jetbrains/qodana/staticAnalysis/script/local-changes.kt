@@ -1,11 +1,10 @@
 package org.jetbrains.qodana.staticAnalysis.script
 
 import com.intellij.codeInspection.InspectionsBundle
-import com.intellij.openapi.application.readActionBlocking
 import com.intellij.openapi.application.edtWriteAction
+import com.intellij.openapi.application.readActionBlocking
 import com.intellij.openapi.components.serviceAsync
 import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.progress.blockingContext
 import com.intellij.openapi.progress.runBlockingCancellable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vcs.FilePath
@@ -34,7 +33,6 @@ import org.jetbrains.qodana.staticAnalysis.profile.QodanaProfile
 import org.jetbrains.qodana.staticAnalysis.scopes.QodanaAnalysisScope
 import org.jetbrains.qodana.staticAnalysis.vcs.git.getStatus
 import org.jetbrains.qodana.staticAnalysis.vcs.git.restoreTrackedFiles
-import java.lang.Runnable
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import kotlin.time.Duration.Companion.seconds
@@ -167,9 +165,7 @@ open class LocalChangesScript(
     }
     try {
       vcsSettings.saveChangesPolicy = LocalChangesService.getInstance(project).getGitPolicy()
-      blockingContext {
-        VcsPreservingExecutor.executeOperation(project, versionedRoots, message, progressIndicator, afterShelveRunnable)
-      }
+      VcsPreservingExecutor.executeOperation(project, versionedRoots, message, progressIndicator, afterShelveRunnable)
     } finally {
       vcsSettings.saveChangesPolicy = oldPolicy
     }
@@ -177,7 +173,7 @@ open class LocalChangesScript(
 
   private suspend fun runAnalysisOnCodeWithoutChanges(project: Project, analysisRunner: suspend () -> Unit): QodanaAnalysisScope {
     val timeout = if (application.isUnitTestMode) 1L else 60L
-    if (ProjectLevelVcsManager.getInstance(project).allVcsRoots.isEmpty()) {
+    if (ProjectLevelVcsManager.getInstance(project).getAllVcsRoots().isEmpty()) {
       try {
         withTimeout(timeout.seconds) {
           isMappingLoaded.asDeferred().await()
@@ -234,7 +230,7 @@ open class LocalChangesScript(
   private suspend fun getSearchScopeFromChangedFiles(runContext: QodanaRunContext): QodanaAnalysisScope {
     val files = runContext.project.serviceAsync<ChangeListManager>().changedFilesAfterUpdate()
     val excluded = mutableListOf<VirtualFile>()
-    val result = runContext.externalFileScope(
+    val result = runContext.scope.externalFileScope(
       files,
       onFileIncluded = { messageReporter.reportMessage(0, "modified file: ${it.path}") },
       onFileExcluded = excluded::add

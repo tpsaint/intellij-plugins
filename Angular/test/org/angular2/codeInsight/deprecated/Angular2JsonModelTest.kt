@@ -9,9 +9,9 @@ import com.intellij.psi.*
 import com.intellij.psi.impl.DebugUtil
 import com.intellij.testFramework.UsefulTestCase
 import com.intellij.testFramework.fixtures.impl.CodeInsightTestFixtureImpl
-import com.intellij.webSymbols.testFramework.moveToOffsetBySignature
-import com.intellij.webSymbols.testFramework.resolveWebSymbolReference
-import com.intellij.webSymbols.testFramework.webSymbolAtCaret
+import com.intellij.polySymbols.testFramework.moveToOffsetBySignature
+import com.intellij.polySymbols.testFramework.resolvePolySymbolReference
+import com.intellij.polySymbols.testFramework.polySymbolAtCaret
 import org.angular2.Angular2CodeInsightFixtureTestCase
 import org.angular2.Angular2TemplateInspectionsProvider
 import org.angular2.Angular2TestModule
@@ -28,8 +28,8 @@ import java.io.File
 
 @Deprecated("Use test appropriate for IDE feature being tested - e.g. completion/resolve/highlighting ")
 class Angular2JsonModelTest : Angular2CodeInsightFixtureTestCase() {
-  private fun resolveToWebSymbolSourceContext(signature: String): PsiElement {
-    return myFixture.resolveWebSymbolReference(signature).psiContext!!
+  private fun resolveToPolySymbolSourceContext(signature: String): PsiElement {
+    return myFixture.resolvePolySymbolReference(signature).psiContext!!
   }
 
   override fun getTestDataPath(): String {
@@ -143,7 +143,7 @@ class Angular2JsonModelTest : Angular2CodeInsightFixtureTestCase() {
     myFixture.checkHighlighting()
     myFixture.moveToOffsetBySignature("mat-form<caret>-field")
     assertEquals("form-field.d.ts",
-                 myFixture.webSymbolAtCaret()!!.psiContext!!.getContainingFile().getName())
+                 myFixture.polySymbolAtCaret()!!.psiContext!!.getContainingFile().getName())
   }
 
   fun testMaterialMetadataStubGeneration() {
@@ -154,11 +154,11 @@ class Angular2JsonModelTest : Angular2CodeInsightFixtureTestCase() {
     // to load AST for changed files before it's prohibited by "fileTreeAccessFilter"
     CodeInsightTestFixtureImpl.ensureIndexesUpToDate(project)
     material!!.acceptChildren(object : PsiElementVisitor() {
-      override fun visitFile(file: PsiFile) {
-        if (file.getName().endsWith(".metadata.json")) {
-          val relativeFile = FileUtil.getRelativePath(pathPrefix, file.getVirtualFile().getPath(), '/')
-          assert(file is MetadataFileImpl) { relativeFile!! }
-          val result = DebugUtil.psiToString(file, true, false)
+      override fun visitFile(psiFile: PsiFile) {
+        if (psiFile.getName().endsWith(".metadata.json")) {
+          val relativeFile = FileUtil.getRelativePath(pathPrefix, psiFile.getVirtualFile().getPath(), '/')
+          assert(psiFile is MetadataFileImpl) { relativeFile!! }
+          val result = DebugUtil.psiToString(psiFile, true, false)
           UsefulTestCase.assertSameLinesWithFile(File(testDataPath, "material-stubs/$relativeFile.txt").toString(), result)
         }
       }
@@ -185,7 +185,7 @@ class Angular2JsonModelTest : Angular2CodeInsightFixtureTestCase() {
     myFixture.checkHighlighting()
     myFixture.moveToOffsetBySignature("ion-card-<caret>subtitle")
     assertEquals("proxies.d.ts",
-                 myFixture.webSymbolAtCaret()!!.psiContext!!.getContainingFile().getName())
+                 myFixture.polySymbolAtCaret()!!.psiContext!!.getContainingFile().getName())
   }
 
   fun testFunctionPropertyMetadata() {
@@ -194,7 +194,7 @@ class Angular2JsonModelTest : Angular2CodeInsightFixtureTestCase() {
     myFixture.configureFromTempProjectFile("template.html")
     myFixture.checkHighlighting()
     assertEquals("my-lib.component.d.ts",
-                 myFixture.webSymbolAtCaret()!!.psiContext!!.getContainingFile().getName())
+                 myFixture.polySymbolAtCaret()!!.psiContext!!.getContainingFile().getName())
   }
 
   fun testMultipleNodeModulesResolution() {
@@ -231,7 +231,7 @@ class Angular2JsonModelTest : Angular2CodeInsightFixtureTestCase() {
   fun testTemplate20Metadata() {
     configureWithMetadataFiles("template")
     myFixture.configureByFiles("template.html")
-    val resolve = resolveToWebSymbolSourceContext("*myHover<caret>List")
+    val resolve = resolveToPolySymbolSourceContext("*myHover<caret>List")
     assertEquals("template.metadata.json", resolve.getContainingFile().getName())
     Angular2TestUtil.assertUnresolvedReference("myHover<caret>List", myFixture)
   }
@@ -239,20 +239,20 @@ class Angular2JsonModelTest : Angular2CodeInsightFixtureTestCase() {
   fun testNoTemplate20Metadata() {
     configureWithMetadataFiles("noTemplate")
     myFixture.configureByFiles("noTemplate.html")
-    val resolve = resolveToWebSymbolSourceContext("myHover<caret>List")
+    val resolve = resolveToPolySymbolSourceContext("myHover<caret>List")
     assertEquals("noTemplate.metadata.json", resolve.getContainingFile().getName())
   }
 
   fun testTemplate20NoMetadata() {
     myFixture.configureByFiles("template.html", "package.json", "template.ts")
-    val resolve = resolveToWebSymbolSourceContext("*myHover<caret>List")
+    val resolve = resolveToPolySymbolSourceContext("*myHover<caret>List")
     assertEquals("template.ts", resolve.getContainingFile().getName())
     Angular2TestUtil.assertUnresolvedReference("myHover<caret>List", myFixture)
   }
 
   fun testNoTemplate20NoMetadata() {
     myFixture.configureByFiles("noTemplate.html", "package.json", "noTemplate.ts")
-    val resolve = resolveToWebSymbolSourceContext("myHover<caret>List")
+    val resolve = resolveToPolySymbolSourceContext("myHover<caret>List")
     assertEquals("noTemplate.ts", resolve.getContainingFile().getName())
   }
 

@@ -1,9 +1,9 @@
 ### auto-generated section `build intellij.qodana.testFramework` start
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_resources")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
 
-jvm_resources(
+resourcegroup(
   name = "qodana-testFramework_resources",
-  files = glob(["resources/**/*"]),
+  srcs = glob(["resources/**/*"]),
   strip_prefix = "resources"
 )
 
@@ -11,11 +11,13 @@ jvm_library(
   name = "qodana-testFramework",
   module_name = "intellij.qodana.testFramework",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java"], allow_empty = True),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form"], allow_empty = True),
+  resources = [":qodana-testFramework_resources"],
   deps = [
     "@community//platform/analysis-api:analysis",
-    "@community//platform/inspect",
-    "@lib//:gson",
+    "@community//platform/core-api:core",
+    "@community//libraries/gson",
+    "@community//platform/projectModel-api:projectModel",
     "//contrib/qodana/sarif",
     "@community//platform/util",
     "//contrib/qodana",
@@ -26,7 +28,8 @@ jvm_library(
     "@community//platform/util/jdom",
     "@community//platform/testFramework",
     "@community//platform/util/coroutines",
-  ],
-  runtime_deps = [":qodana-testFramework_resources"]
+    "@community//java/testFramework",
+    "@community//platform/core-ui",
+  ]
 )
 ### auto-generated section `build intellij.qodana.testFramework` end

@@ -176,4 +176,12 @@ public class DartParsingTest extends ParsingTestCase {
   public void testPatterns() {
     doTest();
   }
+
+  public void testNullAwareElement() {
+    doTest();
+  }
+
+  public void testShorthandAccess() {
+    doTest();
+  }
 }

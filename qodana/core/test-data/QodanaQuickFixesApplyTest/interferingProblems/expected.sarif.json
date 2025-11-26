@@ -55,6 +55,8 @@
             "ideaSeverity": "WARNING",
             "qodanaSeverity": "High",
             "problemType": "REGULAR",
+            "hasFixes": true,
+            "hasCleanup": true,
             "tags": [
               "JAVA"
             ]
@@ -112,6 +114,8 @@
             "ideaSeverity": "WARNING",
             "qodanaSeverity": "High",
             "problemType": "REGULAR",
+            "hasFixes": true,
+            "hasCleanup": true,
             "tags": [
               "JAVA"
             ]

@@ -2,30 +2,34 @@
 package org.angular2.web.scopes
 
 import com.intellij.codeInsight.completion.CompletionUtil
-import com.intellij.javascript.webSymbols.symbols.JSPropertySymbol
-import com.intellij.javascript.webSymbols.symbols.asWebSymbol
-import com.intellij.javascript.webSymbols.symbols.getJSPropertySymbols
+import com.intellij.polySymbols.js.symbols.JSPropertySymbol
+import com.intellij.polySymbols.js.symbols.asJSSymbol
+import com.intellij.polySymbols.js.symbols.getJSPropertySymbols
+import com.intellij.polySymbols.js.types.PROP_JS_TYPE
 import com.intellij.lang.javascript.evaluation.JSTypeEvaluationLocationProvider
 import com.intellij.lang.javascript.psi.JSElement
 import com.intellij.lang.javascript.psi.JSLiteralExpression
 import com.intellij.lang.javascript.psi.JSReferenceExpression
-import com.intellij.lang.javascript.psi.JSType
 import com.intellij.lang.javascript.psi.ecma6.TypeScriptClass
 import com.intellij.model.Pointer
 import com.intellij.openapi.project.Project
+import com.intellij.platform.backend.documentation.DocumentationTarget
+import com.intellij.polySymbols.*
+import com.intellij.polySymbols.js.JS_STRING_LITERALS
+import com.intellij.polySymbols.query.PolySymbolListSymbolsQueryParams
+import com.intellij.polySymbols.query.PolySymbolMatch
+import com.intellij.polySymbols.query.PolySymbolNameMatchQueryParams
+import com.intellij.polySymbols.query.PolySymbolQueryStack
+import com.intellij.polySymbols.utils.PolySymbolDelegate
+import com.intellij.polySymbols.utils.PolySymbolScopeWithCache
+import com.intellij.polySymbols.utils.ReferencingPolySymbol
+import com.intellij.psi.PsiElement
 import com.intellij.psi.createSmartPointer
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.psi.util.siblings
 import com.intellij.util.asSafely
-import com.intellij.util.containers.Stack
-import com.intellij.webSymbols.*
-import com.intellij.webSymbols.WebSymbol.Companion.JS_STRING_LITERALS
-import com.intellij.webSymbols.query.WebSymbolMatch
-import com.intellij.webSymbols.query.WebSymbolsListSymbolsQueryParams
-import com.intellij.webSymbols.query.WebSymbolsNameMatchQueryParams
-import com.intellij.webSymbols.utils.ReferencingWebSymbol
 import org.angular2.Angular2DecoratorUtil.INPUTS_PROP
 import org.angular2.Angular2DecoratorUtil.INPUT_DEC
 import org.angular2.Angular2DecoratorUtil.OUTPUTS_PROP
@@ -39,17 +43,17 @@ import org.angular2.lang.types.Angular2TypeUtils
 import org.angular2.web.Angular2Symbol
 import org.angular2.web.NG_DIRECTIVE_INPUTS
 import org.angular2.web.NG_DIRECTIVE_OUTPUTS
-import org.angular2.web.references.Angular2DirectivePropertyLiteralReferencesProvider
+import org.angular2.web.references.Angular2DirectivePropertyLiteralReferenceProvider
 
 /**
  * Due to complicated nature of the Angular mapping syntax,
  * this scope is handling only code completion of Angular directive properties.
- * Reference resolution is being provided separately by [Angular2DirectivePropertyLiteralReferencesProvider]
+ * Reference resolution is being provided separately by [Angular2DirectivePropertyLiteralReferenceProvider]
  */
 class DirectivePropertyMappingCompletionScope(element: JSElement)
-  : WebSymbolsScopeWithCache<JSElement, Unit>(Angular2Framework.ID, element.project, element, Unit) {
+  : PolySymbolScopeWithCache<JSElement, Unit>(Angular2Framework.ID, element.project, element, Unit) {
 
-  override fun initialize(consumer: (WebSymbol) -> Unit, cacheDependencies: MutableSet<Any>) {
+  override fun initialize(consumer: (PolySymbol) -> Unit, cacheDependencies: MutableSet<Any>) {
     cacheDependencies.add(PsiModificationTracker.MODIFICATION_COUNT)
     dataHolder
       .takeIf { it is JSReferenceExpression || it is JSLiteralExpression }
@@ -67,7 +71,7 @@ class DirectivePropertyMappingCompletionScope(element: JSElement)
             && (context !is JSReferenceExpression || entry.value.declaringElement != context.siblings().firstOrNull { it is JSLiteralExpression })
           }
 
-        val filterAndConsume = { symbol: WebSymbol ->
+        val filterAndConsume = { symbol: PolySymbol ->
           if (!otherPropertyMappings.containsKey(symbol.name))
             consumer(symbol)
         }
@@ -86,7 +90,7 @@ class DirectivePropertyMappingCompletionScope(element: JSElement)
               NG_DIRECTIVE_OUTPUTS
             val typeScriptClass = directive.asSafely<Angular2ClassBasedDirective>()?.typeScriptClass
             typeScriptClass
-              ?.asWebSymbol()
+              ?.asJSSymbol()
               ?.getJSPropertySymbols()
               ?.filter { property ->
                 val sources = Angular2SourceDirective.getPropertySources(property.source)
@@ -102,30 +106,34 @@ class DirectivePropertyMappingCompletionScope(element: JSElement)
       }
   }
 
-  override fun getMatchingSymbols(qualifiedName: WebSymbolQualifiedName,
-                                  params: WebSymbolsNameMatchQueryParams,
-                                  scope: Stack<WebSymbolsScope>): List<WebSymbol> =
+  override fun getMatchingSymbols(
+    qualifiedName: PolySymbolQualifiedName,
+    params: PolySymbolNameMatchQueryParams,
+    stack: PolySymbolQueryStack,
+  ): List<PolySymbol> =
     /* Do not support reference resolution */
     if (qualifiedName.qualifiedKind == JS_STRING_LITERALS)
-      // Provide an empty symbol match to avoid unresolved reference on the string literal
-      listOf(WebSymbolMatch.create("", JS_STRING_LITERALS, AngularEmptyOrigin, WebSymbolNameSegment.create(0,0)))
+    // Provide an empty symbol match to avoid unresolved reference on the string literal
+      listOf(PolySymbolMatch.create("", JS_STRING_LITERALS, AngularEmptyOrigin, PolySymbolNameSegment.create(0, 0)))
     else
       emptyList()
 
-  override fun getSymbols(qualifiedKind: WebSymbolQualifiedKind,
-                          params: WebSymbolsListSymbolsQueryParams,
-                          scope: Stack<WebSymbolsScope>): List<WebSymbolsScope> =
+  override fun getSymbols(
+    qualifiedKind: PolySymbolQualifiedKind,
+    params: PolySymbolListSymbolsQueryParams,
+    stack: PolySymbolQueryStack,
+  ): List<PolySymbol> =
     /* Do not support reference resolution */
     emptyList()
 
-  override fun createPointer(): Pointer<out WebSymbolsScopeWithCache<JSElement, Unit>> {
+  override fun createPointer(): Pointer<out PolySymbolScopeWithCache<JSElement, Unit>> {
     val elementPtr = dataHolder.createSmartPointer()
     return Pointer {
       elementPtr.dereference()?.let { DirectivePropertyMappingCompletionScope(it) }
     }
   }
 
-  override fun isExclusiveFor(qualifiedKind: WebSymbolQualifiedKind): Boolean =
+  override fun isExclusiveFor(qualifiedKind: PolySymbolQualifiedKind): Boolean =
     qualifiedKind == JS_STRING_LITERALS && dataHolder
       .takeIf { it is JSReferenceExpression || it is JSLiteralExpression }
       ?.let { jsElement ->
@@ -136,47 +144,49 @@ class DirectivePropertyMappingCompletionScope(element: JSElement)
         }
       } == true
 
-  override fun provides(qualifiedKind: WebSymbolQualifiedKind): Boolean =
+  override fun provides(qualifiedKind: PolySymbolQualifiedKind): Boolean =
     qualifiedKind == JS_STRING_LITERALS
     || qualifiedKind == NG_DIRECTIVE_INPUTS
     || qualifiedKind == NG_DIRECTIVE_OUTPUTS
 
-  private object AngularEmptyOrigin : WebSymbolOrigin {
+  private object AngularEmptyOrigin : PolySymbolOrigin {
     override val framework: FrameworkId =
       Angular2Framework.ID
   }
 
-  private val inputOutputReference = ReferencingWebSymbol.create(
+  private val inputOutputReference = ReferencingPolySymbol.create(
     JS_STRING_LITERALS,
     "Angular directive property",
     AngularEmptyOrigin,
     NG_DIRECTIVE_INPUTS,
     NG_DIRECTIVE_OUTPUTS,
-    priority = WebSymbol.Priority.HIGHEST
+    priority = PolySymbol.Priority.HIGHEST
   )
 
   private class Angular2FieldPropertySymbol(
-    delegate: JSPropertySymbol,
-    override val qualifiedKind: WebSymbolQualifiedKind,
+    override val delegate: JSPropertySymbol,
+    override val qualifiedKind: PolySymbolQualifiedKind,
     override val project: Project,
     val owner: TypeScriptClass?,
-  ) : WebSymbolDelegate<JSPropertySymbol>(delegate), Angular2Symbol {
+  ) : PolySymbolDelegate<JSPropertySymbol>, Angular2Symbol {
 
-    override val namespace: SymbolNamespace
-      get() = super<Angular2Symbol>.namespace
+    override fun getDocumentationTarget(location: PsiElement?): DocumentationTarget? =
+      delegate.getDocumentationTarget(location)
 
-    override val kind: SymbolKind
-      get() = super<Angular2Symbol>.kind
-
-    override val origin: WebSymbolOrigin
+    override val origin: PolySymbolOrigin
       get() = super<Angular2Symbol>.origin
 
-    override val type: Any?
-      get() = if (qualifiedKind == NG_DIRECTIVE_OUTPUTS) {
-        Angular2TypeUtils.extractEventVariableType(super<WebSymbolDelegate>.type as? JSType)
-      }
-      else {
-        Angular2EntityUtils.jsTypeFromAcceptInputType(owner, name) ?: super<WebSymbolDelegate>.type as? JSType
+    override fun <T : Any> get(property: PolySymbolProperty<T>): T? =
+      when (property) {
+        PROP_JS_TYPE -> property.tryCast(
+          if (qualifiedKind == NG_DIRECTIVE_OUTPUTS) {
+            Angular2TypeUtils.extractEventVariableType(super<PolySymbolDelegate>[PROP_JS_TYPE])
+          }
+          else {
+            Angular2EntityUtils.jsTypeFromAcceptInputType(owner, name) ?: super<PolySymbolDelegate>[PROP_JS_TYPE]
+          }
+        )
+        else -> super<PolySymbolDelegate>.get(property)
       }
 
     override fun createPointer(): Pointer<out Angular2FieldPropertySymbol> {

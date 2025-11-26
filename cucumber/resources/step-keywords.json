@@ -1,0 +1,797 @@
+{
+  "af": [
+    "En",
+    "Maar",
+    "Gegewe",
+    "Dan",
+    "Wanneer"
+  ],
+  "am": [
+    "Եվ",
+    "Բայց",
+    "Դիցուք",
+    "Ապա",
+    "Եթե",
+    "Երբ"
+  ],
+  "an": [
+    "Y",
+    "E",
+    "Pero",
+    "Dau",
+    "Dada",
+    "Daus",
+    "Dadas",
+    "Alavez",
+    "Allora",
+    "Antonces",
+    "Cuan"
+  ],
+  "ar": [
+    "و",
+    "لكن",
+    "بفرض",
+    "اذاً",
+    "ثم",
+    "متى",
+    "عندما"
+  ],
+  "ast": [
+    "Y",
+    "Ya",
+    "Peru",
+    "Dáu",
+    "Dada",
+    "Daos",
+    "Daes",
+    "Entós",
+    "Cuando"
+  ],
+  "az": [
+    "Və",
+    "Həm",
+    "Amma",
+    "Ancaq",
+    "Tutaqki",
+    "Verilir",
+    "Ohalda",
+    "Əgər",
+    "Nəvaxtki"
+  ],
+  "be": [
+    "I",
+    "Ды",
+    "Таксама",
+    "Але",
+    "Інакш",
+    "Няхай",
+    "Дадзена",
+    "Тады",
+    "Калі"
+  ],
+  "bg": [
+    "И",
+    "Но",
+    "Дадено",
+    "То",
+    "Когато"
+  ],
+  "bm": [
+    "Dan",
+    "Tetapi",
+    "Tapi",
+    "Diberi",
+    "Bagi",
+    "Maka",
+    "Kemudian",
+    "Apabila"
+  ],
+  "bs": [
+    "I",
+    "A",
+    "Ali",
+    "Dato",
+    "Zatim",
+    "Kada"
+  ],
+  "ca": [
+    "I",
+    "Però",
+    "Donat",
+    "Donada",
+    "Atès",
+    "Atesa",
+    "Aleshores",
+    "Cal",
+    "Quan"
+  ],
+  "cs": [
+    "Ataké",
+    "A",
+    "Ale",
+    "Pokud",
+    "Zapředpokladu",
+    "Pak",
+    "Když"
+  ],
+  "cy-GB": [
+    "A",
+    "Ond",
+    "Anrhegediga",
+    "Yna",
+    "Pryd"
+  ],
+  "da": [
+    "Og",
+    "Men",
+    "Givet",
+    "Så",
+    "Når"
+  ],
+  "de": [
+    "Und",
+    "Aber",
+    "Angenommen",
+    "Gegebensei",
+    "Gegebenseien",
+    "Dann",
+    "Wenn"
+  ],
+  "el": [
+    "Και",
+    "Αλλά",
+    "Δεδομένου",
+    "Τότε",
+    "Όταν"
+  ],
+  "em": [
+    "😂",
+    "😔",
+    "😐",
+    "🙏",
+    "🎬"
+  ],
+  "en": [
+    "And",
+    "But",
+    "Given",
+    "Then",
+    "When"
+  ],
+  "en-Scouse": [
+    "An",
+    "Buh",
+    "Givun",
+    "Youseknowwhenyousegot",
+    "Dun",
+    "Denyousegotta",
+    "Wun",
+    "Youseknowlikewhen"
+  ],
+  "en-au": [
+    "Tooright",
+    "Yeahnah",
+    "Yknow",
+    "ButattheendofthedayIreckon",
+    "Itsjustunbelievable"
+  ],
+  "en-lol": [
+    "AN",
+    "BUT",
+    "ICANHAZ",
+    "DEN",
+    "WEN"
+  ],
+  "en-old": [
+    "Ond",
+    "7",
+    "Ac",
+    "Thurh",
+    "Þurh",
+    "Ðurh",
+    "Tha",
+    "Þa",
+    "Ða",
+    "Thathe",
+    "Þaþe",
+    "Ðaðe",
+    "Bæþsealf",
+    "Bæþsealfa",
+    "Bæþsealfe",
+    "Ciricæw",
+    "Ciricæwe",
+    "Ciricæwa"
+  ],
+  "en-pirate": [
+    "Aye",
+    "Avast!",
+    "Gangway!",
+    "Letgoandhaul",
+    "Blimey!"
+  ],
+  "en-tx": [
+    "Comehellorhighwater",
+    "WellnowholdonIllyouwhat",
+    "Fixinto",
+    "Allgitout",
+    "There’snotreebutbearssomefruit",
+    "Quickoutofthechute"
+  ],
+  "eo": [
+    "Kaj",
+    "Sed",
+    "Donitaĵo",
+    "Komence",
+    "Do",
+    "Se"
+  ],
+  "es": [
+    "Y",
+    "E",
+    "Pero",
+    "Dado",
+    "Dada",
+    "Dados",
+    "Dadas",
+    "Entonces",
+    "Cuando"
+  ],
+  "et": [
+    "Ja",
+    "Kuid",
+    "Eeldades",
+    "Siis",
+    "Kui"
+  ],
+  "fa": [
+    "و",
+    "اما",
+    "بافرض",
+    "آنگاه",
+    "هنگامی"
+  ],
+  "fi": [
+    "Ja",
+    "Mutta",
+    "Oletetaan",
+    "Niin",
+    "Kun"
+  ],
+  "fr": [
+    "Etque",
+    "Etqu",
+    "Et",
+    "Maisque",
+    "Maisqu",
+    "Mais",
+    "Soit",
+    "Sachantque",
+    "Sachantqu",
+    "Sachant",
+    "Etantdonnéque",
+    "Etantdonnéqu",
+    "Etantdonné",
+    "Etantdonnée",
+    "Etantdonnés",
+    "Etantdonnées",
+    "Étantdonnéque",
+    "Étantdonnéqu",
+    "Étantdonné",
+    "Étantdonnée",
+    "Étantdonnés",
+    "Étantdonnées",
+    "Alors",
+    "Donc",
+    "Quand",
+    "Lorsque",
+    "Lorsqu"
+  ],
+  "ga": [
+    "Agus",
+    "Ach",
+    "Cuirigcásgo",
+    "Cuirigcásnach",
+    "Cuirigcásgur",
+    "Cuirigcásnár",
+    "Ansin",
+    "Nuaira",
+    "Nuairnach",
+    "Nuairba",
+    "Nuairnár"
+  ],
+  "gj": [
+    "અને",
+    "પણ",
+    "આપેલછે",
+    "પછી",
+    "ક્યારે"
+  ],
+  "gl": [
+    "E",
+    "Mais",
+    "Pero",
+    "Dado",
+    "Dada",
+    "Dados",
+    "Dadas",
+    "Entón",
+    "Logo",
+    "Cando"
+  ],
+  "he": [
+    "וגם",
+    "אבל",
+    "בהינתן",
+    "אז",
+    "אזי",
+    "כאשר"
+  ],
+  "hi": [
+    "और",
+    "तथा",
+    "पर",
+    "परन्तु",
+    "किन्तु",
+    "अगर",
+    "यदि",
+    "चूंकि",
+    "तब",
+    "तदा",
+    "जब",
+    "कदा"
+  ],
+  "hr": [
+    "I",
+    "Ali",
+    "Zadan",
+    "Zadani",
+    "Zadano",
+    "Ukoliko",
+    "Onda",
+    "Kada",
+    "Kad"
+  ],
+  "ht": [
+    "Ak",
+    "Epi",
+    "E",
+    "Men",
+    "Sipoze",
+    "Sipozeke",
+    "SipozeKe",
+    "Lèsaa",
+    "Lesaa",
+    "Lè",
+    "Le"
+  ],
+  "hu": [
+    "És",
+    "De",
+    "Amennyiben",
+    "Adott",
+    "Akkor",
+    "Majd",
+    "Ha",
+    "Amikor"
+  ],
+  "id": [
+    "Dan",
+    "Tapi",
+    "Tetapi",
+    "Dengan",
+    "Diketahui",
+    "Diasumsikan",
+    "Bila",
+    "Jika",
+    "Maka",
+    "Kemudian",
+    "Ketika"
+  ],
+  "is": [
+    "Og",
+    "En",
+    "Ef",
+    "Þá",
+    "Þegar"
+  ],
+  "it": [
+    "E",
+    "Ed",
+    "Ma",
+    "Dato",
+    "Data",
+    "Dati",
+    "Date",
+    "Allora",
+    "Quando"
+  ],
+  "ja": [
+    "且つ",
+    "かつ",
+    "然し",
+    "しかし",
+    "但し",
+    "ただし",
+    "前提",
+    "ならば",
+    "もし"
+  ],
+  "jv": [
+    "Lan",
+    "Tapi",
+    "Nanging",
+    "Ananging",
+    "Nalika",
+    "Nalikaning",
+    "Njuk",
+    "Banjur",
+    "Manawa",
+    "Menawa"
+  ],
+  "ka": [
+    "და",
+    "ასევე",
+    "მაგრამ",
+    "თუმცა",
+    "მოცემული",
+    "მოცემულია",
+    "ვთქვათ",
+    "მაშინ",
+    "როდესაც",
+    "როცა",
+    "როგორცკი",
+    "თუ"
+  ],
+  "kn": [
+    "ಮತ್ತು",
+    "ಆದರೆ",
+    "ನೀಡಿದ",
+    "ನಂತರ",
+    "ಸ್ಥಿತಿಯನ್ನು"
+  ],
+  "ko": [
+    "그리고",
+    "하지만",
+    "단",
+    "조건",
+    "먼저",
+    "그러면",
+    "만일",
+    "만약"
+  ],
+  "lt": [
+    "Ir",
+    "Bet",
+    "Duota",
+    "Tada",
+    "Kai"
+  ],
+  "lu": [
+    "an",
+    "a",
+    "awer",
+    "mä",
+    "ugeholl",
+    "dann",
+    "wann"
+  ],
+  "lv": [
+    "Un",
+    "Bet",
+    "Kad",
+    "Tad",
+    "Ja"
+  ],
+  "mk-Cyrl": [
+    "И",
+    "Но",
+    "Дадено",
+    "Дадена",
+    "Тогаш",
+    "Кога"
+  ],
+  "mk-Latn": [
+    "I",
+    "No",
+    "Dadeno",
+    "Dadena",
+    "Togash",
+    "Koga"
+  ],
+  "mn": [
+    "Мөн",
+    "Тэгээд",
+    "Гэхдээ",
+    "Харин",
+    "Өгөгдсөннь",
+    "Анх",
+    "Тэгэхэд",
+    "Үүнийдараа",
+    "Хэрэв"
+  ],
+  "ne": [
+    "र",
+    "अनि",
+    "तर",
+    "दिइएको",
+    "दिएको",
+    "यदि",
+    "त्यसपछि",
+    "अनी",
+    "जब"
+  ],
+  "nl": [
+    "En",
+    "Maar",
+    "Gegeven",
+    "Stel",
+    "Dan",
+    "Als",
+    "Wanneer"
+  ],
+  "no": [
+    "Og",
+    "Men",
+    "Gitt",
+    "Så",
+    "Når"
+  ],
+  "pa": [
+    "ਅਤੇ",
+    "ਪਰ",
+    "ਜੇਕਰ",
+    "ਜਿਵੇਂਕਿ",
+    "ਤਦ",
+    "ਜਦੋਂ"
+  ],
+  "pl": [
+    "Oraz",
+    "I",
+    "Ale",
+    "Zakładając",
+    "Mając",
+    "Zakładającże",
+    "Wtedy",
+    "Jeżeli",
+    "Jeśli",
+    "Gdy",
+    "Kiedy"
+  ],
+  "pt": [
+    "E",
+    "Mas",
+    "Dado",
+    "Dada",
+    "Dados",
+    "Dadas",
+    "Então",
+    "Entao",
+    "Quando"
+  ],
+  "ro": [
+    "Si",
+    "Și",
+    "Şi",
+    "Dar",
+    "Datefiind",
+    "Datfiind",
+    "Datăfiind",
+    "Datifiind",
+    "Dațifiind",
+    "Daţifiind",
+    "Atunci",
+    "Cand",
+    "Când"
+  ],
+  "ru": [
+    "И",
+    "Ктомуже",
+    "Также",
+    "Но",
+    "А",
+    "Иначе",
+    "Допустим",
+    "Дано",
+    "Пусть",
+    "То",
+    "Затем",
+    "Тогда",
+    "Когда",
+    "Если"
+  ],
+  "sk": [
+    "A",
+    "Atiež",
+    "Ataktiež",
+    "Azároveň",
+    "Ale",
+    "Pokiaľ",
+    "Zapredpokladu",
+    "Tak",
+    "Potom",
+    "Keď",
+    "Ak"
+  ],
+  "sl": [
+    "In",
+    "Ter",
+    "Toda",
+    "Ampak",
+    "Vendar",
+    "Dano",
+    "Podano",
+    "Zaradi",
+    "Privzeto",
+    "Nato",
+    "Potem",
+    "Takrat",
+    "Ko",
+    "Ce",
+    "Če",
+    "Kadar"
+  ],
+  "sr-Cyrl": [
+    "И",
+    "Али",
+    "Задато",
+    "Задате",
+    "Задати",
+    "Онда",
+    "Када",
+    "Кад"
+  ],
+  "sr-Latn": [
+    "I",
+    "Ali",
+    "Zadato",
+    "Zadate",
+    "Zadati",
+    "Onda",
+    "Kada",
+    "Kad"
+  ],
+  "sv": [
+    "Och",
+    "Men",
+    "Givet",
+    "Så",
+    "När"
+  ],
+  "ta": [
+    "மேலும்",
+    "மற்றும்",
+    "ஆனால்",
+    "கொடுக்கப்பட்ட",
+    "அப்பொழுது",
+    "எப்போது"
+  ],
+  "th": [
+    "และ",
+    "แต่",
+    "กำหนดให้",
+    "ดังนั้น",
+    "เมื่อ"
+  ],
+  "te": [
+    "మరియు",
+    "కాని",
+    "చెప్పబడినది",
+    "అప్పుడు",
+    "ఈపరిస్థితిలో"
+  ],
+  "tlh": [
+    "ej",
+    "latlh",
+    "ach",
+    "a",
+    "ghunoblu",
+    "DaHghubejlu",
+    "vaj",
+    "qaSDI"
+  ],
+  "tr": [
+    "Ve",
+    "Fakat",
+    "Ama",
+    "Diyelimki",
+    "Ozaman",
+    "Eğerki"
+  ],
+  "tt": [
+    "Һәм",
+    "Вә",
+    "Ләкин",
+    "Әмма",
+    "Әйтик",
+    "Нәтиҗәдә",
+    "Әгәр"
+  ],
+  "uk": [
+    "І",
+    "Атакож",
+    "Та",
+    "Але",
+    "Припустимо",
+    "Припустимощо",
+    "Нехай",
+    "Дано",
+    "То",
+    "Тоді",
+    "Якщо",
+    "Коли"
+  ],
+  "ur": [
+    "اور",
+    "لیکن",
+    "اگر",
+    "بالفرض",
+    "فرضکیا",
+    "پھر",
+    "تب",
+    "جب"
+  ],
+  "uz": [
+    "Ва",
+    "Лекин",
+    "Бирок",
+    "Аммо",
+    "Belgilangan",
+    "Унда",
+    "Агар"
+  ],
+  "vi": [
+    "Và",
+    "Nhưng",
+    "Biết",
+    "Cho",
+    "Thì",
+    "Khi"
+  ],
+  "zh-CN": [
+    "而且",
+    "并且",
+    "同时",
+    "但是",
+    "假如",
+    "假设",
+    "假定",
+    "那么",
+    "当"
+  ],
+  "ml": [
+    "ഒപ്പം",
+    "പക്ഷേ",
+    "നൽകിയത്",
+    "പിന്നെ",
+    "എപ്പോൾ"
+  ],
+  "zh-TW": [
+    "而且",
+    "並且",
+    "同時",
+    "但是",
+    "假如",
+    "假設",
+    "假定",
+    "那麼",
+    "當"
+  ],
+  "mr": [
+    "आणि",
+    "तसेच",
+    "पण",
+    "परंतु",
+    "जर",
+    "दिलेल्याप्रमाणे",
+    "मग",
+    "तेव्हा",
+    "जेव्हा"
+  ],
+  "amh": [
+    "እና",
+    "ግን",
+    "የተሰጠ",
+    "ከዚያ",
+    "መቼ"
+  ]
+}

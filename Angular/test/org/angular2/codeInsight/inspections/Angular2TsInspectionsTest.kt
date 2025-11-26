@@ -7,9 +7,11 @@ import com.intellij.htmltools.codeInspection.htmlInspections.HtmlFormInputWithou
 import com.intellij.lang.javascript.JSTestUtils
 import com.intellij.lang.javascript.inspections.*
 import com.intellij.lang.typescript.inspections.TypeScriptUnresolvedReferenceInspection
-import com.intellij.webSymbols.testFramework.moveToOffsetBySignature
+import com.intellij.polySymbols.testFramework.moveToOffsetBySignature
 import org.angular2.Angular2TestCase
 import org.angular2.Angular2TestModule
+import org.angular2.inspections.AngularUncalledSignalLengthPropertyAccessInspection
+import org.angular2.lang.Angular2Bundle
 
 /**
  * @see Angular2DecoratorInspectionsTest
@@ -96,5 +98,12 @@ class Angular2TsInspectionsTest : Angular2TestCase("inspections/ts", false) {
     checkHighlighting(inspections = listOf(HtmlFormInputWithoutLabelInspection::class.java),
                       dir = true,
                       extension = "html")
+
+  fun testUncalledSignalLengthPropertyAccess() =
+    checkHighlightingAndQuickFix(
+      Angular2TestModule.ANGULAR_CORE_20_1_4,
+      inspections = listOf(AngularUncalledSignalLengthPropertyAccessInspection::class.java),
+      quickFixName = Angular2Bundle.message("angular.inspection.uncalled-signal-length-property-access.quick-fix.message")
+    )
 
 }

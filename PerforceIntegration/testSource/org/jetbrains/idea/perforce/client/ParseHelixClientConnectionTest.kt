@@ -1,16 +1,16 @@
 package org.jetbrains.idea.perforce.client
 
 import com.intellij.vcs.test.VcsPlatformTest
+import org.jetbrains.idea.perforce.P4TestUtil
 import org.jetbrains.idea.perforce.perforce.connections.HelixClientConnectionParametersProvider
 import org.jetbrains.idea.perforce.perforce.connections.HelixClientConnectionParametersProvider.ConfigFiles
 import org.mockito.Mockito
-import java.io.File
 
 class ParseHelixClientConnectionTest : VcsPlatformTest() {
 
   fun `test parse single client connection`() {
     val configFiles = Mockito.mock(ConfigFiles::class.java)
-    val connectionMapFile = File("resources/connectionmap-single.xml")
+    val connectionMapFile = P4TestUtil.getResource("connectionmap-single.xml")
     assertTrue(connectionMapFile.exists())
 
     Mockito.`when`(configFiles.getClientConfig()).thenReturn(connectionMapFile)
@@ -26,7 +26,7 @@ class ParseHelixClientConnectionTest : VcsPlatformTest() {
 
   fun `test parse multi client connection`() {
     val configFiles = Mockito.mock(ConfigFiles::class.java)
-    val connectionMapFile = File("resources/connectionmap-multi.xml")
+    val connectionMapFile = P4TestUtil.getResource("connectionmap-multi.xml")
     assertTrue(connectionMapFile.exists())
 
     Mockito.`when`(configFiles.getClientConfig()).thenReturn(connectionMapFile)

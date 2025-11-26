@@ -1,4 +1,4 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.config
 
 import com.intellij.analysis.AnalysisScope
@@ -19,7 +19,6 @@ import com.intellij.testFramework.InspectionTestUtil
 import com.intellij.testFramework.assertEqualsToFile
 import com.intellij.testFramework.createGlobalContextForTool
 import com.intellij.testFramework.fixtures.impl.GlobalInspectionContextForTests
-import junit.framework.TestCase
 import org.intellij.terraform.hcl.HCLBundle
 import org.intellij.terraform.install.TfToolType
 import java.io.File
@@ -29,7 +28,7 @@ abstract class TfInspectionFixtureTestCase : InspectionFixtureTestCase() {
     val toolWrapper = LocalInspectionToolWrapper(tool)
     val sourceDir = myFixture.copyDirectoryToProject(File(testDir, "src").path, "")
     val psiDirectory = myFixture.psiManager.findDirectory(sourceDir)!!
-    TestCase.assertNotNull(psiDirectory)
+    assertNotNull(psiDirectory)
     val scope = AnalysisScope(psiDirectory)
     scope.invalidate()
     val globalContext = createGlobalContextForTool(scope, project, listOf<InspectionToolWrapper<*, *>>(toolWrapper))
@@ -39,10 +38,12 @@ abstract class TfInspectionFixtureTestCase : InspectionFixtureTestCase() {
     checkQuickFixes(globalContext, toolWrapper, sourceDir, testDir)
   }
 
-  private fun checkQuickFixes(globalContext: GlobalInspectionContextForTests,
-                              toolWrapper: LocalInspectionToolWrapper,
-                              sourceDir: VirtualFile,
-                              testDir: String) {
+  private fun checkQuickFixes(
+    globalContext: GlobalInspectionContextForTests,
+    toolWrapper: LocalInspectionToolWrapper,
+    sourceDir: VirtualFile,
+    testDir: String,
+  ) {
     for ((refEntity, descriptors) in globalContext.getPresentation(toolWrapper).problemElements.map) {
       for ((i, descriptor) in descriptors.withIndex()) {
         for (j in descriptor.fixes.orEmpty<QuickFix<*>>().indices) {
@@ -59,20 +60,24 @@ abstract class TfInspectionFixtureTestCase : InspectionFixtureTestCase() {
             
           """.trimIndent()
 
+          val origText = myFixture.file.text
+
           if (skipCheckPreview(intentionAction))
             myFixture.launchAction(intentionAction)
           else
             myFixture.checkPreviewAndLaunchAction(intentionAction)
 
+          val newText = myFixture.file.text
           assertEqualsToFile("quickfix ${intentionAction.text} result",
                              File(File(basePath, testDir), "after_${i}_${j}")
                                .apply { mkdirs() }
                                .resolve(refEntity.name),
-                             fixInfo + myFixture.file.text)
+                             fixInfo + newText)
 
-          UndoManager.getInstance(project).undo(TextEditorProvider.getInstance().getTextEditor(editor))
-          PsiDocumentManager.getInstance(project).commitAllDocuments()
-
+          if (newText != origText) {
+            UndoManager.getInstance(project).undo(TextEditorProvider.getInstance().getTextEditor(editor))
+            PsiDocumentManager.getInstance(project).commitAllDocuments()
+          }
         }
       }
     }
@@ -90,18 +95,17 @@ abstract class TfInspectionFixtureTestCase : InspectionFixtureTestCase() {
   //TODO: Fix preview
   private val skipPreview = setOf(
     "Add variable 'x'",
-    "Add closing braces before an element",
-    "Rename output",
+    "Rename",
+    "Rename block",
     "Convert to HCL2 expression",
-    "Rename variable",
     "Run Terraform init",
   )
 
   open fun skipCheckPreview(intentionAction: IntentionAction): Boolean = intentionAction.text in skipPreview
 
   private val skipQuickFix = setOf(
-    HCLBundle.message("duplicated.inspection.base.navigate.to.duplicate.quick.fix.name", ""),
-    HCLBundle.message("duplicated.inspection.base.show.other.duplicates.quick.fix.name"),
+    HCLBundle.message("navigate.to.duplicate.quick.fix.name"),
+    HCLBundle.message("show.all.duplicates.quick.fix.name"),
     HCLBundle.message("action.TfInitRequiredAction.text", TfToolType.TERRAFORM.executableName),
     HCLBundle.message("disable.deep.variable.search"),
     HCLBundle.message("action.AddProviderAction.text"),

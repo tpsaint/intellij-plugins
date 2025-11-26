@@ -4,20 +4,19 @@ package org.angular2.entities
 import com.intellij.lang.javascript.psi.JSType
 import com.intellij.model.Pointer
 import com.intellij.openapi.util.TextRange
+import com.intellij.polySymbols.PolySymbolApiStatus
+import com.intellij.polySymbols.PolySymbolQualifiedKind
+import com.intellij.polySymbols.utils.PolySymbolDeclaredInPsi
 import com.intellij.psi.PsiElement
 import com.intellij.psi.createSmartPointer
-import com.intellij.webSymbols.WebSymbolApiStatus
-import com.intellij.webSymbols.WebSymbolQualifiedKind
-import com.intellij.webSymbols.utils.WebSymbolDeclaredInPsi
-import java.util.*
 
 class Angular2AliasedDirectiveProperty(
   directive: Angular2Directive,
   delegate: Angular2DirectiveProperty,
   override val name: String,
   override val sourceElement: PsiElement,
-  override val textRangeInSourceElement: TextRange?
-) : Angular2DirectiveProperty, WebSymbolDeclaredInPsi {
+  override val textRangeInSourceElement: TextRange?,
+) : Angular2DirectiveProperty, PolySymbolDeclaredInPsi {
 
   private val delegate: Angular2DirectiveProperty =
     if (delegate is Angular2AliasedDirectiveProperty)
@@ -49,10 +48,10 @@ class Angular2AliasedDirectiveProperty(
   override val isSignalProperty: Boolean
     get() = delegate.isSignalProperty
 
-  override val apiStatus: WebSymbolApiStatus
+  override val apiStatus: PolySymbolApiStatus
     get() = delegate.apiStatus
 
-  override val qualifiedKind: WebSymbolQualifiedKind
+  override val qualifiedKind: PolySymbolQualifiedKind
     get() = delegate.qualifiedKind
 
   val originalName: String
@@ -78,8 +77,12 @@ class Angular2AliasedDirectiveProperty(
     && other.textRangeInSourceElement == textRangeInSourceElement
     && other.delegate == delegate
 
-  override fun hashCode(): Int =
-    Objects.hash(sourceElement, textRangeInSourceElement, delegate)
+  override fun hashCode(): Int {
+    var result = sourceElement.hashCode()
+    result = 31 * result + textRangeInSourceElement.hashCode()
+    result = 31 * result + delegate.hashCode()
+    return result
+  }
 
   override fun toString(): String =
     Angular2EntityUtils.toString(this)

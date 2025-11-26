@@ -1,25 +1,28 @@
 ### auto-generated section `build intellij.qodana.jvm.maven` start
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_resources")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
 
-jvm_resources(
-  name = "qodana-jvm-maven_resources",
-  files = glob(["resources/**/*"]),
+resourcegroup(
+  name = "maven_resources",
+  srcs = glob(["resources/**/*"]),
   strip_prefix = "resources"
 )
 
 jvm_library(
-  name = "qodana-jvm-maven",
+  name = "maven",
   module_name = "intellij.qodana.jvm.maven",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java"], allow_empty = True),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form"], allow_empty = True),
+  resources = [":maven_resources"],
   deps = [
     "@lib//:kotlin-stdlib",
+    "@community//platform/core-api:core",
+    "@community//platform/external-system-impl:externalSystem-impl",
     "@community//platform/platform-api:ide",
     "@community//platform/platform-impl:ide-impl",
     "@community//plugins/maven",
+    "@community//platform/projectModel-api:projectModel",
     "//contrib/qodana",
     "@community//platform/backend/observation",
-  ],
-  runtime_deps = [":qodana-jvm-maven_resources"]
+  ]
 )
 ### auto-generated section `build intellij.qodana.jvm.maven` end

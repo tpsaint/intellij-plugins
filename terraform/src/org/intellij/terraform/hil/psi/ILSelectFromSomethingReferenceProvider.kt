@@ -1,4 +1,4 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.hil.psi
 
 import com.intellij.openapi.application.ApplicationManager
@@ -109,15 +109,22 @@ object ILSelectFromSomethingReferenceProvider : PsiReferenceProvider() {
     if (HILPatterns.IlseDataSource.accepts(parent)) {
       return arrayOf(HCLElementLazyReference(element, false) { _, _ ->
         val module = this.element.getHCLHost()?.getTerraformModule()
-        val dataSources = module?.findDataSource(ev, getSelectFieldText(element)!!) ?: emptyList()
+        val dataSources = module?.getDefinedDataSources(ev, getSelectFieldText(element)!!) ?: emptyList()
         dataSources
+      })
+    }
+    if (HILPatterns.IlseEphemeralResource.accepts(parent)) {
+      return arrayOf(HCLElementLazyReference(element, false) { _, _ ->
+        val module = this.element.getHCLHost()?.getTerraformModule()
+        val ephemeralResource = module?.getDefinedEphemeralResources(ev, getSelectFieldText(element)) ?: emptyList()
+        ephemeralResource
       })
     }
 
     // TODO: get suitable resource/provider/etc
     return arrayOf(HCLElementLazyReference(element, false) { _, _ ->
       val module = this.element.getHCLHost()?.getTerraformModule()
-      val resources = module?.findResources(ev, getSelectFieldText(element)!!) ?: emptyList()
+      val resources = module?.getDefinedResources(ev, getSelectFieldText(element)!!) ?: emptyList()
       resources
     })
   }
@@ -186,7 +193,7 @@ object ILSelectFromSomethingReferenceProvider : PsiReferenceProvider() {
           }
           else {
             val suitableResolveTargets = when (initialContextType) {
-              HilContainingBlockType.IMPORT_OR_MOVED_BLOCK -> module.getDeclaredResources().filter { getResourceType(it) == name }
+              HilContainingBlockType.IMPORT_OR_MOVED_BLOCK -> module.getDefinedResources().filter { getResourceType(it) == name }
               HilContainingBlockType.UNSPECIFIED -> module.getDefinedOutputs().filter { it.name == name }
             }
             if (suitableResolveTargets.isNotEmpty()) {
@@ -341,7 +348,7 @@ object ILSelectFromSomethingReferenceProvider : PsiReferenceProvider() {
   }
 
   @Suppress("NAME_SHADOWING")
-  private fun resolveInType(type: Type?, context: PsiElement, name: String): HCLElement? {
+  private fun resolveInType(type: HclType?, context: PsiElement, name: String): HCLElement? {
     // TODO: Use not FakeProperty but actual PSI element from Type declaration
     return when (type) {
       is ObjectType -> type.elements?.get(name)?.let { type -> FakeTypeProperty(name, context, type, true) }

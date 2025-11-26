@@ -1,5 +1,6 @@
 package org.jetbrains.qodana.jvm.kotlin.metrics.cyclomaticComplexity
 
+import com.intellij.openapi.application.PluginPathManager
 import com.intellij.testFramework.TestDataPath
 import com.intellij.testFramework.replaceService
 import com.intellij.util.application
@@ -7,11 +8,14 @@ import kotlinx.coroutines.runBlocking
 import org.jetbrains.qodana.cloud.api.IjQDCloudClientProvider
 import org.jetbrains.qodana.cloud.api.IjQDCloudClientProviderTestImpl
 import org.jetbrains.qodana.staticAnalysis.inspections.config.QodanaProfileConfig
-import org.jetbrains.qodana.staticAnalysis.inspections.runner.QodanaRunnerTestCase
+import org.jetbrains.qodana.staticAnalysis.testFramework.QodanaRunnerTestCase
 import org.junit.Test
+import java.nio.file.Path
+import java.nio.file.Paths
 
-@TestDataPath("\$CONTENT_ROOT/testData/KotlinCyclomaticComplexityInspectionTest")
+@TestDataPath($$"$CONTENT_ROOT/test-data/KotlinCyclomaticComplexityInspectionTest")
 class KotlinCyclomaticComplexityInspectionTest: QodanaRunnerTestCase() {
+  override val testData: Path = Paths.get(PluginPathManager.getPluginHomePath("qodana"), "jvm", "kotlin", "test-data")
 
   override fun setUp() {
     super.setUp()

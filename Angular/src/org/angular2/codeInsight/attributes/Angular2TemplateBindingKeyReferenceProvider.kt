@@ -1,25 +1,27 @@
 package org.angular2.codeInsight.attributes
 
-import com.intellij.webSymbols.WebSymbol
-import com.intellij.webSymbols.WebSymbol.Companion.JS_PROPERTIES
-import com.intellij.webSymbols.query.WebSymbolsQueryExecutorFactory
-import com.intellij.webSymbols.references.PsiWebSymbolReferenceProvider
-import com.intellij.webSymbols.utils.asSingleSymbol
+import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.js.JS_PROPERTIES
+import com.intellij.polySymbols.query.PolySymbolQueryExecutorFactory
+import com.intellij.polySymbols.references.PsiPolySymbolReferenceProvider
+import com.intellij.polySymbols.utils.asSingleSymbol
 import org.angular2.lang.expr.psi.Angular2TemplateBinding
 import org.angular2.lang.expr.psi.Angular2TemplateBindingKey
 import org.angular2.web.NG_TEMPLATE_BINDINGS
 
-class Angular2TemplateBindingKeyReferenceProvider : PsiWebSymbolReferenceProvider<Angular2TemplateBindingKey> {
+class Angular2TemplateBindingKeyReferenceProvider : PsiPolySymbolReferenceProvider<Angular2TemplateBindingKey> {
 
-  override fun getReferencedSymbol(psiElement: Angular2TemplateBindingKey): WebSymbol? =
+  override fun getReferencedSymbol(psiElement: Angular2TemplateBindingKey): PolySymbol? =
     when ((psiElement.parent as? Angular2TemplateBinding)?.keyKind) {
-      Angular2TemplateBinding.KeyKind.LET -> WebSymbolsQueryExecutorFactory.create(psiElement)
-        .runNameMatchQuery(JS_PROPERTIES.withName(psiElement.name))
+      Angular2TemplateBinding.KeyKind.LET -> PolySymbolQueryExecutorFactory.create(psiElement)
+        .nameMatchQuery(JS_PROPERTIES, psiElement.name)
+        .run()
         .asSingleSymbol()
 
       Angular2TemplateBinding.KeyKind.BINDING ->
-        WebSymbolsQueryExecutorFactory.create(psiElement)
-          .runNameMatchQuery(NG_TEMPLATE_BINDINGS.withName(psiElement.name))
+        PolySymbolQueryExecutorFactory.create(psiElement)
+          .nameMatchQuery(NG_TEMPLATE_BINDINGS, psiElement.name)
+          .run()
           .asSingleSymbol()
 
       else -> null

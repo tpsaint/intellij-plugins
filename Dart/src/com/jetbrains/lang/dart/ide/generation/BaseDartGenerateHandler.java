@@ -39,8 +39,8 @@ public abstract class BaseDartGenerateHandler implements LanguageCodeInsightActi
   }
 
   @Override
-  public void invoke(final @NotNull Project project, final @NotNull Editor editor, final @NotNull PsiFile file) {
-    invoke(project, editor, file, editor.getCaretModel().getOffset());
+  public void invoke(final @NotNull Project project, final @NotNull Editor editor, final @NotNull PsiFile psiFile) {
+    invoke(project, editor, psiFile, editor.getCaretModel().getOffset());
   }
 
   public void invoke(final @NotNull Project project, final @NotNull Editor editor, final @NotNull PsiFile file, final int offset) {
@@ -90,7 +90,7 @@ public abstract class BaseDartGenerateHandler implements LanguageCodeInsightActi
       }
     };
 
-    if (CommandProcessor.getInstance().getCurrentCommand() == null) {
+    if (!CommandProcessor.getInstance().isCommandInProgress()) {
       CommandProcessor.getInstance().executeCommand(project, runnable, createMethodsFix.getCommandName(), null);
     }
     else {

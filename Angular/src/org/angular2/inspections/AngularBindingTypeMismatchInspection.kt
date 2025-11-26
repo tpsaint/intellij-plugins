@@ -3,16 +3,15 @@ package org.angular2.inspections
 
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
-import com.intellij.javascript.webSymbols.jsType
 import com.intellij.lang.javascript.evaluation.JSTypeEvaluationLocationProvider.withTypeEvaluationLocation
 import com.intellij.lang.javascript.psi.JSEmptyExpression
 import com.intellij.lang.javascript.psi.types.JSNamedTypeFactory
 import com.intellij.lang.javascript.psi.types.JSStringLiteralTypeImpl
 import com.intellij.lang.javascript.psi.types.JSTypeSource
 import com.intellij.lang.javascript.validation.JSTypeChecker
+import com.intellij.polySymbols.js.jsType
+import com.intellij.polySymbols.utils.unwrapMatchedSymbols
 import com.intellij.psi.xml.XmlAttribute
-import com.intellij.webSymbols.utils.qualifiedKind
-import com.intellij.webSymbols.utils.unwrapMatchedSymbols
 import org.angular2.codeInsight.Angular2HighlightingUtils
 import org.angular2.codeInsight.Angular2HighlightingUtils.withColor
 import org.angular2.codeInsight.attributes.Angular2AttributeDescriptor
@@ -20,7 +19,7 @@ import org.angular2.codeInsight.config.Angular2Compiler.isStrictTemplates
 import org.angular2.codeInsight.template.isTemplateTag
 import org.angular2.inspections.quickfixes.Angular2FixesFactory.getCreateInputTransformFixes
 import org.angular2.lang.Angular2Bundle
-import org.angular2.lang.expr.Angular2Language
+import org.angular2.lang.expr.Angular2ExprDialect
 import org.angular2.lang.expr.psi.Angular2Binding
 import org.angular2.lang.expr.psi.Angular2Interpolation
 import org.angular2.lang.expr.psi.Angular2TemplateBindings
@@ -95,6 +94,8 @@ class AngularBindingTypeMismatchInspection : AngularHtmlLikeTemplateLocalInspect
     holder: ProblemsHolder, attribute: XmlAttribute, descriptor: Angular2AttributeDescriptor,
     value: String?, bindingsTypeResolver: BindingsTypeResolver, reportOnValue: Boolean,
   ) {
+    val highlightType = Angular2InspectionUtils.getTypeScriptInspectionHighlightType(attribute)
+    if (highlightType == ProblemHighlightType.INFORMATION && !holder.isOnTheFly) return
     withTypeEvaluationLocation(attribute) {
       val valueType = if (value != null)
         JSStringLiteralTypeImpl(value, true, JSTypeSource.EMPTY_TS_EXPLICITLY_DECLARED)
@@ -105,9 +106,8 @@ class AngularBindingTypeMismatchInspection : AngularHtmlLikeTemplateLocalInspect
         descriptor.symbol.jsType
       )
 
-      val highlightType = Angular2InspectionUtils.getTypeScriptInspectionHighlightType(attribute)
-
-      JSTypeChecker.getErrorMessageIfTypeNotAssignableToType(attribute, symbolType, valueType, Angular2Language.optionHolder,
+      JSTypeChecker.getErrorMessageIfTypeNotAssignableToType(attribute, symbolType, valueType,
+                                                             Angular2ExprDialect.forContext(attribute).optionHolder,
                                                              "javascript.type.is.not.assignable.to.type")
         ?.let {
           holder.registerProblem(attribute.valueElement?.takeIf { reportOnValue } ?: attribute.nameElement ?: attribute, it,

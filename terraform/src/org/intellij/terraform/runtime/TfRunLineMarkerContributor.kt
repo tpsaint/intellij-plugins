@@ -1,4 +1,4 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.runtime
 
 import com.intellij.execution.RunManager
@@ -11,7 +11,7 @@ import com.intellij.openapi.actionSystem.Separator
 import com.intellij.openapi.project.DumbAware
 import com.intellij.psi.PsiElement
 import com.intellij.ui.IconManager
-import org.intellij.terraform.config.actions.TfInitAction
+import org.intellij.terraform.config.actions.isInitRequired
 import org.intellij.terraform.config.util.getApplicableToolType
 import org.intellij.terraform.hcl.HCLBundle
 import org.intellij.terraform.hcl.psi.HCLBlock
@@ -42,7 +42,7 @@ class TfRunLineMarkerContributor : RunLineMarkerContributor(), DumbAware {
 
     val icon: Icon
     val tooltipProvider: Function<PsiElement, String>
-    if (TfInitAction.isInitRequired(leaf.project, leaf.containingFile.virtualFile)) {
+    if (isInitRequired(leaf.project, leaf.containingFile.virtualFile)) {
       icon = IconManager.getInstance().createLayered(AllIcons.RunConfigurations.TestState.Run, AllIcons.Nodes.WarningMark)
       tooltipProvider = Function<PsiElement, String> { HCLBundle.message("not.initialized.inspection.error.message") }
     }
@@ -77,7 +77,8 @@ class TfRunLineMarkerContributor : RunLineMarkerContributor(), DumbAware {
 
   private fun getRunTemplateActions(toolType: TfToolType): Array<AnAction> {
     val actionManager = ActionManager.getInstance()
-    val group = actionManager.getAction(tfRunConfigurationType(toolType).actionGroupId)?.let { it as DefaultActionGroup }
+    val configurationType = tfRunConfigurationType(toolType) ?: return emptyArray()
+    val group = actionManager.getAction(configurationType.actionGroupId)?.let { it as DefaultActionGroup }
     return group?.getChildren(actionManager) ?: emptyArray()
   }
 

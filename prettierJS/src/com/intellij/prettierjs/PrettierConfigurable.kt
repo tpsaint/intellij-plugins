@@ -50,6 +50,7 @@ class PrettierConfigurable(private val project: Project) : BoundSearchableConfig
   private lateinit var packageField: NodePackageField
   private lateinit var runForFilesField: JBTextField
   private lateinit var runOnSaveCheckBox: JCheckBox
+  private lateinit var runOnPasteCheckBox: JCheckBox
   private lateinit var customIgnorePathField: TextFieldWithBrowseButton
   private var codeStyleModifierCheckBox: JCheckBox? = null
 
@@ -76,6 +77,7 @@ class PrettierConfigurable(private val project: Project) : BoundSearchableConfig
               addItemListener { e ->
                 if (e.stateChange == ItemEvent.SELECTED) {
                   runOnSaveCheckBox.isSelected = false
+                  runOnPasteCheckBox.isSelected = false
                   codeStyleModifierCheckBox?.isSelected = false
                 }
               }
@@ -190,6 +192,12 @@ class PrettierConfigurable(private val project: Project) : BoundSearchableConfig
       }.enabledIf(!disabledConfiguration.selected)
 
       row {
+        runOnPasteCheckBox = checkBox(PrettierBundle.message("run.on.paste.label"))
+          .bindSelected({ prettierState.configurationMode != ConfigurationMode.DISABLED && prettierState.runOnPaste }, { prettierState.runOnPaste = it })
+          .component
+      }.enabledIf(!disabledConfiguration.selected)
+
+      row {
         codeStyleModifierCheckBox = checkBox(PrettierBundle.message("prettier.checkbox.code.style.modification"))
           .bindSelected({ prettierState.configurationMode != ConfigurationMode.DISABLED && prettierState.codeStyleSettingsModifierEnabled }, { prettierState.codeStyleSettingsModifierEnabled = it })
           .component
@@ -205,6 +213,7 @@ class PrettierConfigurable(private val project: Project) : BoundSearchableConfig
       }.enabledIf(!disabledConfiguration.selected)
 
       onApply {
+        PrettierLanguageServiceManager.getInstance(project).terminateServices()
         CodeStyleSettingsManager.getInstance(project).notifyCodeStyleSettingsChanged()
         // We must update the code style settings immediately because the code style modifier may have changed.
         // To reflect the changes in the UI, we need to apply the code style settings.

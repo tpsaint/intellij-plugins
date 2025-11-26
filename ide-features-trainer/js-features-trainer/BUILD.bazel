@@ -1,73 +1,81 @@
 ### auto-generated section `build intellij.javascript.featuresTrainer` start
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_provided_library", "jvm_resources", "jvm_test")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_provided_library", "resourcegroup")
 
-jvm_resources(
+resourcegroup(
   name = "javascript-featuresTrainer_resources",
-  files = glob(["resources/**/*"]),
+  srcs = glob(["resources/**/*"]),
   strip_prefix = "resources"
 )
 
 jvm_provided_library(
-  name = "javascript-impl_provided",
-  lib = "//plugins/JavaScriptLanguage:javascript-impl"
+  name = "plugins_javascript-backend_provided",
+  lib = "//plugins/JavaScriptLanguage:javascript-backend"
 )
 
 jvm_library(
   name = "javascript-featuresTrainer",
   module_name = "intellij.javascript.featuresTrainer",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java"], allow_empty = True),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form"], allow_empty = True),
+  resources = [":javascript-featuresTrainer_resources"],
   deps = [
     "//plugins/JavaScriptLanguage/javascript-parser",
     "@lib//:kotlin-stdlib",
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/code-style-api:codeStyle",
+    "@community//platform/core-api:core",
+    "@community//platform/editor-ui-api:editor-ui",
+    "@community//platform/projectModel-api:projectModel",
     "@community//platform/testRunner",
-    "//plugins/JavaScriptLanguage:javascript",
     "@community//platform/smRunner",
     "@community//plugins/ide-features-trainer:featuresTrainer",
     "@community//platform/platform-impl:ide-impl",
     "@community//platform/analysis-impl",
     "@community//platform/refactoring",
-    "//plugins/JavaScriptLanguage/javascript-frontback-impl",
     "@community//platform/xdebugger-api:debugger",
     "@community//platform/core-ui",
     "//plugins/JavaScriptLanguage/javascript-psi-impl",
-    ":javascript-impl_provided",
-  ],
-  runtime_deps = [":javascript-featuresTrainer_resources"]
+    ":plugins_javascript-backend_provided",
+  ]
 )
 
 jvm_library(
   name = "javascript-featuresTrainer_test_lib",
   visibility = ["//visibility:public"],
-  srcs = glob(["testSrc/**/*.kt", "testSrc/**/*.java"], allow_empty = True),
+  srcs = glob(["testSrc/**/*.kt", "testSrc/**/*.java", "testSrc/**/*.form"], allow_empty = True),
   associates = [":javascript-featuresTrainer"],
   deps = [
     "//plugins/JavaScriptLanguage/javascript-parser",
     "@lib//:kotlin-stdlib",
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/code-style-api:codeStyle",
+    "@community//platform/core-api:core",
+    "@community//platform/editor-ui-api:editor-ui",
+    "@community//platform/projectModel-api:projectModel",
     "@community//platform/testRunner",
     "@community//platform/testRunner:testRunner_test_lib",
-    "//plugins/JavaScriptLanguage:javascript",
     "@community//platform/smRunner",
     "@community//platform/smRunner:smRunner_test_lib",
     "@community//plugins/ide-features-trainer:featuresTrainer",
     "@community//plugins/ide-features-trainer:featuresTrainer_test_lib",
     "@community//platform/platform-impl:ide-impl",
-    "@community//platform/platform-impl:ide-impl_test_lib",
     "@community//platform/analysis-impl",
     "@community//platform/refactoring",
-    "//plugins/JavaScriptLanguage/javascript-frontback-impl",
     "@community//platform/xdebugger-api:debugger",
     "@community//platform/core-ui",
-    "//plugins/JavaScriptLanguage:javascript-impl",
     "//plugins/JavaScriptLanguage/javascript-psi-impl",
     "@community//platform/testFramework",
     "@community//platform/testFramework:testFramework_test_lib",
-  ],
-  runtime_deps = [":javascript-featuresTrainer_resources"]
+    ":plugins_javascript-backend_provided",
+  ]
 )
+### auto-generated section `build intellij.javascript.featuresTrainer` end
 
-jvm_test(
+### auto-generated section `test intellij.javascript.featuresTrainer` start
+load("@community//build:tests-options.bzl", "jps_test")
+
+jps_test(
   name = "javascript-featuresTrainer_test",
   runtime_deps = [":javascript-featuresTrainer_test_lib"]
 )
-### auto-generated section `build intellij.javascript.featuresTrainer` end
+### auto-generated section `test intellij.javascript.featuresTrainer` end

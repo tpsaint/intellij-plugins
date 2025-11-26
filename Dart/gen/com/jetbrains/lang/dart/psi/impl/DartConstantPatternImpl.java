@@ -28,6 +28,12 @@ public class DartConstantPatternImpl extends DartPsiCompositeElementImpl impleme
   }
 
   @Override
+  @Nullable
+  public DartArguments getArguments() {
+    return findChildByClass(DartArguments.class);
+  }
+
+  @Override
   @NotNull
   public List<DartElement> getElementList() {
     return PsiTreeUtil.getChildrenOfTypeAsList(this, DartElement.class);

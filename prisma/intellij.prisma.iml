@@ -14,10 +14,17 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="kotlin-stdlib" level="project" />
-    <orderEntry type="library" name="jetbrains.markdown" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.markdown" />
+    <orderEntry type="module" module-name="intellij.platform.analysis" />
+    <orderEntry type="module" module-name="intellij.platform.codeStyle" />
+    <orderEntry type="module" module-name="intellij.platform.editor.ui" />
     <orderEntry type="module" module-name="intellij.platform.ide.impl" />
+    <orderEntry type="module" module-name="intellij.platform.indexing" />
+    <orderEntry type="module" module-name="intellij.platform.projectModel" />
+    <orderEntry type="module" module-name="intellij.platform.refactoring" />
     <orderEntry type="module" module-name="intellij.platform.usageView" />
-    <orderEntry type="library" name="gson" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.gson" />
+    <orderEntry type="library" name="eclipse.lsp4j" level="project" />
     <orderEntry type="module" module-name="intellij.platform.ide" />
     <orderEntry type="module" module-name="intellij.platform.lang" />
     <orderEntry type="module" module-name="intellij.xml.parser" />
@@ -30,9 +37,8 @@
     <orderEntry type="module" module-name="intellij.platform.markdown.utils" />
     <orderEntry type="module" module-name="intellij.platform.codeStyle.impl" />
     <orderEntry type="module" module-name="intellij.xml.impl" />
-    <orderEntry type="module" module-name="intellij.javascript" />
     <orderEntry type="module" module-name="intellij.javascript.plugin" />
-    <orderEntry type="module" module-name="intellij.javascript.impl" />
+    <orderEntry type="module" module-name="intellij.javascript.backend" />
     <orderEntry type="module" module-name="intellij.platform.lsp" />
     <orderEntry type="module" module-name="intellij.platform.execution" />
     <orderEntry type="module" module-name="intellij.platform.testFramework" scope="TEST" />
@@ -40,8 +46,7 @@
     <orderEntry type="module" module-name="intellij.platform.lsp.testFramework" scope="TEST" />
     <orderEntry type="module" module-name="intellij.idea.ultimate.customization" scope="TEST" />
     <orderEntry type="module" module-name="intellij.javascript.web" scope="TEST" />
-    <orderEntry type="module" module-name="intellij.platform.webSymbols" scope="TEST" />
-    <orderEntry type="module" module-name="intellij.platform.lsp.impl" />
-    <orderEntry type="module" module-name="intellij.platform.webSymbols.testFramework" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.polySymbols" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.polySymbols.testFramework" scope="TEST" />
   </component>
 </module>

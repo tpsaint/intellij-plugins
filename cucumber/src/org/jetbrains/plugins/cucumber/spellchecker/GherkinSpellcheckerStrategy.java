@@ -8,19 +8,21 @@ import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.impl.source.tree.LeafElement;
 import com.intellij.spellchecker.quickfixes.SpellCheckerQuickFixFactory;
+import com.intellij.spellchecker.statistics.SpellcheckerRateTracker;
 import com.intellij.spellchecker.tokenizer.SpellcheckingStrategy;
 import com.intellij.spellchecker.tokenizer.Tokenizer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.plugins.cucumber.psi.GherkinElementType;
 
 import java.util.List;
+import java.util.Set;
 
 public final class GherkinSpellcheckerStrategy extends SpellcheckingStrategy implements DumbAware {
   @Override
-  public @NotNull Tokenizer getTokenizer(final PsiElement element) {
+  public @NotNull Tokenizer<?> getTokenizer(PsiElement element) {
     if (element instanceof LeafElement) {
       final ASTNode node = element.getNode();
-      if (node != null && node.getElementType() instanceof GherkinElementType){
+      if (node != null && node.getElementType() instanceof GherkinElementType) {
         return TEXT_TOKENIZER;
       }
     }
@@ -31,9 +33,11 @@ public final class GherkinSpellcheckerStrategy extends SpellcheckingStrategy imp
   public LocalQuickFix[] getRegularFixes(@NotNull PsiElement element,
                                          @NotNull TextRange textRange,
                                          boolean useRename,
-                                         String typo) {
-    List<LocalQuickFix> result = SpellCheckerQuickFixFactory.changeToVariants(element, textRange, typo);
-    result.add(SpellCheckerQuickFixFactory.saveTo(element, textRange, typo));
+                                         String typo,
+                                         Set<String> suggestions) {
+    SpellcheckerRateTracker tracker = new SpellcheckerRateTracker(element);
+    List<LocalQuickFix> result = SpellCheckerQuickFixFactory.changeToVariants(element, textRange, typo, tracker, suggestions);
+    result.add(SpellCheckerQuickFixFactory.saveTo(element, textRange, typo, tracker));
     return result.toArray(LocalQuickFix.EMPTY_ARRAY);
   }
 }

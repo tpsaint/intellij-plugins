@@ -1,6 +1,6 @@
 package org.angular2.web.scopes
 
-import com.intellij.css.frontback.icons.CssFrontbackApiIcons
+import com.intellij.css.common.CssIcons
 import com.intellij.lang.javascript.JSStringUtil
 import com.intellij.lang.javascript.JSTokenTypes
 import com.intellij.lang.javascript.psi.JSImplicitElementProvider
@@ -12,21 +12,21 @@ import com.intellij.model.Pointer
 import com.intellij.openapi.util.NlsSafe
 import com.intellij.openapi.util.TextRange
 import com.intellij.platform.backend.presentation.TargetPresentation
+import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.PolySymbolOrigin
+import com.intellij.polySymbols.PolySymbolQualifiedKind
+import com.intellij.polySymbols.css.CSS_PROPERTIES
+import com.intellij.polySymbols.css.properties.AbstractCssCustomPropertySymbolDeclaredInPsi
+import com.intellij.polySymbols.utils.PolySymbolScopeWithCache
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.createSmartPointer
-import com.intellij.psi.css.impl.CssNamedItemPresentation
+import com.intellij.psi.css.impl.CssPsiPresentationService
 import com.intellij.psi.css.impl.util.CssUtil
 import com.intellij.psi.stubs.StubIndex
 import com.intellij.psi.util.elementType
 import com.intellij.psi.xml.XmlAttribute
 import com.intellij.util.asSafely
-import com.intellij.webSymbols.WebSymbol
-import com.intellij.webSymbols.WebSymbol.Companion.CSS_PROPERTIES
-import com.intellij.webSymbols.WebSymbolOrigin
-import com.intellij.webSymbols.WebSymbolQualifiedKind
-import com.intellij.webSymbols.WebSymbolsScopeWithCache
-import com.intellij.webSymbols.css.properties.AbstractCssCustomPropertySymbolDeclaredInPsi
 import org.angular2.Angular2DecoratorUtil.HOST_BINDING_DEC
 import org.angular2.Angular2DecoratorUtil.getDecoratorForLiteralParameter
 import org.angular2.Angular2DecoratorUtil.isHostBinding
@@ -41,44 +41,36 @@ import org.angular2.lang.html.psi.Angular2HtmlBoundAttribute
 import org.jetbrains.annotations.Nls
 
 class Angular2CustomCssPropertiesScope(file: PsiFile) :
-  WebSymbolsScopeWithCache<PsiFile, Unit>(Angular2Framework.ID, file.project, file, Unit) {
+  PolySymbolScopeWithCache<PsiFile, Unit>(Angular2Framework.ID, file.project, file, Unit) {
 
-  override fun initialize(consumer: (WebSymbol) -> Unit, cacheDependencies: MutableSet<Any>) {
+  override fun initialize(consumer: (PolySymbol) -> Unit, cacheDependencies: MutableSet<Any>) {
     cacheDependencies.add(StubIndex.getInstance().getStubIndexModificationTracker(project))
 
     val scope = CssUtil.getCompletionAndResolvingScopeForElement(dataHolder)
 
-    StubIndex.getInstance().processAllKeys(
-      Angular2CustomCssPropertyInJsIndexKey,
-      { name ->
-        StubIndex.getInstance().processElements(Angular2CustomCssPropertyInJsIndexKey, name, project, scope,
-                                                JSImplicitElementProvider::class.java) {
-          when (it) {
-            is JSProperty -> createCustomCssProperty(it)?.let(consumer)
-            is ES6Decorator -> it.stubSafeCallArguments.firstOrNull()?.asSafely<JSLiteralExpression>()
-              ?.let { createCustomCssProperty(it) }
-              ?.let(consumer)
-          }
-          true
+    StubIndex.getInstance().getAllKeys(Angular2CustomCssPropertyInJsIndexKey, project).forEach { name ->
+      StubIndex.getInstance().processElements(Angular2CustomCssPropertyInJsIndexKey, name, project, scope,
+                                              JSImplicitElementProvider::class.java) {
+        when (it) {
+          is JSProperty -> createCustomCssProperty(it)?.let(consumer)
+          is ES6Decorator -> it.stubSafeCallArguments.firstOrNull()?.asSafely<JSLiteralExpression>()
+            ?.let { createCustomCssProperty(it) }
+            ?.let(consumer)
         }
-      },
-      scope
-    )
+        true
+      }
+    }
 
-    StubIndex.getInstance().processAllKeys(
-      Angular2CustomCssPropertyInHtmlAttributeIndexKey,
-      { name ->
-        StubIndex.getInstance().processElements(Angular2CustomCssPropertyInHtmlAttributeIndexKey, name, project, scope,
-                                                Angular2HtmlBoundAttribute::class.java) {
-          createCustomCssProperty(it)?.let(consumer)
-          true
-        }
-      },
-      scope
-    )
+    StubIndex.getInstance().getAllKeys(Angular2CustomCssPropertyInHtmlAttributeIndexKey, project).forEach { name ->
+      StubIndex.getInstance().processElements(Angular2CustomCssPropertyInHtmlAttributeIndexKey, name, project, scope,
+                                              Angular2HtmlBoundAttribute::class.java) {
+        createCustomCssProperty(it)?.let(consumer)
+        true
+      }
+    }
   }
 
-  override fun provides(qualifiedKind: WebSymbolQualifiedKind): Boolean =
+  override fun provides(qualifiedKind: PolySymbolQualifiedKind): Boolean =
     qualifiedKind == CSS_PROPERTIES
 
   override fun createPointer(): Pointer<Angular2CustomCssPropertiesScope> {
@@ -134,8 +126,8 @@ class Angular2CustomCssPropertiesScope(file: PsiFile) :
     final override val textRangeInSourceElement: TextRange? =
       getInitialOffset().let { TextRange(info.nameOffset + it, info.nameOffset + it + info.name.length) }
 
-    final override val origin: WebSymbolOrigin
-      get() = WebSymbolOrigin.empty()
+    final override val origin: PolySymbolOrigin
+      get() = PolySymbolOrigin.empty()
 
     final override val name: @NlsSafe String = info.name
 
@@ -148,8 +140,8 @@ class Angular2CustomCssPropertiesScope(file: PsiFile) :
     @Suppress("HardCodedStringLiteral")
     override val presentation: TargetPresentation =
       TargetPresentation.builder(name.removePrefix("--"))
-        .icon(CssFrontbackApiIcons.Custom_property)
-        .containerText(CssNamedItemPresentation.getLocationString(sourceElement))
+        .icon(CssIcons.Custom_property)
+        .containerText(CssPsiPresentationService.getInstance().getLocationString(sourceElement))
         .presentation()
 
   }

@@ -19,25 +19,31 @@ import org.intellij.lang.annotations.Language
 import org.jdom.JDOMException
 import org.jetbrains.qodana.coroutines.QodanaDispatchers
 import org.jetbrains.qodana.staticAnalysis.profile.providers.QodanaEmbeddedProfile
+import org.jetbrains.qodana.ui.Linter
 import org.jetbrains.qodana.ui.getQodanaImageNameMatchingIDE
 import java.io.IOException
 import java.nio.file.Path
 import kotlin.io.path.Path
 
-const val APPLIED_IN_CI_COMMENT = "(Applied in CI/CD pipeline)"
+const val APPLIED_IN_CI_COMMENT: String = "(Applied in CI/CD pipeline)"
 
 class QodanaYamlHeaderItemProvider : QodanaYamlItemProvider {
   companion object {
-    const val ID = "header"
+    const val ID: String = "header"
   }
 
-  override suspend fun provide(project: Project): QodanaYamlItem {
+  override suspend fun provide(project: Project, context: DefaultQodanaYamlContext): QodanaYamlItem? {
     @Language("YAML")
     val content = """
       #-------------------------------------------------------------------------------#
       #               Qodana analysis is configured by qodana.yaml file               #
       #             https://www.jetbrains.com/help/qodana/qodana-yaml.html            #
       #-------------------------------------------------------------------------------#
+
+      #################################################################################
+      #              WARNING: Do not store sensitive information in this file,        #
+      #               as its contents will be included in the Qodana report.          #
+      #################################################################################
     """.trimIndent()
     return QodanaYamlItem(ID, -100, content)
   }
@@ -45,10 +51,10 @@ class QodanaYamlHeaderItemProvider : QodanaYamlItemProvider {
 
 class QodanaYamlVersionItemProvider : QodanaYamlItemProvider {
   companion object {
-    const val ID = "version"
+    const val ID: String = "version"
   }
 
-  override suspend fun provide(project: Project): QodanaYamlItem {
+  override suspend fun provide(project: Project, context: DefaultQodanaYamlContext): QodanaYamlItem? {
     @Language("YAML")
     val content = "version: \"1.0\""
     return QodanaYamlItem(ID, 0, content)
@@ -60,7 +66,7 @@ class QodanaYamlProfileItemProvider : QodanaYamlItemProvider {
     const val ID: String = "profile"
   }
 
-  override suspend fun provide(project: Project): QodanaYamlItem {
+  override suspend fun provide(project: Project, context: DefaultQodanaYamlContext): QodanaYamlItem? {
     val profileName = getProjectCustomProfileName(project) ?: QodanaEmbeddedProfile.QODANA_STARTER.profileName
     @Language("YAML")
     val content = """
@@ -124,10 +130,10 @@ class QodanaYamlProfileItemProvider : QodanaYamlItemProvider {
 
 class QodanaYamlIncludeItemProvider : QodanaYamlItemProvider {
   companion object {
-    const val ID = "include"
+    const val ID: String = "include"
   }
 
-  override suspend fun provide(project: Project): QodanaYamlItem {
+  override suspend fun provide(project: Project, context: DefaultQodanaYamlContext): QodanaYamlItem? {
     @Language("YAML")
     val content = """
       
@@ -141,10 +147,10 @@ class QodanaYamlIncludeItemProvider : QodanaYamlItemProvider {
 
 class QodanaYamlExcludeItemProvider : QodanaYamlItemProvider {
   companion object {
-    const val ID = "exclude"
+    const val ID: String = "exclude"
   }
 
-  override suspend fun provide(project: Project): QodanaYamlItem {
+  override suspend fun provide(project: Project, context: DefaultQodanaYamlContext): QodanaYamlItem? {
     @Language("YAML")
     val content = """
       
@@ -160,10 +166,10 @@ class QodanaYamlExcludeItemProvider : QodanaYamlItemProvider {
 
 class QodanaYamlBootstrapItemProvider : QodanaYamlItemProvider {
   companion object {
-    const val ID = "bootstrap"
+    const val ID: String = "bootstrap"
   }
 
-  override suspend fun provide(project: Project): QodanaYamlItem {
+  override suspend fun provide(project: Project, context: DefaultQodanaYamlContext): QodanaYamlItem? {
     @Language("YAML")
     val content = """
       
@@ -176,10 +182,10 @@ class QodanaYamlBootstrapItemProvider : QodanaYamlItemProvider {
 
 class QodanaYamlPluginItemProvider : QodanaYamlItemProvider {
   companion object {
-    const val ID = "plugins"
+    const val ID: String = "plugins"
   }
 
-  override suspend fun provide(project: Project): QodanaYamlItem {
+  override suspend fun provide(project: Project, context: DefaultQodanaYamlContext): QodanaYamlItem? {
     @Language("YAML")
     val content = """
       
@@ -191,28 +197,66 @@ class QodanaYamlPluginItemProvider : QodanaYamlItemProvider {
   }
 }
 
-// TODO – move this provider to the top when QD-5820 fixed
-class QodanaYamlLinterItemProvider : QodanaYamlItemProvider {
+class QodanaYamlFailureConditionsItemProvider : QodanaYamlItemProvider {
   companion object {
-    const val ID = "linter"
+    const val ID: String = "failureConditions"
   }
 
-  override suspend fun provide(project: Project): QodanaYamlItem {
-    if (ApplicationInfo.getInstance().build.productCode == "RD") {
-      @Language("YAML")
-      val content = """
-      
-      #Specify IDE code to run analysis without container $APPLIED_IN_CI_COMMENT
-      ide: QDNET
-    """.trimIndent()
-      return QodanaYamlItem(ID, 1, content)
-    }
+  override suspend fun provide(project: Project, context: DefaultQodanaYamlContext): QodanaYamlItem? {
     @Language("YAML")
     val content = """
       
-      #Specify Qodana linter for analysis $APPLIED_IN_CI_COMMENT
-      linter: ${getQodanaImageNameMatchingIDE(useVersionPostfix = true)}
+      # Quality gate. Will fail the CI/CD pipeline if any condition is not met
+      # severityThresholds - configures maximum thresholds for different problem severities
+      # testCoverageThresholds - configures minimum code coverage on a whole project and newly added code
+      # Code Coverage is available in Ultimate and Ultimate Plus plans
+      #failureConditions:
+      #  severityThresholds:
+      #    any: 15
+      #    critical: 5
+      #  testCoverageThresholds:
+      #    fresh: 70
+      #    total: 50
     """.trimIndent()
+    return QodanaYamlItem(ID, 150, content)
+  }
+}
+
+// TODO – move this provider to the top when QD-5820 fixed
+class QodanaYamlLinterItemProvider : QodanaYamlItemProvider {
+  companion object {
+    const val ID: String = "linter"
+  }
+  @Language("YAML")
+  private val githubPromoContent = """
+      
+    #Qodana supports other languages, for example, Python, JavaScript, TypeScript, Go, C#, PHP
+    #For all supported languages see https://www.jetbrains.com/help/qodana/linters.html
+    linter: ${getQodanaImageNameMatchingIDE(useVersionPostfix = true, Linter.IC)}
+  """.trimIndent()
+
+  @Language("YAML")
+  private val dotnetContent = """
+    
+    #Specify IDE code to run analysis without container $APPLIED_IN_CI_COMMENT
+    ide: QDNET
+  """.trimIndent()
+
+  @Language("YAML")
+  private val defaultContent = """
+    
+    #Specify Qodana linter for analysis $APPLIED_IN_CI_COMMENT
+    linter: ${getQodanaImageNameMatchingIDE(useVersionPostfix = true)}
+  """.trimIndent()
+
+  override suspend fun provide(project: Project, context: DefaultQodanaYamlContext): QodanaYamlItem? {
+    if (ApplicationInfo.getInstance().build.productCode == "RD") {
+      return QodanaYamlItem(ID, 1, dotnetContent)
+    }
+    val content = when (context.linterUsed) {
+      LinterUsed.DEFAULT -> defaultContent
+      LinterUsed.GITHUB_PROMO -> githubPromoContent
+    }
     return QodanaYamlItem(ID, 1000, content)
   }
 }

@@ -6,51 +6,54 @@ import com.intellij.psi.*;
 import com.intellij.psi.impl.source.resolve.reference.impl.manipulators.StringLiteralManipulator;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.ProcessingContext;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.plugins.cucumber.CucumberUtil;
 import org.jetbrains.plugins.cucumber.java.CucumberJavaUtil;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class CucumberJavaReferenceProvider extends PsiReferenceProvider {
-
+@NotNullByDefault
+public final class CucumberJavaReferenceProvider extends PsiReferenceProvider {
   @Override
-  public boolean acceptsTarget(@NotNull PsiElement target) {
-    return target instanceof PomTargetPsiElement &&
-           ((PomTargetPsiElement)target).getTarget() instanceof CucumberJavaParameterPomTarget;
+  public boolean acceptsTarget(PsiElement target) {
+    return target instanceof PomTargetPsiElement pomTarget && pomTarget.getTarget() instanceof CucumberJavaParameterPomTarget;
   }
 
   @Override
-  public PsiReference @NotNull [] getReferencesByElement(@NotNull PsiElement element, @NotNull ProcessingContext context) {
+  public PsiReference[] getReferencesByElement(PsiElement element, ProcessingContext context) {
     if (!(element instanceof PsiLiteralExpression literalExpression)) {
       return PsiReference.EMPTY_ARRAY;
     }
-    Object value = literalExpression.getValue();
-    if (!(value instanceof String)) {
+
+    if (!(literalExpression.getValue() instanceof String literalValue) || !CucumberUtil.isCucumberExpression(literalValue)) {
+      // Custom `ParameterType`s can only be used in Cucumber expressions.
       return PsiReference.EMPTY_ARRAY;
     }
 
-    PsiAnnotation annotation = PsiTreeUtil.getParentOfType(element, PsiAnnotation.class);
-    if (annotation == null) {
-      return PsiReference.EMPTY_ARRAY;
+    if (isAnnotationStep(literalExpression) || isJava8Step(literalExpression)) {
+      final List<CucumberJavaParameterTypeReference> result = new ArrayList<>();
+      CucumberUtil.processParameterTypesInCucumberExpression(literalValue, range -> {
+        // Skip " at the beginning of the string literal
+        range = range.shiftRight(StringLiteralManipulator.getValueRange(literalExpression).getStartOffset());
+        result.add(new CucumberJavaParameterTypeReference(literalExpression, range));
+        return true;
+      });
+      return result.toArray(new CucumberJavaParameterTypeReference[0]);
     }
 
-    if (!CucumberJavaUtil.isCucumberStepAnnotation(annotation)) {
-      return PsiReference.EMPTY_ARRAY;
-    }
-    String cucumberExpression = CucumberJavaUtil.getAnnotationValue(annotation);
-    if (cucumberExpression == null) {
-      return PsiReference.EMPTY_ARRAY;
-    }
+    return PsiReference.EMPTY_ARRAY;
+  }
 
-    List<CucumberJavaParameterTypeReference> result = new ArrayList<>();
-    CucumberUtil.processParameterTypesInCucumberExpression(literalExpression.getValue().toString(), range -> {
-      // Skip " in the begin of the String Literal
-      range = range.shiftRight(StringLiteralManipulator.getValueRange(literalExpression).getStartOffset());
-      result.add(new CucumberJavaParameterTypeReference(element, range));
-      return true;
-    });
-    return result.toArray(new CucumberJavaParameterTypeReference[0]);
+  private static boolean isAnnotationStep(PsiLiteralExpression literalExpression) {
+    final PsiMethod method = PsiTreeUtil.getParentOfType(literalExpression, PsiMethod.class);
+    if (method == null) return false;
+    return CucumberJavaUtil.isAnnotationStepDefinition(method);
+  }
+
+  private static boolean isJava8Step(PsiLiteralExpression literalExpression) {
+    final PsiMethodCallExpression methodCallExpression = PsiTreeUtil.getParentOfType(literalExpression, PsiMethodCallExpression.class);
+    if (methodCallExpression == null) return false;
+    return CucumberJavaUtil.isJava8StepDefinition(methodCallExpression);
   }
 }

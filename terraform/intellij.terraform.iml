@@ -12,29 +12,38 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="intellij.platform.analysis" />
+    <orderEntry type="module" module-name="intellij.platform.codeStyle" />
+    <orderEntry type="module" module-name="intellij.platform.concurrency" />
+    <orderEntry type="module" module-name="intellij.platform.core" />
+    <orderEntry type="module" module-name="intellij.platform.editor.ui" />
+    <orderEntry type="module" module-name="intellij.platform.indexing" />
+    <orderEntry type="module" module-name="intellij.platform.macro" />
     <orderEntry type="module" module-name="intellij.platform.projectModel" />
     <orderEntry type="module" module-name="intellij.platform.editor.ex" />
+    <orderEntry type="module" module-name="intellij.platform.core.impl" />
     <orderEntry type="module" module-name="intellij.platform.indexing.impl" />
     <orderEntry type="module" module-name="intellij.platform.ide" />
     <orderEntry type="module" module-name="intellij.platform.ide.impl" />
     <orderEntry type="module" module-name="intellij.platform.ide.core.impl" />
+    <orderEntry type="module" module-name="intellij.platform.refactoring" />
     <orderEntry type="module" module-name="intellij.platform.usageView" />
     <orderEntry type="module" module-name="intellij.platform.lang.impl" />
     <orderEntry type="module" module-name="intellij.platform.execution.impl" />
     <orderEntry type="module" module-name="intellij.fileWatcher" />
-    <orderEntry type="library" name="jackson" level="project" />
-    <orderEntry type="library" name="jackson-databind" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.jackson" />
+    <orderEntry type="module" module-name="intellij.libraries.jackson.databind" />
     <orderEntry type="module-library">
       <library name="terraform-metadata" type="repository">
-        <properties maven-id="org.intellij.plugins.hcl.terraform:terraform-metadata:2024.1.21">
+        <properties maven-id="org.intellij.plugins.hcl.terraform:terraform-metadata:2025.3">
           <verification>
-            <artifact url="file://$MAVEN_REPOSITORY$/org/intellij/plugins/hcl/terraform/terraform-metadata/2024.1.21/terraform-metadata-2024.1.21.jar">
-              <sha256sum>07c1181d111329bf7d660eaba9f153c0ce5a1119820777e05b6e3d27ec958246</sha256sum>
+            <artifact url="file://$MAVEN_REPOSITORY$/org/intellij/plugins/hcl/terraform/terraform-metadata/2025.3/terraform-metadata-2025.3.jar">
+              <sha256sum>72247e85abb45de622df7bdddfd2bf9ac57fa4cd4d507a3c890c9eccc7ef70b2</sha256sum>
             </artifact>
           </verification>
         </properties>
         <CLASSES>
-          <root url="jar://$MAVEN_REPOSITORY$/org/intellij/plugins/hcl/terraform/terraform-metadata/2024.1.21/terraform-metadata-2024.1.21.jar!/" />
+          <root url="jar://$MAVEN_REPOSITORY$/org/intellij/plugins/hcl/terraform/terraform-metadata/2025.3/terraform-metadata-2025.3.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
@@ -42,28 +51,29 @@
     </orderEntry>
     <orderEntry type="module" module-name="intellij.platform.testFramework" scope="TEST" />
     <orderEntry type="library" scope="TEST" name="assertJ" level="project" />
+    <orderEntry type="module" module-name="intellij.platform.usageView.impl" />
     <orderEntry type="module" module-name="intellij.platform.vcs" />
-    <orderEntry type="module" module-name="intellij.java.testFramework" scope="TEST" />
-    <orderEntry type="library" name="Guava" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.guava" />
+    <orderEntry type="module" module-name="intellij.platform.workspace.storage" />
     <orderEntry type="module" module-name="intellij.spellchecker" />
+    <orderEntry type="module" module-name="intellij.grazie.core" scope="TEST" />
     <orderEntry type="module" module-name="intellij.platform.core.ui" />
     <orderEntry type="module" module-name="intellij.platform.codeStyle.impl" />
     <orderEntry type="module" module-name="intellij.platform.ide.util.io" />
     <orderEntry type="module" module-name="intellij.platform.util.jdom" />
-    <orderEntry type="library" name="fastutil-min" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.fastutil" />
     <orderEntry type="module" module-name="intellij.platform.vcs.impl" />
     <orderEntry type="module" module-name="intellij.platform.util.coroutines" />
     <orderEntry type="module" module-name="intellij.platform.backend.workspace" />
-    <orderEntry type="module" module-name="intellij.platform.langInjection" />
-    <orderEntry type="library" name="jackson-module-kotlin" level="project" />
-    <orderEntry type="library" name="caffeine" level="project" />
-    <orderEntry type="library" name="jetbrains.markdown" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.jackson.module.kotlin" />
+    <orderEntry type="module" module-name="intellij.libraries.caffeine" />
+    <orderEntry type="module" module-name="intellij.libraries.markdown" />
     <orderEntry type="library" name="jna" level="project" />
     <orderEntry type="module" module-name="intellij.platform.navbar.testFramework" scope="TEST" />
     <orderEntry type="module" module-name="intellij.platform.statistics" />
     <orderEntry type="module" module-name="intellij.platform.eel" />
-    <orderEntry type="module" module-name="intellij.platform.eel.impl" />
     <orderEntry type="module" module-name="intellij.platform.eel.provider" />
     <orderEntry type="module" module-name="intellij.platform.util.progress" />
+    <orderEntry type="module" module-name="intellij.copyright" />
   </component>
 </module>

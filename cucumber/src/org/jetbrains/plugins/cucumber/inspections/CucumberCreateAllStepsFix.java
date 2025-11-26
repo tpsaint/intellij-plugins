@@ -28,7 +28,7 @@ public class CucumberCreateAllStepsFix extends CucumberCreateStepFixBase {
   }
 
   @Override
-  protected void createStepOrSteps(GherkinStep sourceStep, final @NotNull CucumberStepDefinitionCreationContext fileAndFrameworkType) {
+  protected void createStepOrSteps(GherkinStep sourceStep, @NotNull CucumberStepDefinitionCreationContext fileAndFrameworkType) {
     final PsiFile probableGherkinFile = sourceStep.getContainingFile();
     if (!(probableGherkinFile instanceof GherkinFile gherkinFile)) {
       return;
@@ -40,9 +40,9 @@ public class CucumberCreateAllStepsFix extends CucumberCreateStepFixBase {
         for (GherkinStep step : stepsHolder.getSteps()) {
           final PsiReference[] references = step.getReferences();
           for (PsiReference reference : references) {
-            if (!(reference instanceof CucumberStepReference)) continue;
+            if (!(reference instanceof CucumberStepReference stepReference)) continue;
 
-            final AbstractStepDefinition definition = ((CucumberStepReference)reference).resolveToDefinition();
+            final AbstractStepDefinition definition = stepReference.resolveToDefinition();
             if (definition == null) {
               String pattern = Pattern.quote(step.getName());
               pattern = StringUtil.trimEnd(StringUtil.trimStart(pattern, "\\Q"), "\\E");

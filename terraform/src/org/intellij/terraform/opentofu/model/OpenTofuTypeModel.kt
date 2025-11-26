@@ -1,7 +1,8 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.opentofu.model
 
 import com.intellij.openapi.fileTypes.FileType
+import org.intellij.terraform.config.Constants.HCL_DEFAULT_IDENTIFIER
 import org.intellij.terraform.config.model.*
 import org.intellij.terraform.hcl.HCLBundle
 import org.intellij.terraform.hcl.psi.HCLBlock
@@ -11,7 +12,6 @@ import org.intellij.terraform.opentofu.OpenTofuConstants.TOFU_ENCRYPTION_METHOD_
 import org.intellij.terraform.opentofu.OpenTofuConstants.TOFU_KEY_PROVIDER
 import org.intellij.terraform.opentofu.OpenTofuFileType
 
-
 //<editor-fold desc="Encryption providers">
 internal class AbstractEncryptionProvider(
   override val type: String,
@@ -20,7 +20,7 @@ internal class AbstractEncryptionProvider(
 ) : BlockType(literal = TOFU_KEY_PROVIDER,
               args = 2,
               description = blockType?.description,
-              description_kind = blockType?.description_kind,
+              descriptionKind = blockType?.descriptionKind,
               optional = blockType?.optional == true,
               required = blockType?.required == true,
               computed = blockType?.computed == true,
@@ -73,7 +73,7 @@ internal class AbstractEncryptionMethod(
 ) : BlockType(literal = TOFU_ENCRYPTION_METHOD_BLOCK,
               args = 2,
               description = blockType?.description,
-              description_kind = blockType?.description_kind,
+              descriptionKind = blockType?.descriptionKind,
               optional = blockType?.optional == true,
               required = blockType?.required == true,
               computed = blockType?.computed == true,
@@ -103,7 +103,7 @@ internal val encryptionMethods = listOf(AesGcmMethod, UnencryptedMethod).associa
 //</editor-fold>
 
 //<editor-fold desc="Plan and state encryption">
-val fallbackMethod = BlockType("fallback", properties = listOf(
+val fallbackMethod: BlockType = BlockType("fallback", properties = listOf(
   PropertyType("method", Types.String, hint = ReferenceHint("method.#name"))).toMap())
 
 internal val State: BlockType = BlockType("state", properties = listOf(
@@ -123,7 +123,7 @@ internal val RemoteStateDataSource: BlockType = BlockType("remote_state_data_sou
   PropertyType(name = "method", type = Types.String)
 ).toMap())
 
-internal val DefaultDataSource: BlockType = BlockType("default", properties = listOf(
+internal val DefaultDataSource: BlockType = BlockType(HCL_DEFAULT_IDENTIFIER, properties = listOf(
   PropertyType(name = "method", type = Types.String)
 ).toMap())
 

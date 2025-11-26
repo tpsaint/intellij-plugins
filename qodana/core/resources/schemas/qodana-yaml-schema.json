@@ -233,6 +233,10 @@
           "description": "Semicolon-separated list of target framework monikers (TFM) to be analyzed (https://learn.microsoft.com/en-us/dotnet/standard/frameworks)",
           "type": "string",
           "minLength": 1
+        },
+        "fastAnalysisMode": {
+          "description": "Exclude certain files due to their high analysis time. The excluded files will be listed in the logs.",
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -264,6 +268,18 @@
           "additionalProperties": false
         }
       ]
+    },
+    "cpp": {
+      "description": "Configuration for Qodana for C/C++",
+      "type": "object",
+      "properties": {
+        "cmakePreset": {
+          "description": "Name of a specific CMake preset to use during analysis",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
     },
     "licenseOverride": {
       "type": "object",
@@ -408,7 +424,7 @@
             "$ref": "#/definitions/hpNameValueRule"
           }
         },
-        "ignpreVariableNames": {
+        "ignoreVariableNames": {
           "description": "Regular expressions for variable names to ignore as hardcoded password",
           "type": "array",
           "minItems": 0,
@@ -503,11 +519,19 @@
       }
     },
     "linter": {
-      "description": "The linter (Docker image) to run for Qodana CLI / any CI extensions",
+      "description": "The linter to be used for analysis execution",
+      "type": "string"
+    },
+    "image": {
+      "description": "The docker image to be used for analysis execution",
+      "type": "string"
+    },
+    "withinDocker": {
+      "description": "Defines if analysis is performed within a docker container or not",
       "type": "string"
     },
     "ide": {
-      "description": "The local path to an IDE or a product code to use for Qodana analysis. Incompatible with 'linter'",
+      "description": "Deprecated. The local path to an IDE or a product code to use for Qodana analysis. Incompatible with 'linter'",
       "type": "string"
     },
     "bootstrap": {
@@ -576,6 +600,10 @@
     "dotnet": {
       "$ref": "#/definitions/dotnet",
       "description": "The configuration for .NET solutions and projects"
+    },
+    "cpp": {
+      "$ref": "#/definitions/cpp",
+      "description": "Configuration for Qodana for C/C++"
     },
     "projectJDK": {
       "description": "The JDK to use for the project",
@@ -668,6 +696,18 @@
       "description": "Show license problems like other inspections",
       "type": "boolean",
       "default": false
+    },
+    "rootJavaProjects": {
+      "description": "List of project directories to be analyzed as Java projects",
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "string"
+      }
+    },
+    "onlyDirectory": {
+      "description": "Path to the project directory to be analyzed. By default, the entire project is analyzed.",
+      "type": "string"
     }
   },
   "required": ["version"],

@@ -1,38 +1,36 @@
 // Copyright 2000-2021 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 package org.angular2.web
 
+import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.utils.unwrapMatchedSymbols
 import com.intellij.util.SmartList
-import com.intellij.webSymbols.WebSymbol
-import com.intellij.webSymbols.utils.qualifiedKind
-import com.intellij.webSymbols.utils.unwrapMatchedSymbols
 import org.angular2.entities.Angular2Directive
 
 // TODO - This is a bridge between old and new API - when time comes, this should be removed.
-class Angular2DescriptorSymbolsProvider(symbol: WebSymbol) {
+class Angular2DescriptorSymbolsProvider(symbol: PolySymbol) {
 
-  val nonDirectiveSymbols: List<WebSymbol>
-  val errorSymbols: List<WebSymbol>
-  private val directiveSymbols: List<WebSymbol>
+  val nonDirectiveSymbols: List<PolySymbol>
+  val errorSymbols: List<PolySymbol>
+  private val directiveSymbols: List<PolySymbol>
   val directives: List<Angular2Directive>
 
   init {
-    val nonDirectiveSymbols = SmartList<WebSymbol>()
-    val errorSymbols = SmartList<WebSymbol>()
-    val directiveSymbols = SmartList<WebSymbol>()
+    val nonDirectiveSymbols = SmartList<PolySymbol>()
+    val errorSymbols = SmartList<PolySymbol>()
+    val directiveSymbols = SmartList<PolySymbol>()
     val directives = mutableSetOf<Angular2Directive>()
 
     symbol.unwrapMatchedSymbols()
       .filter { !it.extension }
       .forEach { s ->
-        val properties = s.properties
-        if (properties[PROP_BINDING_PATTERN] == true) {
+        if (s[PROP_BINDING_PATTERN] == true) {
           return@forEach
         }
-        if (properties[PROP_ERROR_SYMBOL] == true) {
+        if (s[PROP_ERROR_SYMBOL] == true) {
           errorSymbols.add(s)
         }
         else {
-          val directive = properties[PROP_SYMBOL_DIRECTIVE] as? Angular2Directive
+          val directive = s[PROP_SYMBOL_DIRECTIVE]
           if (directive != null) {
             directiveSymbols.add(s)
             directives.add(directive)

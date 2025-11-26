@@ -8,23 +8,23 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.createSmartPointer
 import com.intellij.psi.xml.XmlAttribute
 import com.intellij.psi.xml.XmlTag
-import com.intellij.webSymbols.WebSymbol.Companion.CSS_PROPERTIES
-import com.intellij.webSymbols.WebSymbolQualifiedKind
-import com.intellij.webSymbols.utils.WebSymbolsStructuredScope
+import com.intellij.polySymbols.css.CSS_PROPERTIES
+import com.intellij.polySymbols.PolySymbolQualifiedKind
+import com.intellij.polySymbols.utils.PolySymbolStructuredScope
 import org.angular2.lang.html.psi.Angular2HtmlRecursiveElementVisitor
 import org.angular2.web.scopes.Angular2CustomCssPropertiesScope.Companion.createCustomCssProperty
 
-class HtmlAttributesCustomCssPropertiesScope(location: PsiElement) : WebSymbolsStructuredScope<PsiElement, PsiFile>(location) {
+class HtmlAttributesCustomCssPropertiesScope(location: PsiElement) : PolySymbolStructuredScope<PsiElement, PsiFile>(location) {
 
   override val rootPsiElement: PsiFile?
     get() = location.containingFile.takeIf { InjectedLanguageManager.getInstance(location.project).isInjectedFragment(it) }
 
-  override val scopesBuilderProvider: (PsiFile, WebSymbolsPsiScopesHolder) -> PsiElementVisitor?
+  override val scopesBuilderProvider: (PsiFile, PolySymbolPsiScopesHolder) -> PsiElementVisitor?
     get() = provider@{ file, holder ->
       CustomCssPropertyTemplateScopeBuilder(holder)
     }
 
-  override val providedSymbolKinds: Set<WebSymbolQualifiedKind>
+  override val providedSymbolKinds: Set<PolySymbolQualifiedKind>
     get() = setOf(CSS_PROPERTIES)
 
   override fun createPointer(): Pointer<HtmlAttributesCustomCssPropertiesScope> {
@@ -36,7 +36,7 @@ class HtmlAttributesCustomCssPropertiesScope(location: PsiElement) : WebSymbolsS
   }
 
   private class CustomCssPropertyTemplateScopeBuilder(
-    private val holder: WebSymbolsPsiScopesHolder,
+    private val holder: PolySymbolPsiScopesHolder,
   ) : Angular2HtmlRecursiveElementVisitor() {
 
     override fun visitXmlTag(tag: XmlTag) {

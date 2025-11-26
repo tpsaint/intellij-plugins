@@ -8,17 +8,16 @@ import com.intellij.openapi.util.Pair
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.tree.TokenSet
 import com.intellij.psi.xml.XmlTokenType
-import org.angular2.lang.expr.parser.Angular2EmbeddedExprTokenType
+import org.angular2.lang.expr.parser.Angular2EmbeddedExprTokenType.Angular2InterpolationExprTokenType
 import org.angular2.lang.html.Angular2TemplateSyntax
 import org.angular2.lang.html.parser.Angular2AttributeNameParser
 import org.angular2.lang.html.parser.Angular2AttributeType
 
 open class Angular2HtmlLexer(
   highlightMode: Boolean,
-  templateSyntax: Angular2TemplateSyntax,
+  val templateSyntax: Angular2TemplateSyntax,
   interpolationConfig: Pair<String, String>?,
-)
-  : HtmlLexer(Angular2HtmlMergingLexer(Angular2HtmlFlexAdapter(templateSyntax, interpolationConfig), highlightMode),
+) : HtmlLexer(Angular2HtmlMergingLexer(Angular2HtmlFlexAdapter(templateSyntax, interpolationConfig), highlightMode),
               true, highlightMode) {
 
   override fun start(buffer: CharSequence, startOffset: Int, endOffset: Int, initialState: Int, tokenIterator: TokenIterator?) {
@@ -100,6 +99,15 @@ open class Angular2HtmlLexer(
       super.advance()
     }
 
+    override fun getCurrentPosition(): LexerPosition {
+      return Angular2HtmlMergingLexerPosition(super.getCurrentPosition(), prevExpansionFormNestingLevel)
+    }
+
+    override fun restore(position: LexerPosition) {
+      super.restore((position as Angular2HtmlMergingLexerPosition).originalPosition)
+      prevExpansionFormNestingLevel = position.prevExpansionFormNestingLevel
+    }
+
     override fun getMergeFunction(): MergeFunction {
       return MergeFunction { type, originalLexer -> merge(type, originalLexer) }
     }
@@ -111,7 +119,7 @@ open class Angular2HtmlLexer(
       var result = type
       val next = originalLexer.tokenType
       if (result === Angular2HtmlTokenTypes.INTERPOLATION_START
-          && next !== Angular2EmbeddedExprTokenType.INTERPOLATION_EXPR
+          && next !is Angular2InterpolationExprTokenType
           && next !== Angular2HtmlTokenTypes.INTERPOLATION_END) {
         result = if (next === XmlTokenType.XML_ATTRIBUTE_VALUE_TOKEN
                      || next === XmlTokenType.XML_ATTRIBUTE_VALUE_END_DELIMITER)
@@ -137,6 +145,14 @@ open class Angular2HtmlLexer(
         }
       }
       return result
+    }
+
+    private class Angular2HtmlMergingLexerPosition(
+      val originalPosition: LexerPosition,
+      val prevExpansionFormNestingLevel: Int,
+    ): LexerPosition {
+      override fun getOffset(): Int = originalPosition.offset
+      override fun getState(): Int = originalPosition.state
     }
 
     companion object {
@@ -168,25 +184,24 @@ open class Angular2HtmlLexer(
 
     override fun getCurrentPosition(): LexerPosition =
       flex.let {
-        Angular2HtmlFlexAdapterPosition(tokenStart, super.getState(), it.blockName, it.parameterIndex, it.parameterStart,
+        Angular2HtmlFlexAdapterPosition(super.currentPosition, it.blockName, it.parameterIndex, it.parameterStart,
                                         it.blockParenLevel, it.expansionFormNestingLevel, it.interpolationStartPos)
       }
 
     override fun restore(position: LexerPosition) {
+      super.restore((position as Angular2HtmlFlexAdapterPosition).flexPosition)
       flex.apply {
-        blockName = (position as Angular2HtmlFlexAdapterPosition).blockName
+        blockName = position.blockName
         parameterIndex = position.parameterIndex
         parameterStart = position.parameterStart
         blockParenLevel = position.blockParenLevel
         expansionFormNestingLevel = position.expansionFormNestingLevel
         interpolationStartPos = position.interpolationStartPos
       }
-      super.start(bufferSequence, position.offset, bufferEnd, position.state)
     }
 
     private class Angular2HtmlFlexAdapterPosition(
-      private val offset: Int,
-      private val state: Int,
+      val flexPosition: LexerPosition,
       val blockName: String?,
       val parameterIndex: Int,
       val parameterStart: Int,
@@ -194,9 +209,9 @@ open class Angular2HtmlLexer(
       val expansionFormNestingLevel: Int,
       val interpolationStartPos: Int,
     ) : LexerPosition {
-      override fun getOffset(): Int = offset
+      override fun getOffset(): Int = flexPosition.offset
 
-      override fun getState(): Int = state
+      override fun getState(): Int = flexPosition.state
 
     }
   }

@@ -4,17 +4,21 @@ package org.angular2.lang.expr.parser
 import com.intellij.lang.ASTNode
 import com.intellij.lang.javascript.JSKeywordSets.IDENTIFIER_NAMES
 import com.intellij.lang.javascript.JSTokenTypes.STRING_LITERAL
+import com.intellij.lang.javascript.psi.JSElementType
+import com.intellij.lang.javascript.psi.JSLiteralExpression
+import com.intellij.lang.javascript.psi.JSVariable
 import com.intellij.lang.javascript.types.JSExpressionElementType
 import com.intellij.psi.tree.ICompositeElementType
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.tree.TokenSet
+import com.intellij.util.ThreeState
 import org.angular2.lang.expr.Angular2Language
 import org.angular2.lang.expr.psi.Angular2TemplateBinding
 import org.angular2.lang.expr.psi.impl.*
 import org.jetbrains.annotations.NonNls
 import java.util.function.Function
 
-interface Angular2ElementTypes: Angular2StubElementTypes {
+object Angular2ElementTypes {
 
   open class Angular2ElementType(@NonNls debugName: String,
                                  private val myClassConstructor: Function<Angular2ElementType, ASTNode>)
@@ -29,94 +33,87 @@ interface Angular2ElementTypes: Angular2StubElementTypes {
                                       classConstructor: Function<Angular2ElementType, ASTNode>)
     : Angular2ElementType(debugName, classConstructor), JSExpressionElementType
 
-  class Angular2TemplateBindingType(private val key: String, private val keyKind: Angular2TemplateBinding.KeyKind, private val name: String?)
-    : IElementType("NG:TEMPLATE_BINDING_STATEMENT", Angular2Language, false), ICompositeElementType {
+  const val EXTERNAL_ID_PREFIX: String = "NG:"
 
-    override fun createCompositeNode(): ASTNode {
-      return Angular2TemplateBindingImpl(TEMPLATE_BINDING_STATEMENT, key, keyKind, name)
-    }
+  val TEMPLATE_VARIABLE: JSElementType<JSVariable> = Angular2TemplateVariableElementType()
+
+  val BLOCK_PARAMETER_VARIABLE: JSElementType<JSVariable> = Angular2BlockParameterVariableElementType()
+
+  val STRING_PARTS_LITERAL_EXPRESSION: JSElementType<JSLiteralExpression> = Angular2StringPartsLiteralExpressionType()
+
+  val DEFERRED_TIME_LITERAL_EXPRESSION: Angular2DeferredTimeLiteralExpressionElementType = Angular2DeferredTimeLiteralExpressionElementType()
+
+  class Angular2TemplateBindingType(private val key: String, private val keyKind: Angular2TemplateBinding.KeyKind, private val name: String?)
+    : IElementType("NG:TEMPLATE_BINDING_STATEMENT ($key:$keyKind:$name)", Angular2Language, false), ICompositeElementType {
+
+    override fun createCompositeNode(): ASTNode =
+      Angular2TemplateBindingImpl(this, key, keyKind, name)
+
+    fun compareTo(other: Angular2TemplateBindingType): ThreeState =
+      if (other.key != key || other.keyKind != keyKind || other.name != name)
+        ThreeState.NO
+      else
+        ThreeState.UNSURE
   }
 
   class Angular2TemplateBindingsType(private val myTemplateName: String)
-    : IElementType("NG:TEMPLATE_BINDINGS_STATEMENT", Angular2Language, false), ICompositeElementType {
+    : IElementType("NG:TEMPLATE_BINDINGS_STATEMENT ($myTemplateName)", Angular2Language, false), ICompositeElementType {
 
-    override fun createCompositeNode(): ASTNode {
-      return Angular2TemplateBindingsImpl(TEMPLATE_BINDINGS_STATEMENT, myTemplateName)
-    }
+    override fun createCompositeNode(): ASTNode =
+      Angular2TemplateBindingsImpl(this, myTemplateName)
+
+    fun compareTo(other: Angular2TemplateBindingsType): ThreeState =
+      if (other.myTemplateName != myTemplateName)
+        ThreeState.NO
+      else
+        ThreeState.UNSURE
   }
 
-  companion object {
-    @JvmField
-    val PIPE_EXPRESSION: IElementType =
-      Angular2ExpressionElementType("NG:PIPE_EXPRESSION") { node -> Angular2PipeExpressionImpl(node) }
+  val PIPE_EXPRESSION: IElementType =
+    Angular2ExpressionElementType("NG:PIPE_EXPRESSION") { node -> Angular2PipeExpressionImpl(node) }
 
-    @JvmField
-    val PIPE_ARGUMENTS_LIST: IElementType =
-      Angular2ExpressionElementType("NG:PIPE_ARGUMENTS_LIST") { node -> Angular2PipeArgumentsListImpl(node) }
+  val PIPE_ARGUMENTS_LIST: IElementType =
+    Angular2ExpressionElementType("NG:PIPE_ARGUMENTS_LIST") { node -> Angular2PipeArgumentsListImpl(node) }
 
-    @JvmField
-    val PIPE_LEFT_SIDE_ARGUMENT: IElementType =
-      Angular2ExpressionElementType("NG:PIPE_LEFT_SIDE_ARGUMENT") { node -> Angular2PipeLeftSideArgumentImpl(node) }
+  val PIPE_LEFT_SIDE_ARGUMENT: IElementType =
+    Angular2ExpressionElementType("NG:PIPE_LEFT_SIDE_ARGUMENT") { node -> Angular2PipeLeftSideArgumentImpl(node) }
 
-    @JvmField
-    val PIPE_REFERENCE_EXPRESSION: IElementType =
-      Angular2ExpressionElementType("NG:PIPE_REFERENCE_EXPRESSION") { node -> Angular2PipeReferenceExpressionImpl(node) }
+  val PIPE_REFERENCE_EXPRESSION: IElementType =
+    Angular2ExpressionElementType("NG:PIPE_REFERENCE_EXPRESSION") { node -> Angular2PipeReferenceExpressionImpl(node) }
 
-    @JvmField
-    val CHAIN_STATEMENT: IElementType =
-      Angular2ElementType("NG:CHAIN_STATEMENT") { node -> Angular2ChainImpl(node) }
+  val CHAIN_STATEMENT: IElementType =
+    Angular2ElementType("NG:CHAIN_STATEMENT") { node -> Angular2ChainImpl(node) }
 
-    @JvmField
-    val QUOTE_STATEMENT: IElementType =
-      Angular2ElementType("NG:QUOTE_STATEMENT") { node -> Angular2QuoteImpl(node) }
+  val QUOTE_STATEMENT: IElementType =
+    Angular2ElementType("NG:QUOTE_STATEMENT") { node -> Angular2QuoteImpl(node) }
 
-    @JvmField
-    val ACTION_STATEMENT: IElementType =
-      Angular2ElementType("NG:ACTION") { node -> Angular2ActionImpl(node) }
+  val ACTION_STATEMENT: IElementType =
+    Angular2ElementType("NG:ACTION") { node -> Angular2ActionImpl(node) }
 
-    @JvmField
-    val BINDING_STATEMENT: IElementType =
-      Angular2ElementType("NG:BINDING") { node -> Angular2BindingImpl(node) }
+  val BINDING_STATEMENT: IElementType =
+    Angular2ElementType("NG:BINDING") { node -> Angular2BindingImpl(node) }
 
-    @JvmField
-    val INTERPOLATION_STATEMENT: IElementType =
-      Angular2ElementType("NG:INTERPOLATION") { node -> Angular2InterpolationImpl(node) }
+  val INTERPOLATION_STATEMENT: IElementType =
+    Angular2ElementType("NG:INTERPOLATION") { node -> Angular2InterpolationImpl(node) }
 
-    @JvmField
-    val SIMPLE_BINDING_STATEMENT: IElementType =
-      Angular2ElementType("NG:SIMPLE_BINDING") { node -> Angular2SimpleBindingImpl(node) }
+  val SIMPLE_BINDING_STATEMENT: IElementType =
+    Angular2ElementType("NG:SIMPLE_BINDING") { node -> Angular2SimpleBindingImpl(node) }
 
-    @JvmField
-    val TEMPLATE_BINDINGS_STATEMENT: IElementType =
-      Angular2ElementType("NG:TEMPLATE_BINDINGS_STATEMENT") {
-        throw UnsupportedOperationException("Use createTemplateBindingsStatement method instead")
-      }
+  val TEMPLATE_BINDING_KEY: IElementType =
+    Angular2ElementType("NG:TEMPLATE_BINDING_KEY") { node -> Angular2TemplateBindingKeyImpl(node) }
 
-    @JvmField
-    val TEMPLATE_BINDING_KEY: IElementType =
-      Angular2ElementType("NG:TEMPLATE_BINDING_KEY") { node -> Angular2TemplateBindingKeyImpl(node) }
+  val BLOCK_PARAMETER_STATEMENT: IElementType =
+    Angular2ElementType("NG:BLOCK_PARAMETER_STATEMENT") { node -> Angular2BlockParameterImpl(node) }
 
-    @JvmField
-    val TEMPLATE_BINDING_STATEMENT: IElementType =
-      Angular2ElementType("NG:TEMPLATE_BINDING_STATEMENT") {
-        throw UnsupportedOperationException("Use createTemplateBindingStatement method instead")
-      }
+  val PROPERTY_NAMES: TokenSet = TokenSet.orSet(IDENTIFIER_NAMES, TokenSet.create(STRING_LITERAL))
 
-    @JvmField
-    val BLOCK_PARAMETER_STATEMENT: IElementType =
-      Angular2ElementType("NG:BLOCK_PARAMETER_STATEMENT") { node -> Angular2BlockParameterImpl(node) }
+  @JvmStatic
+  fun createTemplateBindingStatement(key: String, keyKind: Angular2TemplateBinding.KeyKind, name: String?): IElementType {
+    return Angular2TemplateBindingType(key, keyKind, name)
+  }
 
-    @JvmField
-    val PROPERTY_NAMES: TokenSet = TokenSet.orSet(IDENTIFIER_NAMES, TokenSet.create(STRING_LITERAL))
-
-    @JvmStatic
-    fun createTemplateBindingStatement(key: String, keyKind: Angular2TemplateBinding.KeyKind, name: String?): IElementType {
-      return Angular2TemplateBindingType(key, keyKind, name)
-    }
-
-    @JvmStatic
-    fun createTemplateBindingsStatement(templateName: String): IElementType {
-      return Angular2TemplateBindingsType(templateName)
-    }
+  @JvmStatic
+  fun createTemplateBindingsStatement(templateName: String): IElementType {
+    return Angular2TemplateBindingsType(templateName)
   }
 }

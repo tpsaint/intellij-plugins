@@ -8,10 +8,11 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.util.parentOfType
 import com.intellij.util.ProcessingContext
 import org.intellij.prisma.ide.completion.PrismaCompletionProvider
-import org.intellij.prisma.ide.schema.PrismaSchemaDeclaration
-import org.intellij.prisma.ide.schema.PrismaSchemaEvaluationContext
 import org.intellij.prisma.ide.schema.PrismaSchemaFakeElement
 import org.intellij.prisma.ide.schema.PrismaSchemaProvider
+import org.intellij.prisma.ide.schema.builder.PrismaSchemaDeclaration
+import org.intellij.prisma.ide.schema.builder.PrismaSchemaEvaluationContext
+import org.intellij.prisma.ide.schema.builder.PrismaSchemaParameterLocation
 import org.intellij.prisma.lang.psi.*
 
 object PrismaParametersProvider : PrismaCompletionProvider() {
@@ -29,15 +30,17 @@ object PrismaParametersProvider : PrismaCompletionProvider() {
     val position = parameters.originalPosition ?: parameters.position
     val datasourceTypes = file.metadata.datasourceTypes
     var argumentsOwner = position.parentOfType<PrismaArgumentsOwner>() ?: return
-    val isFieldArgument =
-      argumentsOwner is PrismaFunctionCall && argumentsOwner.parent is PrismaArrayExpression
-    if (isFieldArgument) {
+    val location = if (argumentsOwner is PrismaFunctionCall && argumentsOwner.parent is PrismaArrayExpression)
+      PrismaSchemaParameterLocation.FIELD
+    else
+      PrismaSchemaParameterLocation.DEFAULT
+    if (location == PrismaSchemaParameterLocation.FIELD) {
       argumentsOwner = argumentsOwner.parentOfType() ?: return
     }
     val schema = PrismaSchemaProvider.getEvaluatedSchema(PrismaSchemaEvaluationContext.forElement(position))
     val schemaDeclaration =
       schema.match(argumentsOwner) as? PrismaSchemaDeclaration ?: return
-    val parent = PrismaSchemaFakeElement.createForCompletion(parameters, schemaDeclaration)
+    val parent = PrismaSchemaFakeElement.createForCompletion(parameters, schemaDeclaration) ?: return
     val usedParams = argumentsOwner.getArgumentsList()?.arguments
                        ?.asSequence()
                        ?.filterIsInstance<PrismaNamedArgument>()
@@ -45,7 +48,7 @@ object PrismaParametersProvider : PrismaCompletionProvider() {
                        ?.toSet()
                      ?: emptySet()
 
-    schemaDeclaration.getAvailableParams(datasourceTypes, isFieldArgument)
+    schemaDeclaration.getAvailableParams(datasourceTypes, location)
       .asSequence()
       .filter { it.label !in usedParams && !it.skipInCompletion }
       .map { createLookupElement(it.label, it, PrismaSchemaFakeElement.createForCompletion(parent, it)) }

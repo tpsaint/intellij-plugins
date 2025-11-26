@@ -1,11 +1,12 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.config.inspection
 
 import com.intellij.codeInspection.LocalInspectionTool
-import com.intellij.codeInspection.LocalQuickFix
-import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.codeInspection.ProblemsHolder
+import com.intellij.modcommand.ModPsiUpdater
+import com.intellij.modcommand.PsiUpdateModCommandQuickFix
 import com.intellij.openapi.project.Project
+import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementVisitor
 import com.intellij.psi.PsiFile
 import org.intellij.terraform.config.model.*
@@ -36,7 +37,7 @@ class TfIncorrectVariableTypeInspection : LocalInspectionTool() {
 
       val obj = block.`object` ?: return
 
-      val typeProperty = obj.findProperty(TypeModel.Variable_Type.name)
+      val typeProperty = obj.findProperty(TfTypeModel.VariableType.name)
       val typePropertyValue = typeProperty?.value ?: return
 
       if (typePropertyValue is HCLStringLiteral) {
@@ -59,7 +60,7 @@ class TfIncorrectVariableTypeInspection : LocalInspectionTool() {
                                                                     joinCommaOr(legacyAllowedValues)))
       }
 
-      val defaultProperty = block.`object`?.findProperty(TypeModel.Variable_Default.name) ?: return
+      val defaultProperty = block.`object`?.findProperty(TfTypeModel.VariableDefault.name) ?: return
 
       val value = defaultProperty.value as? HCLValue ?: return
       val actual = value.getType() ?: return
@@ -89,7 +90,7 @@ class TfIncorrectVariableTypeInspection : LocalInspectionTool() {
       // next statement will also check type and add warnings if needed
       val expected = TypeSpecificationValidator(holder, true).getType(value) ?: return
 
-      val defaultValue = block.`object`?.findProperty(TypeModel.Variable_Default.name)?.value as? HCLValue ?: return
+      val defaultValue = block.`object`?.findProperty(TfTypeModel.VariableDefault.name)?.value as? HCLValue ?: return
       val actual = defaultValue.getType() ?: return
 
       if (actual == Types.Null) return // Allowed in Terraform 0.12
@@ -101,14 +102,14 @@ class TfIncorrectVariableTypeInspection : LocalInspectionTool() {
     }
   }
 
-  private class ChangeVariableType(val toType: String) : LocalQuickFix {
+  private class ChangeVariableType(val toType: String) : PsiUpdateModCommandQuickFix() {
     override fun getFamilyName(): String = HCLBundle.message("incorrect.variable.type.inspection.change.type.quick.fix.name", toType)
 
-    override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
-      val element = descriptor.psiElement as? HCLValue ?: return
+    override fun applyFix(project: Project, element: PsiElement, updater: ModPsiUpdater) {
+      if (element !is HCLValue) return
       val property = element.parent as? HCLProperty ?: return
       val obj = property.parent as? HCLObject ?: return
-      val typeProperty = obj.findProperty(TypeModel.Variable_Type.name)
+      val typeProperty = obj.findProperty(TfTypeModel.VariableType.name)
 
       if (typeProperty == null) {
         obj.addAfter(HCLElementGenerator(project).createProperty("type", "\"$toType\""), obj.firstChild)

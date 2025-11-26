@@ -104,6 +104,7 @@ public interface DartTokenTypes {
   IElementType NEW_EXPRESSION = new DartElementType("NEW_EXPRESSION");
   IElementType NORMAL_FORMAL_PARAMETER = new DartElementType("NORMAL_FORMAL_PARAMETER");
   IElementType NORMAL_PARAMETER_TYPE = new DartElementType("NORMAL_PARAMETER_TYPE");
+  IElementType NULL_AWARE_ELEMENT = new DartElementType("NULL_AWARE_ELEMENT");
   IElementType OBJECT_PATTERN = new DartElementType("OBJECT_PATTERN");
   IElementType ON_MIXINS = new DartElementType("ON_MIXINS");
   IElementType ON_PART = new DartElementType("ON_PART");
@@ -139,6 +140,7 @@ public interface DartTokenTypes {
   IElementType SET_OR_MAP_LITERAL_EXPRESSION = new DartElementType("SET_OR_MAP_LITERAL_EXPRESSION");
   IElementType SHIFT_EXPRESSION = new DartElementType("SHIFT_EXPRESSION");
   IElementType SHIFT_OPERATOR = new DartElementType("SHIFT_OPERATOR");
+  IElementType SHORTHAND_EXPRESSION = new DartElementType("SHORTHAND_EXPRESSION");
   IElementType SHORT_TEMPLATE_ENTRY = new DartElementType("SHORT_TEMPLATE_ENTRY");
   IElementType SHOW_COMBINATOR = new DartElementType("SHOW_COMBINATOR");
   IElementType SIMPLE_FORMAL_PARAMETER = new DartElementType("SIMPLE_FORMAL_PARAMETER");
@@ -613,6 +615,9 @@ public interface DartTokenTypes {
       else if (type == NORMAL_PARAMETER_TYPE) {
         return new DartNormalParameterTypeImpl(node);
       }
+      else if (type == NULL_AWARE_ELEMENT) {
+        return new DartNullAwareElementImpl(node);
+      }
       else if (type == OBJECT_PATTERN) {
         return new DartObjectPatternImpl(node);
       }
@@ -717,6 +722,9 @@ public interface DartTokenTypes {
       }
       else if (type == SHIFT_OPERATOR) {
         return new DartShiftOperatorImpl(node);
+      }
+      else if (type == SHORTHAND_EXPRESSION) {
+        return new DartShorthandExpressionImpl(node);
       }
       else if (type == SHORT_TEMPLATE_ENTRY) {
         return new DartShortTemplateEntryImpl(node);

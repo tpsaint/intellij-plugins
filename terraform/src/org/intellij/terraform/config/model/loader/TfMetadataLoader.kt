@@ -1,4 +1,4 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.config.model.loader
 
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -34,7 +34,7 @@ class TfMetadataLoader {
     FunctionsLoaderV1()
   )
 
-  fun loadDefaults(): TypeModel? {
+  fun loadDefaults(): TfTypeModel? {
     try {
       model.external.putAll(loadExternalInformation())
       loadExternal()
@@ -48,26 +48,28 @@ class TfMetadataLoader {
     }
   }
 
-  fun loadFrom(another: TypeModel) {
+  fun loadFrom(another: TfTypeModel) {
     val tmp = buildModel()
     model.resources.addAll(another.allResources().filter { tmp.getResourceType(it.type) == null })
-    model.dataSources.addAll(another.allDatasources().filter { tmp.getDataSourceType(it.type) == null })
+    model.dataSources.addAll(another.allDataSources().filter { tmp.getDataSourceType(it.type) == null })
     model.providers.addAll(another.allProviders().filter { tmp.getProviderType(it.type) == null })
+    model.ephemeralResources.addAll(another.allEphemeralResources().filter { tmp.getEphemeralType(it.type) == null })
     model.provisioners.addAll(another.provisioners.filter { tmp.getProvisionerType(it.type) == null })
     model.backends.addAll(another.backends.filter { tmp.getBackendType(it.type) == null })
     model.functions.addAll(another.functions.filter { tmp.getFunction(it.name) == null })
     model.providerDefinedFunctions.addAll(another.providerDefinedFunctions.filter { tmp.getFunction(it.name) == null })
   }
 
-  fun buildModel(): TypeModel {
-    return TypeModel(
+  fun buildModel(): TfTypeModel {
+    return TfTypeModel(
       model.resources,
       model.dataSources,
       model.providers,
       model.provisioners,
       model.backends,
       model.functions,
-      model.providerDefinedFunctions
+      model.providerDefinedFunctions,
+      model.ephemeralResources
     )
   }
 
@@ -80,7 +82,7 @@ class TfMetadataLoader {
     }
 
     if (json is ObjectNode) {
-      for ((fqn, obj) in json.fields()) {
+      for ((fqn, obj) in json.properties()) {
         if (obj !is ObjectNode) {
           LOG.warn("In external-data.json value for '$fqn' root key is not an object")
           continue
@@ -276,6 +278,8 @@ class TfMetadataLoader {
       type = schemasNode.string("type") ?: "unknown"
       version = schemasNode.string(".schema_version") ?: "1"
     }
+    // IJPL-189614 Investigate why we have 9 Loaders, but we take the first one,
+    // for example, if we comment ProviderLoaderV2() and ProviderLoaderV1() no tests will fail
     val loader = loaders.find {
       it.isSupportedType(type) && it.isSupportedVersion(version)
     }

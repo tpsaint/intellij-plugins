@@ -2,13 +2,13 @@
 package org.jetbrains.vuejs.lang
 
 import com.intellij.codeInspection.htmlInspections.HtmlUnknownTagInspection
-import com.intellij.html.webSymbols.elements.WebSymbolElementDescriptor
+import com.intellij.polySymbols.html.elements.HtmlElementSymbolDescriptor
 import com.intellij.javascript.debugger.NodeJsAppRule
 import com.intellij.javascript.nodejs.npm.NpmUtil
 import com.intellij.lang.javascript.linter.JSExternalToolIntegrationTest
 import com.intellij.psi.xml.XmlTag
 import com.intellij.util.asSafely
-import com.intellij.webSymbols.PsiSourcedWebSymbol
+import com.intellij.polySymbols.search.PsiSourcedPolySymbol
 import org.jetbrains.vuejs.inspections.VueMissingComponentImportInspection
 
 class VueIntegrationHighlightingTest: JSExternalToolIntegrationTest() {
@@ -28,14 +28,14 @@ class VueIntegrationHighlightingTest: JSExternalToolIntegrationTest() {
     val tagAtCaret = myFixture.elementAtCaret.asSafely<XmlTag>()
     assertNotNull(tagAtCaret)
 
-    val webSymbolDescriptor = tagAtCaret?.descriptor.asSafely<WebSymbolElementDescriptor>()
-    assertNotNull(webSymbolDescriptor)
+    val polySymbolDescriptor = tagAtCaret?.descriptor.asSafely<HtmlElementSymbolDescriptor>()
+    assertNotNull(polySymbolDescriptor)
 
-    val webSymbol = webSymbolDescriptor?.symbol.asSafely<PsiSourcedWebSymbol>()
-    val webSymbolSource = webSymbol?.source
-    assertNotNull(webSymbolSource)
+    val polySymbol = polySymbolDescriptor?.symbol.asSafely<PsiSourcedPolySymbol>()
+    val polySymbolSource = polySymbol?.source
+    assertNotNull(polySymbolSource)
 
-    val sourceFileName = webSymbolSource!!.containingFile.name
+    val sourceFileName = polySymbolSource!!.containingFile.name
     assertTrue("Wrong source file: $sourceFileName", sourceFileName == "index.d.ts")
   }
 

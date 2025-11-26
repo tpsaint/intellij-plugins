@@ -1,4 +1,4 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.plugins.cucumber.java.run;
 
 import com.intellij.diagnostic.logging.LogConfigurationPanel;
@@ -36,6 +36,7 @@ import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.VisibleForTesting;
 import org.jetbrains.jps.model.serialization.PathMacroUtil;
 import org.jetbrains.plugins.cucumber.CucumberBundle;
 import org.jetbrains.plugins.cucumber.java.CucumberJavaBundle;
@@ -45,11 +46,14 @@ import java.io.File;
 import java.util.*;
 import java.util.function.Consumer;
 
+import static org.jetbrains.plugins.cucumber.java.CucumberJavaVersionUtil.CUCUMBER_CORE_VERSION_6;
+
 public final class CucumberJavaRunConfiguration extends ApplicationConfiguration {
   private volatile CucumberGlueProvider myCucumberGlueProvider = null;
   private static final Logger LOG = Logger.getInstance(CucumberJavaRunConfiguration.class);
 
-  CucumberJavaRunConfiguration(String name, Project project, ConfigurationFactory factory) {
+  @VisibleForTesting
+  public CucumberJavaRunConfiguration(String name, Project project, ConfigurationFactory factory) {
     super(name, project, factory);
     setWorkingDirectory(PathMacroUtil.MODULE_WORKING_DIR);
   }
@@ -116,7 +120,7 @@ public final class CucumberJavaRunConfiguration extends ApplicationConfiguration
         return params;
       }
 
-      private @NotNull ConsoleView createConsole(final @NotNull Executor executor, ProcessHandler processHandler) {
+      private @NotNull ConsoleView createConsole(@NotNull Executor executor, ProcessHandler processHandler) {
         @NonNls String testFrameworkName = "cucumber";
         final CucumberJavaRunConfiguration runConfiguration = CucumberJavaRunConfiguration.this;
         final SMTRunnerConsoleProperties consoleProperties = new SMTRunnerConsoleProperties(runConfiguration, testFrameworkName, executor) {
@@ -150,22 +154,30 @@ public final class CucumberJavaRunConfiguration extends ApplicationConfiguration
   private String[] getSMRunnerPaths() {
     List<String> result = new ArrayList<>();
 
-    String rtClassPath = PathUtil.getJarPathForClass(ExpectedPatterns.class);
-    result.add(rtClassPath);
+    String junitRtClassPath = PathUtil.getJarPathForClass(ExpectedPatterns.class);
+    result.add(junitRtClassPath);
 
-    @NonNls String cucumberJvmFormatterClassPath = PathUtil.getJarPathForClass(CucumberJvmSMFormatter.class);
+    String cucumberCoreVersion = getCucumberCoreVersion();
+    LOG.info("detected cucumber-java version: " + cucumberCoreVersion);
+    if (VersionComparatorUtil.compare(cucumberCoreVersion, CUCUMBER_CORE_VERSION_6) >= 0) {
+      // Cucumber v6 and newer come with a built-in `teamcity` formatter (which works for both TeamCity and JetBrains IDEs).
+      // We don't need to add any of our own older formatters to the runtime classpath.
+      // Learn more in IDEA-276468.
+      return ArrayUtilRt.toStringArray(result);
+    }
+
+    String cucumberJvmFormatterClassPath = PathUtil.getJarPathForClass(CucumberJvmSMFormatter.class);
     result.add(cucumberJvmFormatterClassPath);
 
     // Attach SM formatter's folder/jar for Cucumber v3/v4
-    String cucumberCoreVersion = getCucumberCoreVersion();
-    LOG.info("detected cucumber-java version: " + cucumberCoreVersion);
     for (int i = 5; i >= 3; i--) {
       if (VersionComparatorUtil.compare(cucumberCoreVersion, String.valueOf(i)) >= 0) {
         if (cucumberJvmFormatterClassPath.endsWith(".jar")) {
+          // Running the IDE from normal distribution, attach the JAR
           result.add(cucumberJvmFormatterClassPath.replace(".jar", i + ".jar"));
         }
         else {
-          // Running IDEA from sources
+          // Running the IDE from sources, attach the folder with compiled classes
           result.add(cucumberJvmFormatterClassPath + i);
         }
       }

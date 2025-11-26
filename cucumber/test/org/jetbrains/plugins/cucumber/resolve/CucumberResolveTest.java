@@ -7,15 +7,15 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.cucumber.CucumberCodeInsightTestCase;
 
 public abstract class CucumberResolveTest extends CucumberCodeInsightTestCase {
-  protected void checkReference(@NotNull final String element, @Nullable final String stepDefinitionName) {
-    final ResolveResult[] result = getResolveResult(element);
+  protected void checkReference(@NotNull ResolveResult @NotNull [] result, @Nullable String stepDefinitionName) {
     boolean ok = stepDefinitionName == null;
     for (ResolveResult rr : result) {
       final PsiElement resolvedElement = rr.getElement();
       if (resolvedElement != null) {
         if (stepDefinitionName == null) {
           ok = false;
-        } else {
+        }
+        else {
           final String resolvedStepDefName = getStepDefinitionName(resolvedElement);
           if (resolvedStepDefName != null && resolvedStepDefName.equals(stepDefinitionName)) {
             ok = true;
@@ -27,22 +27,34 @@ public abstract class CucumberResolveTest extends CucumberCodeInsightTestCase {
     assertTrue(ok);
   }
 
-  private ResolveResult[] getResolveResult(@NotNull String step) {
-    final PsiReference reference = findReferenceBySignature(step);
-    if (reference instanceof PsiPolyVariantReference) {
-      return ((PsiPolyVariantReference) reference).multiResolve(true);
-    }
-    return new ResolveResult[] {new PsiElementResolveResult(reference.resolve())};
+  protected void checkReference(@NotNull String element, @Nullable String stepDefinitionName) {
+    ResolveResult[] result = getResolveResult(element);
+    checkReference(result, stepDefinitionName);
   }
 
-  public void doTest(@NotNull final String folder, @NotNull final String step, @Nullable final String stepDefinitionName) {
+  protected ResolveResult[] getResolveResult(@NotNull String step) {
+    PsiReference reference = findReferenceBySignature(step);
+    assertNotNull("reference must not be null", reference);
+    if (reference instanceof PsiPolyVariantReference polyVariantReference) {
+      return polyVariantReference.multiResolve(true);
+    }
+    return new ResolveResult[]{new PsiElementResolveResult(reference.resolve())};
+  }
+
+  protected ResolveResult[] getResolveResult(@NotNull PsiReference reference) {
+    if (reference instanceof PsiPolyVariantReference polyVariantReference) {
+      return polyVariantReference.multiResolve(true);
+    }
+    return new ResolveResult[]{new PsiElementResolveResult(reference.resolve())};
+  }
+
+  public void doTest(@NotNull String folder, @NotNull String step, @Nullable String stepDefinitionName) {
     init(folder);
 
     checkReference(step, stepDefinitionName);
   }
 
-  public void doTest(@NotNull final String folder, @NotNull final String fileName, @NotNull final String step,
-                     @Nullable final String stepDefinitionName) {
+  public void doTest(@NotNull String folder, @NotNull String fileName, @NotNull String step, @Nullable String stepDefinitionName) {
     init(folder, fileName);
 
     checkReference(step, stepDefinitionName);

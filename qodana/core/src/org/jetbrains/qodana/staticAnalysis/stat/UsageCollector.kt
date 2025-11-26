@@ -1,25 +1,34 @@
 package org.jetbrains.qodana.staticAnalysis.stat
 
-import com.intellij.internal.statistic.eventLog.EventLogGroup
 import com.intellij.internal.statistic.eventLog.events.EventField
 import com.intellij.internal.statistic.eventLog.events.EventFields
 import com.intellij.internal.statistic.eventLog.events.EventPair
 import com.intellij.internal.statistic.service.fus.collectors.CounterUsagesCollector
+import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.text.Strings
+import com.intellij.openapi.vfs.readText
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.withContext
+import org.jetbrains.qodana.coroutines.QodanaDispatchers
 import org.jetbrains.qodana.license.QodanaLicense
 import org.jetbrains.qodana.license.QodanaLicenseType
 import org.jetbrains.qodana.staticAnalysis.inspections.config.FailureConditions
 import org.jetbrains.qodana.staticAnalysis.inspections.config.FixesStrategy
 import org.jetbrains.qodana.staticAnalysis.inspections.config.QodanaConfig
 import org.jetbrains.qodana.staticAnalysis.script.DEFAULT_SCRIPT_NAME
+import org.jetbrains.qodana.ui.ci.CIFile
+import org.jetbrains.qodana.ui.ci.providers.github.DefaultQodanaGithubWorkflowBuilder
+import org.jetbrains.qodana.ui.ci.providers.github.GitHubCIFileChecker
+import java.io.IOException
 import java.time.Duration
 import java.time.Instant
 
 object UsageCollector : CounterUsagesCollector() {
+  private val GROUP = QodanaEventLogGroup("qodana.usage", 14)
 
-  override fun getGroup() = GROUP
-
-  private val GROUP = EventLogGroup("qodana.usage", 10)
+  override fun getGroup() = GROUP.eventLogGroup
 
   private val knownSystems = listOf(  // from https://github.com/cucumber/ci-environment/blob/main/CiEnvironments.json
     "azure-pipelines",
@@ -83,7 +92,7 @@ object UsageCollector : CounterUsagesCollector() {
   private val failureConditionMinimumTotalCoverageField = EventFields.RoundedInt("failureConditionMinimumTotalCoverage")
   private val failureConditionMinimumFreshCoverageField = EventFields.RoundedInt("failureConditionMinimumFreshCoverage")
 
-  private val sourceDirField = EventFields.Boolean("sourceDirectory")
+  private val onlyDirectoryField = EventFields.Boolean("onlyDirectory")
   private val includeAbsentField = EventFields.Boolean("includeAbsent")
   private val fixesStrategyField = EventFields.Enum<FixesStrategy>("fixesStrategy") { it.name.lowercase() }
   private val baselineField = EventFields.String("baselineType", listOf("none", "local", "cloud"))
@@ -106,7 +115,7 @@ object UsageCollector : CounterUsagesCollector() {
     failureConditionInfoField,
     failureConditionMinimumTotalCoverageField,
     failureConditionMinimumFreshCoverageField,
-    sourceDirField,
+    onlyDirectoryField,
     includeAbsentField,
     fixesStrategyField,
     baselineField
@@ -124,8 +133,28 @@ object UsageCollector : CounterUsagesCollector() {
     daysLeftField
   )
 
-  private val qodanaYamlDetectedEvent = GROUP.registerEvent(
+  private val qodanaYamlDetectedEvent = GROUP.registerVarargEvent(
     "qodana.yaml.detected"
+  )
+
+  enum class QodanaConfigSource {
+    LOCAL,
+    GLOBAL,
+    LOCAL_AND_GLOBAL,
+
+    UNKNOWN
+  }
+
+  private val QODANA_CONFIG_SOURCE = EventFields.Enum<QodanaConfigSource>("configSource")
+
+  private val qodanaConfigurationSourceEvent = GROUP.registerVarargEvent(
+    "qodana.configuration.source",
+    QODANA_CONFIG_SOURCE
+  )
+
+
+  private val qodanaGithubPromoWorkflowUsed = GROUP.registerVarargEvent(
+    "qodana.github.promo.workflow.used"
   )
 
   internal data class Environment(val system: String, val version: String?, val build: String?)
@@ -149,6 +178,10 @@ object UsageCollector : CounterUsagesCollector() {
 
   fun logQodanaYamlPresent() {
     qodanaYamlDetectedEvent.log()
+  }
+
+  fun logQodanaConfigSource(source: QodanaConfigSource) {
+    qodanaConfigurationSourceEvent.log(QODANA_CONFIG_SOURCE with source)
   }
 
   @JvmStatic
@@ -202,7 +235,7 @@ object UsageCollector : CounterUsagesCollector() {
         args += scriptField with "other"
       }
     }
-    args += sourceDirField with (config.sourceDirectory != null)
+    args += onlyDirectoryField with (config.onlyDirectory != null)
     args += fixesStrategyField with config.fixesStrategy
     args += includeAbsentField with config.includeAbsent
     args += baselineField with when (config.baseline) {
@@ -238,6 +271,21 @@ object UsageCollector : CounterUsagesCollector() {
     failureConditionInfoField logIfPresent failureConditions.severityThresholds.info
     failureConditionMinimumTotalCoverageField logIfPresent failureConditions.testCoverageThresholds.total
     failureConditionMinimumFreshCoverageField logIfPresent failureConditions.testCoverageThresholds.fresh
+  }
+
+  suspend fun logPromoGithubConfigPresent(project: Project) {
+    GitHubCIFileChecker(project).ciFileFlow.filter { it !is CIFile.NotInitialized }.firstOrNull().let { ciFile ->
+      if (ciFile !is CIFile.ExistingWithQodana) return@let
+      try {
+        val ciFileText = withContext(QodanaDispatchers.IO) { ciFile.virtualFile?.readText() }
+        if (ciFileText?.contains(DefaultQodanaGithubWorkflowBuilder.PROMO_HEADER_TEXT) == true) {
+          qodanaGithubPromoWorkflowUsed.log()
+        }
+      }
+      catch (e: IOException) {
+        Logger.getInstance(UsageCollector::class.java).warn("Couldn't read the contents of CI file", e)
+      }
+    }
   }
 
 }

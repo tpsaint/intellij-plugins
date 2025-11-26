@@ -1,30 +1,34 @@
 ### auto-generated section `build intellij.javascript.debugger.featuresTrainer` start
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_provided_library", "jvm_resources")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_provided_library", "resourcegroup")
 
-jvm_resources(
+resourcegroup(
   name = "javascript-debugger-featuresTrainer_resources",
-  files = glob(["resources/**/*"]),
+  srcs = glob(["resources/**/*"]),
   strip_prefix = "resources"
 )
 
 jvm_provided_library(
-  name = "javascript-impl_provided",
-  lib = "//plugins/JavaScriptLanguage:javascript-impl"
+  name = "plugins_javascript-backend_provided",
+  lib = "//plugins/JavaScriptLanguage:javascript-backend"
 )
 
 jvm_provided_library(
-  name = "javascript-debugger_provided",
-  lib = "//plugins/JavaScriptDebugger:javascript-debugger"
+  name = "plugins_JavaScriptDebugger_backend_provided",
+  lib = "//plugins/JavaScriptDebugger/backend"
 )
 
 jvm_library(
   name = "javascript-debugger-featuresTrainer",
   module_name = "intellij.javascript.debugger.featuresTrainer",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java"], allow_empty = True),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form"], allow_empty = True),
+  resources = [":javascript-debugger-featuresTrainer_resources"],
   deps = [
     "@lib//:kotlin-stdlib",
     "//plugins/JavaScriptLanguage/javascript-parser",
+    "@community//platform/core-api:core",
+    "@community//platform/editor-ui-api:editor-ui",
+    "@community//platform/execution-impl",
     "@community//platform/testRunner",
     "@community//platform/smRunner",
     "@community//plugins/ide-features-trainer:featuresTrainer",
@@ -32,11 +36,9 @@ jvm_library(
     "@community//platform/editor-ui-ex:editor-ex",
     "@community//platform/xdebugger-api:debugger",
     "@community//platform/core-ui",
-    "//plugins/JavaScriptLanguage/javascript-frontback-impl",
     "//plugins/JavaScriptLanguage/javascript-psi-impl",
-    ":javascript-impl_provided",
-    ":javascript-debugger_provided",
-  ],
-  runtime_deps = [":javascript-debugger-featuresTrainer_resources"]
+    ":plugins_javascript-backend_provided",
+    ":plugins_JavaScriptDebugger_backend_provided",
+  ]
 )
 ### auto-generated section `build intellij.javascript.debugger.featuresTrainer` end

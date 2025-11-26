@@ -2,38 +2,41 @@ package org.angular2.library.forms.impl
 
 import com.intellij.model.Pointer
 import com.intellij.openapi.util.NlsSafe
-import com.intellij.webSymbols.SymbolKind
-import com.intellij.webSymbols.SymbolNamespace
-import com.intellij.webSymbols.WebSymbol
-import com.intellij.webSymbols.WebSymbolOrigin
-import com.intellij.webSymbols.patterns.WebSymbolsPattern
-import com.intellij.webSymbols.patterns.WebSymbolsPatternFactory
+import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.PolySymbolOrigin
+import com.intellij.polySymbols.PolySymbolProperty
+import com.intellij.polySymbols.PolySymbolQualifiedKind
+import com.intellij.polySymbols.patterns.PolySymbolPattern
+import com.intellij.polySymbols.patterns.PolySymbolPatternFactory
+import com.intellij.polySymbols.query.PolySymbolWithPattern
 import org.angular2.library.forms.NG_FORM_CONTROL_PROPS
 import org.angular2.web.Angular2SymbolOrigin
 
-object Angular2FormArrayControl : WebSymbol {
+object Angular2FormArrayControl : PolySymbolWithPattern {
 
   override val name: @NlsSafe String
     get() = "Form array control"
 
-  override val pattern: WebSymbolsPattern? = WebSymbolsPatternFactory.createRegExMatch("[0-9]+")
+  override val pattern: PolySymbolPattern =
+    PolySymbolPatternFactory.createRegExMatch("[0-9]+")
 
-  override val namespace: @NlsSafe SymbolNamespace
-    get() = WebSymbol.Companion.NAMESPACE_JS
+  override val qualifiedKind: PolySymbolQualifiedKind
+    get() = NG_FORM_CONTROL_PROPS
 
-  override val kind: @NlsSafe SymbolKind
-    get() = NG_FORM_CONTROL_PROPS.kind
-
-  override val origin: WebSymbolOrigin
+  override val origin: PolySymbolOrigin
     get() = Angular2SymbolOrigin.empty
 
-  override val priority: WebSymbol.Priority?
-    get() = WebSymbol.Priority.LOWEST
+  override val priority: PolySymbol.Priority?
+    get() = PolySymbol.Priority.LOWEST
 
-  override val properties: Map<String, Any> =
-    mapOf(WebSymbol.Companion.PROP_HIDE_FROM_COMPLETION to true,
-          WebSymbol.Companion.PROP_DOC_HIDE_PATTERN to true)
+  @Suppress("UNCHECKED_CAST")
+  override fun <T : Any> get(property: PolySymbolProperty<T>): T? =
+    when (property) {
+      PolySymbol.PROP_HIDE_FROM_COMPLETION -> true as T
+      PolySymbol.PROP_DOC_HIDE_PATTERN -> true as T
+      else -> null
+    }
 
-  override fun createPointer(): Pointer<out WebSymbol> =
+  override fun createPointer(): Pointer<out PolySymbol> =
     Pointer.hardPointer(this)
 }

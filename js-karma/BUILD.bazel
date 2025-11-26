@@ -1,21 +1,21 @@
 ### auto-generated section `build intellij.karma` start
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_resources", "jvm_test")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
 
-jvm_resources(
+resourcegroup(
   name = "karma_resources",
-  files = glob(["compatibilityResources/**/*"]),
+  srcs = glob(["compatibilityResources/**/*"]),
   strip_prefix = "compatibilityResources"
 )
 
-jvm_resources(
+resourcegroup(
   name = "karma_resources_1",
-  files = glob(["resources/**/*"]),
+  srcs = glob(["resources/**/*"]),
   strip_prefix = "resources"
 )
 
-jvm_resources(
+resourcegroup(
   name = "karma_test_resources",
-  files = glob(["testData/**/*"]),
+  srcs = glob(["testData/**/*"]),
   strip_prefix = "testData"
 )
 
@@ -23,87 +23,104 @@ jvm_library(
   name = "karma",
   module_name = "intellij.karma",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java"], allow_empty = True),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form"], allow_empty = True),
+  resources = [
+    ":karma_resources",
+    ":karma_resources_1",
+  ],
   deps = [
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/util/concurrency",
+    "@community//platform/core-api:core",
+    "@community//platform/editor-ui-api:editor-ui",
+    "@community//platform/execution-impl",
+    "@community//platform/indexing-api:indexing",
     "@community//platform/lang-impl",
-    "//plugins/JavaScriptLanguage:javascript-impl",
+    "//plugins/JavaScriptLanguage:javascript-backend",
+    "//plugins/JavaScriptLanguage/javascript-coverage",
     "@community//platform/platform-impl:ide-impl",
+    "@community//platform/projectModel-api:projectModel",
+    "@community//platform/refactoring",
     "@community//platform/smRunner",
-    "@lib//:guava",
+    "@community//libraries/guava",
     "//plugins/js-test-common:javascript-testing",
-    "@lib//:gson",
-    "//plugins/JavaScriptDebugger:javascript-debugger",
-    "//plugins/JavaScriptDebugger/backend:javascript-debugger-backend",
+    "@community//libraries/gson",
+    "//plugins/JavaScriptDebugger/backend",
     "@community//plugins/coverage-common/intellij.platform.coverage.agent:coverage-agent",
-    "//plugins/JavaScriptDebugger/sdk/backend:javascript-debugger-sdk-backend",
-    "//plugins/JavaScriptLanguage:javascript",
     "@community//xml/impl",
     "@community//platform/xdebugger-api:debugger",
     "@community//plugins/coverage-common:coverage",
-    "//webcore/impl:webide-impl",
-    "//plugins/JavaScriptDebugger/wip/backend:javascript-wip-backend",
-    "//plugins/JavaScriptDebugger/wip/protocol:javascript-wip-protocol",
+    "//webcore/impl",
+    "//plugins/JavaScriptDebugger/wip/backend",
+    "//plugins/JavaScriptDebugger/wip/protocol",
     "@community//platform/script-debugger/debugger-ui:scriptDebugger-ui",
-    "@community//platform/script-debugger/backend:scriptDebugger-backend",
-    "//plugins/JavaScriptDebugger/ChromeConnector:javascript-chrome-connector",
+    "@community//platform/script-debugger/backend",
     "@community//platform/core-ui",
     "@community//platform/platform-util-io:ide-util-io",
     "@community//platform/util/jdom",
-  ],
-  runtime_deps = [
-    ":karma_resources",
-    ":karma_resources_1",
+    "@community//xml/xml-psi-api:psi",
+    "//plugins/JavaScriptDebugger/common",
+    "@community//platform/xdebugger-impl:debugger-impl",
   ]
 )
 
 jvm_library(
   name = "karma_test_lib",
   visibility = ["//visibility:public"],
-  srcs = glob(["test/**/*.kt", "test/**/*.java"], allow_empty = True),
+  srcs = glob(["test/**/*.kt", "test/**/*.java", "test/**/*.form"], allow_empty = True),
+  resources = [":karma_test_resources"],
   associates = [":karma"],
   deps = [
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/util/concurrency",
+    "@community//platform/util/concurrency:concurrency_test_lib",
+    "@community//platform/core-api:core",
+    "@community//platform/editor-ui-api:editor-ui",
+    "@community//platform/execution-impl",
+    "@community//platform/indexing-api:indexing",
     "@community//platform/lang-impl",
-    "//plugins/JavaScriptLanguage:javascript-impl",
+    "//plugins/JavaScriptLanguage:javascript-backend",
+    "//plugins/JavaScriptLanguage/javascript-coverage",
     "@community//platform/platform-impl:ide-impl",
-    "@community//platform/platform-impl:ide-impl_test_lib",
+    "@community//platform/projectModel-api:projectModel",
+    "@community//platform/refactoring",
     "@community//platform/smRunner",
     "@community//platform/smRunner:smRunner_test_lib",
-    "@lib//:guava",
+    "@community//libraries/guava",
     "//plugins/js-test-common:javascript-testing",
-    "@lib//:gson",
-    "//plugins/JavaScriptDebugger:javascript-debugger",
-    "//plugins/JavaScriptDebugger/backend:javascript-debugger-backend",
+    "@community//libraries/gson",
+    "//plugins/JavaScriptDebugger/backend",
     "@community//plugins/coverage-common/intellij.platform.coverage.agent:coverage-agent",
-    "//plugins/JavaScriptDebugger/sdk/backend:javascript-debugger-sdk-backend",
-    "//plugins/JavaScriptLanguage:javascript",
     "@community//xml/impl",
     "@community//platform/xdebugger-api:debugger",
     "@community//plugins/coverage-common:coverage",
     "@community//plugins/coverage-common:coverage_test_lib",
-    "//webcore/impl:webide-impl",
+    "//webcore/impl",
     "@lib//:junit4",
-    "//plugins/JavaScriptDebugger/wip/backend:javascript-wip-backend",
-    "//plugins/JavaScriptDebugger/wip/protocol:javascript-wip-protocol",
+    "//plugins/JavaScriptDebugger/wip/backend",
+    "//plugins/JavaScriptDebugger/wip/protocol",
     "@community//platform/script-debugger/debugger-ui:scriptDebugger-ui",
-    "@community//platform/script-debugger/backend:scriptDebugger-backend",
-    "//plugins/JavaScriptDebugger/ChromeConnector:javascript-chrome-connector",
+    "@community//platform/script-debugger/backend",
     "@community//platform/testFramework",
     "@community//platform/testFramework:testFramework_test_lib",
     "@community//platform/core-ui",
     "@community//platform/platform-util-io:ide-util-io",
     "@community//platform/util/jdom",
     "//plugins/js-test-common/test:javascript-testing-tests_test_lib",
+    "@community//xml/xml-psi-api:psi",
     "//plugins/JavaScriptLanguage:javascript-testFramework",
-  ],
-  runtime_deps = [
-    ":karma_resources",
-    ":karma_resources_1",
-    ":karma_test_resources",
+    "//plugins/JavaScriptDebugger/common",
+    "@community//platform/xdebugger-impl:debugger-impl",
+    "@community//platform/xdebugger-impl:debugger-impl_test_lib",
   ]
 )
+### auto-generated section `build intellij.karma` end
 
-jvm_test(
+### auto-generated section `test intellij.karma` start
+load("@community//build:tests-options.bzl", "jps_test")
+
+jps_test(
   name = "karma_test",
   runtime_deps = [":karma_test_lib"]
 )
-### auto-generated section `build intellij.karma` end
+### auto-generated section `test intellij.karma` end

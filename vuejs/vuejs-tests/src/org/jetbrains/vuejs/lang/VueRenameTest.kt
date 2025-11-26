@@ -26,235 +26,305 @@
 // limitations under the License.
 package org.jetbrains.vuejs.lang
 
-import com.intellij.openapi.command.WriteCommandAction
-import com.intellij.openapi.fileEditor.FileDocumentManager
-import com.intellij.psi.impl.source.PostprocessReformattingAspect
 import com.intellij.refactoring.rename.inplace.VariableInplaceRenameHandler
-import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.fixtures.CodeInsightTestUtil
-import com.intellij.webSymbols.testFramework.moveToOffsetBySignature
-import com.intellij.webSymbols.testFramework.renameWebSymbol
+import org.jetbrains.vuejs.VueTestCase
 
-class VueRenameTest : BasePlatformTestCase() {
+class VueRenameTest : VueTestCase("rename") {
 
-  override fun getBasePath(): String {
-    return "" // not used
-  }
+  fun testComponentFieldFromTemplate() =
+    checkSymbolRename("newName", dir = false)
 
-  override fun getTestDataPath(): String = getVueTestDataPath() + "/rename"
+  fun testComponentFieldFromStringUsageInTemplate() =
+    checkSymbolRename("newName", dir = false)
 
-  fun testComponentFieldFromTemplate() {
-    doTest("newName")
-  }
+  fun testTemplateLocalVariable() =
+    checkSymbolRename("newName", dir = false)
 
-  fun testComponentFieldFromStringUsageInTemplate() {
-    doTest("newName")
-  }
+  fun testDestructuringInVFor() =
+    checkSymbolRename("newName", dir = false)
 
-  fun testTemplateLocalVariable() {
-    doTest("newName")
-  }
+  fun testSlotProps() =
+    checkSymbolRename("newName", dir = false)
 
-  fun testDestructuringInVFor() {
-    doTest("newName")
-  }
+  fun testQualifiedWatchProperty() =
+    checkSymbolRename("newName", dir = false)
 
-  fun testSlotProps() {
-    doTest("newName")
-  }
+  fun testWatchProperty() =
+    checkSymbolRename("newName", dir = false)
 
-  fun testQualifiedWatchProperty() {
-    doTest("newName")
-  }
-
-  fun testWatchProperty() {
-    doTest("newName")
-  }
-
-  fun testInlineFieldRename() {
-    myFixture.configureByFile("inlineField.vue")
-    CodeInsightTestUtil.doInlineRename(VariableInplaceRenameHandler(), "foo", myFixture)
-    myFixture.checkResultByFile("inlineField_after.vue")
-  }
-
-  fun testComponentNameFromDeclaration() {
-    val testName = getTestName(true)
-    val testFiles = listOf("1.vue", "2.vue", ".html", ".ts", ".js").map { testName + it }
-    val afterFiles = listOf("1_after.vue", "2_after.vue").map { testName + it }
-    testFiles.reversed().forEach { myFixture.configureByFile(it) }
-    myFixture.testRename(afterFiles[0], "AfterComponent")
-    testFiles.indices.forEach {
-      myFixture.checkResultByFile(testFiles[it], afterFiles.getOrNull(it) ?: testFiles[it], true)
-    }
-  }
-
-  fun testComponentNameFromPropertyName() {
-    myFixture.configureByFile("componentNameFromDeclaration1.vue")
-    doTest("AfterComponent")
-  }
-
-  fun testCssVBind() {
-    doTest("newColor")
-  }
-
-  fun testCssVBindScriptSetup() {
-    doTest("newColor", true)
-  }
-
-  fun testCreateAppComponent() {
-    myFixture.copyDirectoryToProject("../common/createApp", ".")
-    myFixture.configureVueDependencies(VueTestModule.VUE_3_2_2)
-    myFixture.configureFromTempProjectFile("main.ts")
-    myFixture.moveToOffsetBySignature("\"C<caret>ar")
-    myFixture.renameWebSymbol("NewCar")
-    checkResultByDir()
-  }
-
-  fun testCreateAppComponentFromUsage() {
-    myFixture.copyDirectoryToProject("../common/createApp", ".")
-    myFixture.configureVueDependencies(VueTestModule.VUE_3_2_2)
-    myFixture.configureFromTempProjectFile("App.vue")
-    myFixture.moveToOffsetBySignature("<C<caret>ar")
-    myFixture.renameWebSymbol("NewCar")
-    checkResultByDir("createAppComponent_after")
-  }
-
-  fun testCreateAppDirective() {
-    myFixture.copyDirectoryToProject("../common/createApp", ".")
-    myFixture.configureVueDependencies(VueTestModule.VUE_3_2_2)
-    myFixture.configureFromTempProjectFile("main.ts")
-    myFixture.moveToOffsetBySignature("\"f<caret>oo")
-    myFixture.renameWebSymbol("bar")
-    checkResultByDir()
-  }
-
-  fun testCreateAppDirectiveFromUsage() {
-    myFixture.copyDirectoryToProject("../common/createApp", ".")
-    myFixture.configureVueDependencies(VueTestModule.VUE_3_2_2)
-    myFixture.configureFromTempProjectFile("TheComponent.vue")
-    myFixture.moveToOffsetBySignature("v-f<caret>oo")
-    myFixture.renameWebSymbol("bar")
-    checkResultByDir("createAppDirective_after")
-  }
-
-  fun testNamespacedComponents() {
-    myFixture.copyDirectoryToProject("../completion/namespacedComponents", ".")
-    myFixture.configureVueDependencies(VueTestModule.VUE_3_2_2)
-    myFixture.configureFromTempProjectFile("scriptSetup.vue")
-    myFixture.type("Forms.FooBars.Input")
-    myFixture.moveToOffsetBySignature(".In<caret>put")
-    myFixture.renameWebSymbol("NewName")
-    checkResultByDir("namespacedComponents_after")
-  }
-
-  fun testCompositionApiLocalDirective() {
-    myFixture.copyDirectoryToProject(getTestName(true), ".")
-    myFixture.configureVueDependencies(VueTestModule.VUE_3_2_2)
-    myFixture.configureFromTempProjectFile("scriptSetup.vue")
-    myFixture.renameWebSymbol("vNewName")
-    checkResultByDir("${getTestName(true)}_after")
-  }
-
-  fun testModelDeclaration() {
-    myFixture.configureVueDependencies(VueTestModule.VUE_3_3_4)
-    doTest("alignment")
-  }
-
-  fun testModelDeclarationWithVar() {
-    myFixture.configureVueDependencies(VueTestModule.VUE_3_3_4)
-    doTest("alignment")
-  }
-
-  fun testModelDeclarationProp() {
-    myFixture.configureVueDependencies(VueTestModule.VUE_3_2_2)
-    doTestDir("count")
-  }
-
-  fun testModelDeclarationEvent() {
-    myFixture.configureVueDependencies(VueTestModule.VUE_3_2_2)
-    doTestDir("count")
-  }
-
-  fun testDefinePropsRecordType() {
-    myFixture.configureVueDependencies(VueTestModule.VUE_3_3_4)
-    doTest("alignment")
-  }
-
-  fun testDefinePropsArrayLiteral() {
-    myFixture.configureVueDependencies(VueTestModule.VUE_3_3_4)
-    doTest("alignment")
-  }
-
-  fun testInjectLiteral() {
-    myFixture.configureVueDependencies(VueTestModule.VUE_3_3_4)
-    doTestDir("newName", true)
-  }
-
-  fun testComponentFile() {
-    doTestRenameComponent("OrdersListView.vue", "SomeComponent.vue", false)
-  }
-
-  fun testComponentFileWithUsages() {
-    doTestRenameComponent("OrdersListView.vue", "SomeComponent.vue", true)
-  }
-
-  fun testComponentFileWithReexports() {
-    doTestRenameComponent("OrdersListView.vue", "SomeComponent.vue", true)
-  }
-
-  private fun doTest(newName: String, usingHandler: Boolean = false) {
-    myFixture.configureByFile(getTestName(true) + ".vue")
-    if (usingHandler) {
-      val oldSetting = myFixture.editor.settings.isVariableInplaceRenameEnabled
-      myFixture.editor.settings.isVariableInplaceRenameEnabled = false
-      try {
-        myFixture.renameElementAtCaretUsingHandler(newName)
-      }
-      finally {
-        myFixture.editor.settings.isVariableInplaceRenameEnabled = oldSetting
-      }
-    }
-    else {
-      myFixture.renameElementAtCaret(newName)
-    }
-    myFixture.checkResultByFile(getTestName(true) + "_after.vue")
-  }
-
-  private fun doTestDir(newName: String, checkByDir: Boolean = false) {
-    val dirName = getTestName(true)
-    val testName = getTestName(false)
-    myFixture.copyDirectoryToProject(dirName, "")
-    myFixture.configureFromTempProjectFile("$testName.vue")
-    myFixture.renameWebSymbol(newName)
-    if (checkByDir) {
-      checkResultByDir("${dirName}_after")
-    }
-    else {
-      myFixture.checkResultByFile("$dirName/${testName}_after.vue")
-    }
-  }
-
-  private fun doTestRenameComponent(newName: String, fileName: String, renameUsages: Boolean) {
-    val dirName = getTestName(true)
-    myFixture.copyDirectoryToProject(dirName, "")
-    myFixture.configureFromTempProjectFile(fileName)
-
-    withRenameUsages(renameUsages) {
-      myFixture.renameElement(myFixture.file, newName)
-      WriteCommandAction.runWriteCommandAction(project) { PostprocessReformattingAspect.getInstance(project).doPostponedFormatting() }
-      FileDocumentManager.getInstance().saveAllDocuments()
+  fun testInlineFieldRename() =
+    doConfiguredTest(checkResult = true) {
+      CodeInsightTestUtil.doInlineRename(VariableInplaceRenameHandler(), "foo", myFixture)
     }
 
-    checkResultByDir()
+  fun testComponentNameFromDeclaration() =
+    checkSymbolRename("componentNameFromDeclaration1.vue", "AfterComponent")
+
+  fun testComponentNameFromPropertyName() =
+    checkSymbolRename("AfterComponent")
+
+  fun testCssVBind() =
+    checkSymbolRename("newColor", dir = false)
+
+  fun testCssVBindScriptSetup() =
+    checkSymbolRename("newColor", dir = false)
+
+  fun testCreateAppComponent() =
+    checkSymbolRename("main.ts", "NewCar", VueTestModule.VUE_3_2_2)
+
+  fun testCreateAppComponentFromUsage() =
+    checkSymbolRename("App.vue", "NewCar", VueTestModule.VUE_3_2_2)
+
+  fun testCreateAppDirective() =
+    checkSymbolRename("main.ts", "bar", VueTestModule.VUE_3_2_2)
+
+  fun testCreateAppDirectiveFromUsage() =
+    checkSymbolRename("TheComponent.vue", "bar", VueTestModule.VUE_3_2_2)
+
+  fun testNamespacedComponents() =
+    checkSymbolRename("scriptSetup.vue", "NewName", VueTestModule.VUE_3_2_2)
+
+  fun testCompositionApiLocalDirective() =
+    checkSymbolRename("scriptSetup.vue", "vNewName", VueTestModule.VUE_3_2_2)
+
+  fun testModelDeclaration() =
+    checkSymbolRename("alignment", VueTestModule.VUE_3_3_4, dir = false)
+
+  fun testModelDeclarationWithVar() =
+    checkSymbolRename("alignment", VueTestModule.VUE_3_3_4, dir = false)
+
+  fun testModelDeclarationProp() =
+    checkSymbolRename("ModelDeclarationProp.vue", "count", VueTestModule.VUE_3_2_2)
+
+  fun testModelDeclarationEvent() =
+    checkSymbolRename("ModelDeclarationEvent.vue", "count", VueTestModule.VUE_3_2_2)
+
+  fun testInjectLiteral() =
+    checkSymbolRename("InjectLiteral.vue", "newName", VueTestModule.VUE_3_3_4)
+
+  fun testComponentFile() =
+    withRenameUsages(false) {
+      checkFileRename("OrdersListView.vue", "SomeComponent.vue", searchCommentsAndText = false)
+    }
+
+  fun testComponentFileWithUsages() =
+    withRenameUsages(true) {
+      checkFileRename("OrdersListView.vue", "SomeComponent.vue", searchCommentsAndText = false)
+    }
+
+  fun testComponentFileWithReexports() =
+    withRenameUsages(true) {
+      checkFileRename("OrdersListView.vue", "SomeComponent.vue", searchCommentsAndText = false)
+    }
+
+  fun testPropsOptionsFromDefinition() =
+    checkSymbolRename("newName", dir = false)
+
+  fun testPropsOptionsFromUsage1() =
+    checkSymbolRename("newName23", dir = false)
+
+  fun testPropsOptionsFromUsage2() =
+    checkSymbolRename("newName23", dir = false)
+
+  fun testPropsOptionsFromUsage3() =
+    checkSymbolRename("newName23", dir = false)
+
+  fun testPropsOptionsUpperCaseFromDefinition() =
+    checkSymbolRename("NewName", dir = false)
+
+  fun testPropsOptionsNumberFromDefinition() =
+    checkSymbolRename("newName23", dir = false)
+
+  fun testPropsOptionsExtUsageFromDefinition() =
+    checkSymbolRename("MyComponent.vue", "newName")
+
+  fun testPropsOptionsExtUsageFromUsage() =
+    checkSymbolRename("MyUsage.vue", "newName23")
+
+  fun testPropsStringsFromDefinition() =
+    checkSymbolRename("newName", dir = false)
+
+  fun testPropsStringsFromUsage1() =
+    checkSymbolRename("newName", dir = false)
+
+  fun testPropsStringsFromUsage2() =
+    checkSymbolRename("newName", dir = false)
+
+  fun testPropsStringsExtUsageFromDefinition() =
+    checkSymbolRename("MyComponent.vue", "newName")
+
+  fun testPropsStringsExtUsageFromUsage() =
+    checkSymbolRename("MyUsage.vue", "newName")
+
+  fun testDefinePropsRecordTypeFromDefinition() =
+    checkSymbolRename("newName", VueTestModule.VUE_3_3_4, dir = false)
+
+  fun testDefinePropsRecordTypeFromUsage1() =
+    checkSymbolRename("newName", VueTestModule.VUE_3_3_4, dir = false)
+
+  fun testDefinePropsRecordTypeFromUsage2() =
+    checkSymbolRename("newName", VueTestModule.VUE_3_3_4, dir = false)
+
+  fun testDefinePropsRecordTypeExtUsageFromDefinition() =
+    checkSymbolRename("MyComponent.vue", "newName", VueTestModule.VUE_3_3_4)
+
+  fun testDefinePropsRecordTypeExtUsageFromUsage() =
+    checkSymbolRename("MyUsage.vue", "newName", VueTestModule.VUE_3_3_4)
+
+  fun testDefinePropsArrayLiteralFromDefinition() =
+    checkSymbolRename("newName", VueTestModule.VUE_3_3_4, dir = false)
+
+  fun testDefinePropsArrayLiteralFromUsage1() =
+    checkSymbolRename("newName", VueTestModule.VUE_3_3_4, dir = false)
+
+  fun testDefinePropsArrayLiteralFromUsage2() =
+    checkSymbolRename("newName", VueTestModule.VUE_3_3_4, dir = false)
+
+  fun testDefinePropsArrayLiteralExtUsageFromDefinition() =
+    checkSymbolRename("MyComponent.vue", "newName", VueTestModule.VUE_3_3_4)
+
+  fun testDefinePropsArrayLiteralExtUsageFromUsage() =
+    checkSymbolRename("MyUsage.vue", "newName", VueTestModule.VUE_3_3_4)
+
+  fun testDefinePropsObjectLiteralFromDefinition() =
+    checkSymbolRename("newName", VueTestModule.VUE_3_3_4, dir = false)
+
+  fun testDefinePropsObjectLiteralFromUsage1() =
+    checkSymbolRename("newName", VueTestModule.VUE_3_3_4, dir = false)
+
+  fun testDefinePropsObjectLiteralFromUsage2() =
+    checkSymbolRename("newName", VueTestModule.VUE_3_3_4, dir = false)
+
+  fun testDefinePropsObjectLiteralExtUsageFromDefinition() =
+    checkSymbolRename("MyComponent.vue", "newName", VueTestModule.VUE_3_3_4)
+
+  fun testDefinePropsObjectLiteralExtUsageFromUsage() =
+    checkSymbolRename("MyUsage.vue", "newName", VueTestModule.VUE_3_3_4)
+
+  fun testDefinePropsInterfaceFromDefinition() =
+    checkSymbolRename("newName", VueTestModule.VUE_3_3_4, dir = false)
+
+  fun testDefinePropsInterfaceFromUsage1() =
+    checkSymbolRename("newName", VueTestModule.VUE_3_3_4, dir = false)
+
+  fun testDefinePropsInterfaceFromUsage2() =
+    checkSymbolRename("newName", VueTestModule.VUE_3_3_4, dir = false)
+
+  fun testDefinePropsInterfaceExtUsageFromDefinition() =
+    checkSymbolRename("MyComponent.vue", "newName", VueTestModule.VUE_3_3_4)
+
+  fun testDefinePropsInterfaceExtUsageFromUsage() =
+    checkSymbolRename("MyUsage.vue", "newName", VueTestModule.VUE_3_3_4)
+
+  fun testDefinePropsExtInterfaceFromDefinition() =
+    checkSymbolRename("fooProps.ts", "newName", VueTestModule.VUE_3_3_4)
+
+  fun testDefinePropsExtInterfaceFromUsage1() =
+    checkSymbolRename("definePropsInterface.vue", "newName", VueTestModule.VUE_3_3_4)
+
+  fun testDefinePropsExtInterfaceFromUsage2() =
+    checkSymbolRename("definePropsInterface.vue", "newName", VueTestModule.VUE_3_3_4)
+
+  fun testDefinePropsExtInterfaceExtUsageFromDefinition() =
+    checkSymbolRename("fooProps.ts", "newName", VueTestModule.VUE_3_3_4)
+
+  fun testDefinePropsExtInterfaceExtUsageFromUsage() =
+    checkSymbolRename("MyUsage.vue", "newName", VueTestModule.VUE_3_3_4)
+  fun testComponentFromFunctionPlugin_renameFromDeclaration() {
+    checkSymbolRename(
+      mainFile = "global-components.ts",
+      newName = "OtherButtonFromPlugin",
+      modules = arrayOf(VueTestModule.VUE_3_4_0),
+    )
   }
 
-  private fun checkResultByDir(resultsDir: String = getTestName(true) + "_after") {
-    val extensions = setOf("vue", "html", "ts", "js")
-    myFixture.tempDirFixture.findOrCreateDir(".")
-      .children
-      .filter { !it.isDirectory && extensions.contains(it.extension) }.forEach {
-        myFixture.checkResultByFile(it.name, resultsDir + "/" + it.name, true)
-      }
+  fun testComponentFromFunctionPlugin_renameFromUsage() {
+    checkSymbolRename(
+      mainFile = "App.vue",
+      newName = "OtherButtonFromPlugin",
+      modules = arrayOf(VueTestModule.VUE_3_4_0),
+    )
+  }
+
+  fun testComponentFromNestedFunctionPlugin_renameFromDeclaration() {
+    checkSymbolRename(
+      mainFile = "other-global-components.js",
+      newName = "OtherLabelFromPlugin",
+      modules = arrayOf(VueTestModule.VUE_3_4_0),
+    )
+  }
+
+  fun testComponentFromNestedFunctionPlugin_renameFromUsage() {
+    checkSymbolRename(
+      mainFile = "App.vue",
+      newName = "OtherLabelFromPlugin",
+      modules = arrayOf(VueTestModule.VUE_3_4_0),
+    )
+  }
+
+  fun testComponentFromNestedFunctionPluginWithCycle_renameFromDeclaration() {
+    checkSymbolRename(
+      mainFile = "other-global-components.js",
+      newName = "OtherLabelFromPlugin",
+      modules = arrayOf(VueTestModule.VUE_3_4_0),
+    )
+  }
+
+  fun testComponentFromNestedFunctionPluginWithCycle_renameFromUsage() {
+    checkSymbolRename(
+      mainFile = "App.vue",
+      newName = "OtherLabelFromPlugin",
+      modules = arrayOf(VueTestModule.VUE_3_4_0),
+    )
+  }
+
+  fun testComponentFromObjectPlugin_renameFromDeclaration() {
+    checkSymbolRename(
+      mainFile = "global-components.ts",
+      newName = "OtherButtonFromPlugin",
+      modules = arrayOf(VueTestModule.VUE_3_4_0),
+    )
+  }
+
+  fun testComponentFromObjectPlugin_renameFromUsage() {
+    checkSymbolRename(
+      mainFile = "App.vue",
+      newName = "OtherButtonFromPlugin",
+      modules = arrayOf(VueTestModule.VUE_3_4_0),
+    )
+  }
+
+  fun testComponentFromNestedObjectPlugin_renameFromDeclaration() {
+    checkSymbolRename(
+      mainFile = "other-global-components.js",
+      newName = "OtherLabelFromPlugin",
+      modules = arrayOf(VueTestModule.VUE_3_4_0),
+    )
+  }
+
+  fun testComponentFromNestedObjectPlugin_renameFromUsage() {
+    checkSymbolRename(
+      mainFile = "App.vue",
+      newName = "OtherLabelFromPlugin",
+      modules = arrayOf(VueTestModule.VUE_3_4_0),
+    )
+  }
+
+  fun testComponentFromNestedObjectPluginWithCycle_renameFromDeclaration() {
+    checkSymbolRename(
+      mainFile = "other-global-components.js",
+      newName = "OtherLabelFromPlugin",
+      modules = arrayOf(VueTestModule.VUE_3_4_0),
+    )
+  }
+
+  fun testComponentFromNestedObjectPluginWithCycle_renameFromUsage() {
+    checkSymbolRename(
+      mainFile = "App.vue",
+      newName = "OtherLabelFromPlugin",
+      modules = arrayOf(VueTestModule.VUE_3_4_0),
+    )
   }
 
 }

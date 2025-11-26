@@ -1,9 +1,9 @@
 ### auto-generated section `build intellij.javascript.bower` start
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_resources")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
 
-jvm_resources(
+resourcegroup(
   name = "bower_resources",
-  files = glob(["resources/**/*"]),
+  srcs = glob(["resources/**/*"]),
   strip_prefix = "resources"
 )
 
@@ -11,13 +11,17 @@ jvm_library(
   name = "bower",
   module_name = "intellij.javascript.bower",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java"], allow_empty = True),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form"], allow_empty = True),
+  resources = [":bower_resources"],
   deps = [
-    "//plugins/JavaScriptLanguage:javascript-impl",
+    "//plugins/JavaScriptLanguage:javascript-backend",
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/core-api:core",
     "@community//platform/platform-util-io:ide-util-io",
-    "@lib//:gson",
-    "//webcore/impl:webide-impl",
-    "@lib//:guava",
+    "@community//libraries/gson",
+    "@community//platform/projectModel-api:projectModel",
+    "//webcore/impl",
+    "@community//libraries/guava",
     "@community//platform/ide-core",
     "@community//platform/lang-impl",
     "@community//spellchecker",
@@ -25,7 +29,7 @@ jvm_library(
     "@community//platform/util/jdom",
     "@community//platform/core-ui",
     "@community//json/backend",
-  ],
-  runtime_deps = [":bower_resources"]
+    "//plugins/JavaScriptLanguage/javascript-common",
+  ]
 )
 ### auto-generated section `build intellij.javascript.bower` end

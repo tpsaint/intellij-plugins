@@ -4,12 +4,13 @@ package org.angular2.codeInsight.blocks
 import com.intellij.lang.javascript.JSKeywordSets
 import com.intellij.lang.javascript.JSTokenTypes
 import com.intellij.lang.javascript.psi.JSReferenceExpression
+import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.PolySymbolProperty
+import com.intellij.polySymbols.query.PolySymbolQueryExecutorFactory
 import com.intellij.psi.PsiElement
 import com.intellij.psi.TokenType
 import com.intellij.psi.util.*
 import com.intellij.util.asSafely
-import com.intellij.webSymbols.WebSymbol
-import com.intellij.webSymbols.query.WebSymbolsQueryExecutorFactory
 import org.angular2.codeInsight.template.getTemplateElementsScopeFor
 import org.angular2.lang.expr.lexer.Angular2TokenTypes
 import org.angular2.lang.expr.psi.Angular2Action
@@ -34,6 +35,15 @@ const val BLOCK_LOADING: String = "loading"
 const val BLOCK_LET: String = "let"
 
 val BLOCKS_WITH_PRIMARY_EXPRESSION: Set<String> = setOf(BLOCK_IF, BLOCK_ELSE_IF, BLOCK_SWITCH, BLOCK_CASE, BLOCK_FOR, BLOCK_LET)
+
+val PROP_IS_PRIMARY: PolySymbolProperty<Boolean> = PolySymbolProperty["is-primary"]
+val PROP_NESTED_SECONDARY_BLOCKS: PolySymbolProperty<Boolean> = PolySymbolProperty["nested-secondary-blocks"]
+val PROP_NO_CONTENT: PolySymbolProperty<Boolean> = PolySymbolProperty["no-content"]
+val PROP_ORDER: PolySymbolProperty<String> = PolySymbolProperty["order"]
+val PROP_PARAMETER: PolySymbolProperty<String> = PolySymbolProperty["parameter"]
+val PROP_PARAMETER_REQUIRED: PolySymbolProperty<Boolean> = PolySymbolProperty["parameter-required"]
+val PROP_PRIMARY_BLOCK: PolySymbolProperty<String> = PolySymbolProperty["primary-block"]
+val PROP_UNIQUE: PolySymbolProperty<Boolean> = PolySymbolProperty["unique"]
 
 const val PARAMETER_AS: String = "as"
 const val PARAMETER_LET: String = "let"
@@ -81,17 +91,18 @@ fun isDeferOnTriggerParameterReference(ref: JSReferenceExpression): Boolean =
 fun getAngular2HtmlBlocksConfig(location: PsiElement): Angular2HtmlBlocksConfig {
   val file = location.containingFile.originalFile
   return CachedValuesManager.getCachedValue(file) {
-    val queryExecutor = WebSymbolsQueryExecutorFactory.create(file, false)
+    val queryExecutor = PolySymbolQueryExecutorFactory.create(file, false)
     CachedValueProvider.Result.create(Angular2HtmlBlocksConfig(
       queryExecutor
-        .runListSymbolsQuery(NG_BLOCKS, true)
+        .listSymbolsQuery(NG_BLOCKS, true)
+        .run()
         .filterIsInstance<Angular2HtmlBlockSymbol>()
         .associateBy { it.name }), queryExecutor)
   }
 }
 
 fun isDeferOnReferenceExpression(element: PsiElement): Boolean =
-/* Identifier within JSReferenceExpression or JSReferenceExpression itself */
+  /* Identifier within JSReferenceExpression or JSReferenceExpression itself */
   (element.asSafely<JSReferenceExpression>()
    ?: element.takeIf { JSKeywordSets.IDENTIFIER_NAMES.contains(it.elementType) }
      ?.parent
@@ -101,7 +112,7 @@ fun isDeferOnReferenceExpression(element: PsiElement): Boolean =
     ?.asSafely<Angular2BlockParameter>()
     ?.name == PARAMETER_ON
 
-fun getDeferOnTriggerDefinition(parameter: Angular2BlockParameter): WebSymbol? {
+fun getDeferOnTriggerDefinition(parameter: Angular2BlockParameter): PolySymbol? {
   val triggerName = parameter
     .takeIf { it.name == PARAMETER_ON }
     ?.childrenOfType<JSReferenceExpression>()

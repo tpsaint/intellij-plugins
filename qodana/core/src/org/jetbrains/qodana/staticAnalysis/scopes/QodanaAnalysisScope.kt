@@ -1,6 +1,7 @@
 package org.jetbrains.qodana.staticAnalysis.scopes
 
 import com.intellij.analysis.AnalysisScope
+import com.intellij.openapi.application.readAction
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ModuleRootManager
@@ -33,9 +34,20 @@ class QodanaAnalysisScope : AnalysisScope {
     }
   }
 
+  suspend fun externalFileScope(
+    files: Iterable<VirtualFile>,
+    onFileIncluded: ((VirtualFile) -> Unit)? = null,
+    onFileExcluded: ((VirtualFile) -> Unit)? = null
+  ): QodanaAnalysisScope {
+    val (included, excluded) = readAction { files.partition(::contains) }
+    onFileIncluded?.let(included::forEach)
+    onFileExcluded?.let(excluded::forEach)
+    return QodanaAnalysisScope(project, included)
+  }
+
   companion object {
     fun fromConfigOrDefault(config: QodanaConfig, project: Project, onPathNotFound: (Path) -> Unit): QodanaAnalysisScope {
-      val configured = config.sourceDirectory?.let(::Path) ?: return QodanaAnalysisScope(GlobalSearchScope.projectScope(project), project)
+      val configured = config.onlyDirectory ?: return QodanaAnalysisScope(GlobalSearchScope.projectScope(project), project)
       val absolute = configured.let { if (!it.isAbsolute) config.projectPath.resolve(it) else it }
 
       val vfsDir = LocalFileSystem.getInstance().findFileByPath(absolute.invariantSeparatorsPathString)

@@ -10,13 +10,25 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="intellij.java.indexing" />
+    <orderEntry type="module" module-name="intellij.platform.analysis" />
+    <orderEntry type="module" module-name="intellij.platform.concurrency" />
     <orderEntry type="module" module-name="intellij.platform.core" />
     <orderEntry type="module" module-name="intellij.java.psi.impl" />
+    <orderEntry type="module" module-name="intellij.platform.editor.ui" />
+    <orderEntry type="module" module-name="intellij.platform.execution.impl" />
+    <orderEntry type="module" module-name="intellij.platform.externalSystem.impl" />
+    <orderEntry type="module" module-name="intellij.platform.indexing" />
+    <orderEntry type="module" module-name="intellij.platform.jps.model" />
+    <orderEntry type="module" module-name="intellij.platform.jps.model.serialization" />
     <orderEntry type="module" module-name="intellij.platform.lang" />
     <orderEntry type="module" module-name="intellij.java.impl" />
     <orderEntry type="module" module-name="intellij.platform.ide.core.impl" />
     <orderEntry type="module" module-name="intellij.json.backend" />
     <orderEntry type="module" module-name="intellij.platform.ide.impl" />
+    <orderEntry type="module" module-name="intellij.platform.lang.core" />
+    <orderEntry type="module" module-name="intellij.platform.projectModel" />
+    <orderEntry type="module" module-name="intellij.platform.refactoring" />
     <orderEntry type="module" module-name="intellij.properties.backend.psi" />
     <orderEntry type="module-library">
       <library name="com.thoughtworks.gauge:gauge-java" type="repository">
@@ -83,12 +95,11 @@
     <orderEntry type="module" module-name="intellij.maven" />
     <orderEntry type="module" module-name="intellij.platform.core.ui" />
     <orderEntry type="module" module-name="intellij.platform.ide.util.io" />
-    <orderEntry type="library" scope="RUNTIME" name="grpc-stub" level="project" />
-    <orderEntry type="library" scope="RUNTIME" name="grpc-core" level="project" />
-    <orderEntry type="library" scope="RUNTIME" name="grpc-netty-shaded" level="project" />
-    <orderEntry type="library" name="gson" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.gson" />
     <orderEntry type="library" name="protobuf" level="project" />
-    <orderEntry type="library" name="commons-io" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.commons.io" />
     <orderEntry type="module" module-name="intellij.platform.util.jdom" />
+    <orderEntry type="module" module-name="intellij.libraries.grpc" />
+    <orderEntry type="module" module-name="intellij.libraries.grpc.netty.shaded" />
   </component>
 </module>

@@ -6,11 +6,11 @@ import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.openapi.roots.SourceFolder
 import com.intellij.openapi.roots.TestSourcesFilter
 import com.intellij.testFramework.TestDataPath
-import junit.framework.TestCase
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.qodana.staticAnalysis.inspections.config.InspectScope
 import org.jetbrains.qodana.staticAnalysis.inspections.config.QodanaProfileConfig
 import org.jetbrains.qodana.staticAnalysis.profile.providers.QodanaEmbeddedProfile
+import org.jetbrains.qodana.staticAnalysis.testFramework.QodanaRunnerTestCase
 import org.jetbrains.qodana.staticAnalysis.testFramework.reinstantiateInspectionRelatedServices
 import org.junit.Assert
 import org.junit.Test
@@ -19,7 +19,7 @@ import kotlin.io.path.absolutePathString
 /**
  * Tests of yaml profile functionality.
  */
-@TestDataPath("\$CONTENT_ROOT/testData/QodanaYamlProfileTest")
+@TestDataPath($$"$CONTENT_ROOT/testData/QodanaYamlProfileTest")
 class QodanaYamlProfileTest : QodanaRunnerTestCase() {
   @Test
   fun `testYaml profile`(): Unit = runBlocking {
@@ -82,7 +82,7 @@ class QodanaYamlProfileTest : QodanaRunnerTestCase() {
     registerTool(tool)
     reinstantiateInspectionRelatedServices(project, testRootDisposable)
     runYamlTest()
-    val rule = manager.qodanaRunner.sarifRun.tool.extensions.flatMap { it.rules }.find { it.id == tool.shortName }
+    val rule = manager.sarifRun.tool.extensions.flatMap { it.rules }.find { it.id == tool.shortName }
     Assert.assertEquals("""Language/A_B/C\/test""", rule?.relationships?.first()?.target?.id)
   }
 
@@ -92,7 +92,7 @@ class QodanaYamlProfileTest : QodanaRunnerTestCase() {
     registerTool(tool)
     reinstantiateInspectionRelatedServices(project, testRootDisposable)
     runYamlTest()
-    val rule = manager.qodanaRunner.sarifRun.tool.extensions.flatMap { it.rules }.find { it.id == tool.shortName }
+    val rule = manager.sarifRun.tool.extensions.flatMap { it.rules }.find { it.id == tool.shortName }
     Assert.assertEquals("""Language/A_B/C\/test""", rule?.relationships?.first()?.target?.id)
     Assert.assertTrue(rule?.defaultConfiguration?.enabled!!)
   }
@@ -128,7 +128,7 @@ class QodanaYamlProfileTest : QodanaRunnerTestCase() {
   fun `testYaml profile ignore test`(): Unit = runBlocking {
     val testFolder = markTestsFolderAsTestSource()
     val testSource = testFolder.file?.findChild("B.java") ?: throw AssertionError()
-    TestCase.assertTrue(TestSourcesFilter.isTestSources(testSource, project))
+    assertTrue(TestSourcesFilter.isTestSources(testSource, project))
 
     runYamlTest()
   }
@@ -137,7 +137,7 @@ class QodanaYamlProfileTest : QodanaRunnerTestCase() {
   fun `testYaml profile ignore test 2`(): Unit = runBlocking {
     val testFolder = markTestsFolderAsTestSource()
     val testSource = testFolder.file?.findChild("B.java") ?: throw AssertionError()
-    TestCase.assertTrue(TestSourcesFilter.isTestSources(testSource, project))
+    assertTrue(TestSourcesFilter.isTestSources(testSource, project))
 
     runYamlTest()
   }
@@ -146,7 +146,7 @@ class QodanaYamlProfileTest : QodanaRunnerTestCase() {
   fun `testYaml profile with inherited ignoring test`(): Unit = runBlocking {
     val testFolder = markTestsFolderAsTestSource()
     val testSource = testFolder.file?.findChild("B.java") ?: throw AssertionError()
-    TestCase.assertTrue(TestSourcesFilter.isTestSources(testSource, project))
+    assertTrue(TestSourcesFilter.isTestSources(testSource, project))
 
     runYamlTest()
   }
@@ -155,7 +155,7 @@ class QodanaYamlProfileTest : QodanaRunnerTestCase() {
   fun `testYaml profile with inherited ignoring test global inspection`(): Unit = runBlocking {
     val testFolder = markTestsFolderAsTestSource()
     val testSource = testFolder.file?.findChild("B.java") ?: throw AssertionError()
-    TestCase.assertTrue(TestSourcesFilter.isTestSources(testSource, project))
+    assertTrue(TestSourcesFilter.isTestSources(testSource, project))
 
     runYamlTest()
   }

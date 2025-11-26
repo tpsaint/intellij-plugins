@@ -1,4 +1,4 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.config.model
 
 import com.intellij.psi.PsiElement
@@ -7,24 +7,24 @@ import com.intellij.util.lazyPub
 import org.intellij.terraform.hcl.psi.HCLBlock
 import org.intellij.terraform.hcl.psi.HCLExpression
 
-class Variable(val declaration: HCLBlock) : Block(TypeModel.Variable) {
+class Variable(val declaration: HCLBlock) : Block(TfTypeModel.Variable) {
   val name: String by lazyPub { declaration.name }
   val nameIdentifier: PsiElement get() = declaration.nameIdentifier!!
 
   fun getDefault(): HCLExpression? {
-    return declaration.`object`?.findProperty(TypeModel.Variable_Default.name)?.value
+    return declaration.`object`?.findProperty(TfTypeModel.VariableDefault.name)?.value
   }
 
   fun getTypeExpression(): HCLExpression? {
-    return declaration.`object`?.findProperty(TypeModel.Variable_Type.name)?.value
+    return declaration.`object`?.findProperty(TfTypeModel.VariableType.name)?.value
   }
 
-  fun getType(): Type? {
+  fun getType(): HclType? {
     val expression = getTypeExpression() ?: return null
     return CachedValuesManager.getManager(declaration.project).getCachedValue(expression, VariableTypeCachedValueProvider(expression))
   }
 
-  fun getCombinedType(): Type? {
+  fun getCombinedType(): HclType? {
     val typeType = getType()
     val defType = getDefault().getType() ?: return typeType
     if (typeType == null) return defType
@@ -32,7 +32,7 @@ class Variable(val declaration: HCLBlock) : Block(TypeModel.Variable) {
   }
 
   fun getDescription(): HCLExpression? {
-    return declaration.`object`?.findProperty(TypeModel.DescriptionProperty.name)?.value
+    return declaration.`object`?.findProperty(TfTypeModel.DescriptionProperty.name)?.value
   }
 
   override fun equals(other: Any?): Boolean {

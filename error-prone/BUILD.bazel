@@ -1,27 +1,30 @@
 ### auto-generated section `build intellij.errorProne` start
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_resources")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
 
-jvm_resources(
-  name = "errorProne_resources",
-  files = glob(["resources/**/*"]),
+resourcegroup(
+  name = "error-prone_resources",
+  srcs = glob(["resources/**/*"]),
   strip_prefix = "resources"
 )
 
 jvm_library(
-  name = "errorProne",
+  name = "error-prone",
   module_name = "intellij.errorProne",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java"], allow_empty = True),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form"], allow_empty = True),
+  resources = [":error-prone_resources"],
   deps = [
-    "@community//java/compiler/impl:java-compiler-impl",
+    "@community//java/compiler/impl",
+    "@community//platform/core-api:core",
     "@community//platform/platform-api:ide",
     "@community//platform/platform-impl:ide-impl",
-    "@lib//:guava",
+    "@community//libraries/guava",
+    "@community//jps/model-api:model",
     "@community//platform/lang-api:lang",
     "@community//java/java-psi-api:psi",
-    "@lib//:stream_ex",
+    "@community//libraries/stream",
+    "@community//platform/projectModel-api:projectModel",
     "@community//java/java-psi-impl:psi-impl",
-  ],
-  runtime_deps = [":errorProne_resources"]
+  ]
 )
 ### auto-generated section `build intellij.errorProne` end

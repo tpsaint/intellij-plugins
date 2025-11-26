@@ -16,7 +16,7 @@ import com.intellij.refactoring.rename.PsiElementRenameHandler.DEFAULT_NAME
 import com.intellij.testFramework.TestActionEvent
 import com.intellij.testFramework.fixtures.CodeInsightTestFixture
 import com.intellij.util.ui.UIUtil
-import com.intellij.webSymbols.testFramework.moveToOffsetBySignature
+import com.intellij.polySymbols.testFramework.moveToOffsetBySignature
 import junit.framework.TestCase
 import org.jetbrains.vuejs.lang.VueInspectionsProvider
 import org.jetbrains.vuejs.lang.VueTestModule
@@ -201,9 +201,9 @@ class VueClassicTypeScriptServiceTest : TypeScriptServiceTestBase() {
         else -> null
       }
     }
-    ActionUtil.performDumbAwareUpdate(action, e, false)
+    ActionUtil.updateAction(action, e)
     assertTrue(e.presentation.isEnabledAndVisible)
-    ActionUtil.performActionDumbAwareWithCallbacks(action, e)
+    ActionUtil.performAction(action, e)
     TestCase.assertEquals("newTest.vue", myFixture.file.name)
     WriteAction.runAndWait<Throwable> {
       // We must set contents again, as previous call to `myFixture.checkHighlighting()` removed all markers.
@@ -270,9 +270,9 @@ class VueClassicTypeScriptServiceTest : TypeScriptServiceTestBase() {
   @Test
   fun testNoVueCompileOnSave() {
     val settings = TypeScriptCompilerSettings.getSettings(project)
-    settings.isRecompileOnChanges = true
-    settings.setUseServiceForProjectsWithoutConfig(true)
-    settings.setUseService(true)
+    settings.recompileOnChanges = true
+    settings.useServiceForProjectsWithoutConfig = true
+    settings.useService = true
     myFixture.copyDirectoryToProject(getTestName(false), "")
     myFixture.configureFromTempProjectFile(getTestName(false) + "." + extension)
     myFixture.checkHighlighting()

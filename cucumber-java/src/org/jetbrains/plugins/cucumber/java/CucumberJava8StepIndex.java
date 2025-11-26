@@ -42,7 +42,7 @@ public final class CucumberJava8StepIndex extends CucumberStepIndex {
   }
 
   @Override
-  protected String[] getPackagesToScan() {
+  protected String @NotNull [] getPackagesToScan() {
     return PACKAGES_TO_SCAN;
   }
 
@@ -58,9 +58,8 @@ public final class CucumberJava8StepIndex extends CucumberStepIndex {
   }
 
   @Override
-  protected List<Integer> getStepDefinitionOffsets(@NotNull LighterAST lighterAst, @NotNull CharSequence text) {
+  protected @NotNull List<Integer> getStepDefinitionOffsets(@NotNull LighterAST lighterAst, @NotNull CharSequence text) {
     List<Integer> result = new ArrayList<>();
-    
     RecursiveLighterASTNodeWalkingVisitor visitor = new RecursiveLighterASTNodeWalkingVisitor(lighterAst) {
       @Override
       public void visitNode(@NotNull LighterASTNode element) {
@@ -82,9 +81,12 @@ public final class CucumberJava8StepIndex extends CucumberStepIndex {
                   if (isNumber(stepDefImplementationArgument, text)) {
                     stepDefImplementationArgument = expressionListChildren.get(2);
                   }
-                  IElementType type = stepDefImplementationArgument.getTokenType();
-                  if (type == METHOD_REF_EXPRESSION || type == LOCAL_VARIABLE || type == LAMBDA_EXPRESSION) {
-                    result.add(expressionParameter.getStartOffset());
+                  stepDefImplementationArgument = JavaLightTreeUtil.skipParenthesesCastsDown(lighterAst, stepDefImplementationArgument);
+                  if (stepDefImplementationArgument != null) {
+                    IElementType type = stepDefImplementationArgument.getTokenType();
+                    if (type == METHOD_REF_EXPRESSION || type == LOCAL_VARIABLE || type == LAMBDA_EXPRESSION) {
+                      result.add(expressionParameter.getStartOffset());
+                    }
                   }
                 }
               }
@@ -95,7 +97,7 @@ public final class CucumberJava8StepIndex extends CucumberStepIndex {
       }
     };
     visitor.visitNode(lighterAst.getRoot());
-    
+
     return result;
   }
 }

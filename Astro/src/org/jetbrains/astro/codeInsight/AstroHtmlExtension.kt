@@ -1,15 +1,15 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.astro.codeInsight
 
-import com.intellij.html.webSymbols.WebSymbolsHtmlQueryConfigurator
-import com.intellij.html.webSymbols.WebSymbolsXmlExtension
-import com.intellij.html.webSymbols.elements.WebSymbolElementDescriptor
+import com.intellij.polySymbols.html.HtmlSymbolsXmlExtension
+import com.intellij.polySymbols.html.StandardHtmlSymbol
+import com.intellij.polySymbols.html.elements.HtmlElementSymbolDescriptor
+import com.intellij.polySymbols.utils.unwrapMatchedSymbols
 import com.intellij.psi.PsiFile
 import com.intellij.psi.xml.XmlTag
-import com.intellij.webSymbols.utils.unwrapMatchedSymbols
 import org.jetbrains.astro.lang.AstroFileType
 
-class AstroHtmlExtension : WebSymbolsXmlExtension() {
+class AstroHtmlExtension : HtmlSymbolsXmlExtension() {
 
   override fun isAvailable(file: PsiFile?): Boolean {
     return file != null
@@ -18,10 +18,10 @@ class AstroHtmlExtension : WebSymbolsXmlExtension() {
 
   override fun isSelfClosingTagAllowed(tag: XmlTag): Boolean {
     val descriptor = tag.descriptor
-    if (descriptor is WebSymbolElementDescriptor) {
+    if (descriptor is HtmlElementSymbolDescriptor) {
       val hasStandardSymbol = descriptor.symbol
         .unwrapMatchedSymbols()
-        .any { it is WebSymbolsHtmlQueryConfigurator.StandardHtmlSymbol }
+        .any { it is StandardHtmlSymbol }
       if (!hasStandardSymbol) return true
     }
     return super.isSelfClosingTagAllowed(tag)

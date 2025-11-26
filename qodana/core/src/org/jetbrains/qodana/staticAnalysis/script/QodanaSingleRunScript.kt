@@ -10,34 +10,35 @@ import org.jetbrains.qodana.staticAnalysis.inspections.runner.QodanaRunContext
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.startup.QodanaRunContextFactory
 import org.jetbrains.qodana.staticAnalysis.sarif.SarifReportContributor
 import org.jetbrains.qodana.staticAnalysis.sarif.fillComponents
+import org.jetbrains.qodana.staticAnalysis.sarif.getOrCreateRun
 import org.jetbrains.qodana.staticAnalysis.sarif.maybeApplyFixes
 import org.jetbrains.qodana.staticAnalysis.stat.CoverageFeatureEventsCollector
 
 abstract class QodanaSingleRunScript(
   @VisibleForTesting val runContextFactory: QodanaRunContextFactory,
-  private val analysisKind: AnalysisKind,
+  override val analysisKind: AnalysisKind,
 ) : QodanaScript {
 
   abstract suspend fun execute(
     report: SarifReport,
-    run: Run,
     runContext: QodanaRunContext,
-    inspectionContext: QodanaGlobalInspectionContext
+    inspectionContext: QodanaGlobalInspectionContext,
   )
 
   protected open suspend fun createGlobalInspectionContext(runContext: QodanaRunContext) = runContext.createGlobalInspectionContext()
 
-  final override suspend fun execute(report: SarifReport, run: Run): QodanaScriptResult {
+  final override suspend fun execute(report: SarifReport): QodanaScriptResult {
+    val run: () -> Run = { report.getOrCreateRun() } // we may substitute the run on the fly
     val runContext = runContextFactory.openRunContext()
 
-    fillComponents(run.tool, runContext.qodanaProfile)
-    runContext.appendRunDetails(run, analysisKind)
+    fillComponents(run().tool, runContext.qodanaProfile)
+    runContext.appendRunDetails(run(), analysisKind)
     runContext.writeProfiles(runContext.qodanaProfile)
     runContext.writeProjectDescriptionBeforeWork()
 
     val inspectionContext = createGlobalInspectionContext(runContext)
     try {
-      execute(report, run, runContext, inspectionContext)
+      execute(report, runContext, inspectionContext)
     }
     finally {
       withContext(NonCancellable) {
@@ -46,8 +47,8 @@ abstract class QodanaSingleRunScript(
       }
     }
 
-    maybeApplyFixes(run, runContext)
-    SarifReportContributor.runContributors(run, runContext.project, runContext.config)
+    maybeApplyFixes(run(), runContext)
+    SarifReportContributor.runContributors(run(), runContext.project, runContext.config)
     val scriptResult = QodanaScriptResult.create(inspectionContext)
     CoverageFeatureEventsCollector.logCoverageStatistics(runContext, scriptResult.coverageStats)
     return scriptResult

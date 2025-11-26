@@ -1,13 +1,15 @@
 <idea-plugin package="org.jetbrains.qodana.jvm.java">
   <dependencies>
     <plugin id="com.intellij.java"/>
+    <module name="intellij.platform.collaborationTools.auth"/>
   </dependencies>
   <extensions defaultExtensionNs="org.intellij.qodana">
     <projectDescriber implementation="org.jetbrains.qodana.jvm.java.JavaDescriber"/>
-    <defaultQodanaYamlItemProvider implementation="org.jetbrains.qodana.jvm.java.QodanaYamlJdkItemProvider"/>
+    <qodanaYamlItemProvider implementation="org.jetbrains.qodana.jvm.java.QodanaYamlJdkItemProvider"/>
     <qodanaScriptFactory implementation="org.jetbrains.qodana.jvm.java.migrate.MigrateClassesScriptFactory"/>
     <globalOutputConsumer implementation="org.jetbrains.qodana.jvm.java.JvmLocalTaintOutputConsumer"/>
     <workflowExtension implementation="org.jetbrains.qodana.jvm.java.QodanaJavaConfigApplier" />
+    <workflowExtension implementation="org.jetbrains.qodana.jvm.java.workflow.JvmProjectStructureChecker"/>
     <cyclomaticComplexityFileVisitor
       implementation="org.jetbrains.qodana.jvm.java.metrics.cyclomaticComplexity.JavaCyclomaticComplexityMetricFileVisitor"/>
   </extensions>
@@ -16,6 +18,7 @@
     <postStartupActivity implementation="org.jetbrains.qodana.jvm.java.SdkRootsFixActivity"/>
     <commandLineInspectionProjectConfigurator implementation="org.jetbrains.qodana.jvm.java.JdkConfigurator"/>
     <jarRepositoryAuthenticationDataProvider implementation="org.jetbrains.qodana.jvm.java.jps.QodanaSpaceJarRepositoryAuthenticationDataProvider"/>
+    <editorNotificationProvider implementation="org.jetbrains.qodana.jvm.java.ui.QodanaGithubCIPromoNotificationProvider"/>
     <localInspection language="JAVA" shortName="QodanaJavaSanity"
                      groupKey="inspection.general.tools.group.name" groupBundle="messages.InspectionsBundle"
                      bundle="messages.QodanaBundle" key="inspection.java.sanity.inspection"

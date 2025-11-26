@@ -8,7 +8,7 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.tree.IElementType;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.cucumber.psi.*;
 import org.jetbrains.plugins.cucumber.steps.CucumberStepHelper;
@@ -22,7 +22,16 @@ import java.util.*;
 
 import static com.intellij.openapi.module.ModuleUtilCore.findModuleForPsiElement;
 
-public class JsonGherkinKeywordProvider implements GherkinKeywordProvider {
+/// Provides Gherkin keywords from the upstream [`gherkin-languages.json`](https://github.com/cucumber/gherkin/blob/main/gherkin-languages.json) file,
+/// with one modification from us: "Значения" (see RUBY-29359).
+///
+/// Our `gherkin-languages.json` file is vendored and must be manually updated to keep track of upstream changes.
+///
+/// There is also the `step-keywords.json` file which is generated from `gherkin-languages.json`.
+/// It must also be updated manually whenever `gherkin-languages.json` changes.
+/// See [CucumberStepIndex][org.jetbrains.plugins.cucumber.CucumberStepIndex] to learn more.
+@NotNullByDefault
+public final class JsonGherkinKeywordProvider implements GherkinKeywordProvider {
 
   private static final class Lazy {
     // leads to init of gher
@@ -32,12 +41,12 @@ public class JsonGherkinKeywordProvider implements GherkinKeywordProvider {
   private final Map<String, GherkinKeywordList> myLanguageKeywords = new HashMap<>();
   private final Set<String> myAllStepKeywords = new HashSet<>();
 
-  private static GherkinKeywordProvider myKeywordProvider;
-  private static GherkinKeywordProvider myGherkin6KeywordProvider;
+  private static @Nullable GherkinKeywordProvider myKeywordProvider;
+  private static @Nullable GherkinKeywordProvider myGherkin6KeywordProvider;
 
   public static GherkinKeywordProvider getKeywordProvider() {
     if (myKeywordProvider == null) {
-      myKeywordProvider = createKeywordProviderFromJson("i18n_old.json");
+      myKeywordProvider = createKeywordProviderFromJson("gherkin-languages-old.json");
     }
     return myKeywordProvider;
   }
@@ -47,18 +56,18 @@ public class JsonGherkinKeywordProvider implements GherkinKeywordProvider {
       return getKeywordProvider();
     }
     if (myGherkin6KeywordProvider == null) {
-      myGherkin6KeywordProvider = createKeywordProviderFromJson("i18n.json");
+      myGherkin6KeywordProvider = createKeywordProviderFromJson("gherkin-languages.json");
     }
     return myGherkin6KeywordProvider;
   }
 
-  public static GherkinKeywordProvider getKeywordProvider(@NotNull PsiElement context) {
+  public static GherkinKeywordProvider getKeywordProvider(PsiElement context) {
     Module module = findModuleForPsiElement(context);
     boolean gherkin6Enabled = module != null && CucumberStepHelper.isGherkin6Supported(module);
     return getKeywordProvider(gherkin6Enabled);
   }
 
-  private static GherkinKeywordProvider createKeywordProviderFromJson(@NotNull String jsonFileName) {
+  private static GherkinKeywordProvider createKeywordProviderFromJson(String jsonFileName) {
     GherkinKeywordProvider result = null;
     ClassLoader classLoader = JsonGherkinKeywordProvider.class.getClassLoader();
     if (classLoader != null) {
@@ -69,10 +78,11 @@ public class JsonGherkinKeywordProvider implements GherkinKeywordProvider {
     return result != null ? result : new PlainGherkinKeywordProvider();
   }
 
-  public JsonGherkinKeywordProvider(@NotNull InputStream inputStream) {
+  public JsonGherkinKeywordProvider(InputStream inputStream) {
     Map<String, Map<String, Object>> fromJson;
     try (Reader in = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
-      fromJson = new Gson().fromJson(in, new TypeToken<Map<String, HashMap<String, Object>>>() {}.getType());
+      fromJson = new Gson().fromJson(in, new TypeToken<Map<String, HashMap<String, Object>>>() {
+      }.getType());
 
       for (Map.Entry<String, Map<String, Object>> entry : fromJson.entrySet()) {
         Map<String, Object> translation = entry.getValue();
@@ -119,11 +129,11 @@ public class JsonGherkinKeywordProvider implements GherkinKeywordProvider {
   }
 
   @Override
-  public @NotNull GherkinKeywordTable getKeywordsTable(@Nullable String language) {
+  public GherkinKeywordTable getKeywordsTable(@Nullable String language) {
     return getKeywordList(language).getKeywordsTable();
   }
 
-  private @NotNull GherkinKeywordList getKeywordList(final @Nullable String language) {
+  private GherkinKeywordList getKeywordList(@Nullable String language) {
     GherkinKeywordList keywordList = myLanguageKeywords.get(language);
     if (keywordList == null) {
       keywordList = Lazy.myEmptyKeywordList;

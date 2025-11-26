@@ -1,18 +1,17 @@
 // Copyright 2000-2022 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.angular2.entities.ivy
 
-import com.intellij.javascript.webSymbols.apiStatus
+import com.intellij.polySymbols.js.apiStatus
 import com.intellij.lang.javascript.evaluation.JSTypeEvaluationLocationProvider.withTypeEvaluationLocation
 import com.intellij.lang.javascript.psi.JSElementBase
 import com.intellij.lang.javascript.psi.JSType
 import com.intellij.lang.javascript.psi.ecma6.JSTypeDeclaration
 import com.intellij.model.Pointer
+import com.intellij.polySymbols.PolySymbolApiStatus
 import com.intellij.psi.PsiElement
 import com.intellij.psi.createSmartPointer
-import com.intellij.webSymbols.WebSymbolApiStatus
 import org.angular2.entities.Angular2DirectiveAttribute
 import org.angular2.entities.Angular2EntityUtils
-import java.util.*
 
 class Angular2IvyDirectiveAttribute internal constructor(
   override val name: String,
@@ -25,8 +24,8 @@ class Angular2IvyDirectiveAttribute internal constructor(
   override val sourceElement: PsiElement
     get() = mySource
 
-  override val apiStatus: WebSymbolApiStatus
-    get() = (mySource as? JSElementBase)?.apiStatus ?: WebSymbolApiStatus.Stable
+  override val apiStatus: PolySymbolApiStatus
+    get() = (mySource as? JSElementBase)?.apiStatus ?: PolySymbolApiStatus.Stable
 
   override fun toString(): String {
     return Angular2EntityUtils.toString(this)
@@ -40,7 +39,9 @@ class Angular2IvyDirectiveAttribute internal constructor(
   }
 
   override fun hashCode(): Int {
-    return Objects.hash(name, mySource)
+    var result = name.hashCode()
+    result = 31 * result + mySource.hashCode()
+    return result
   }
 
   override fun createPointer(): Pointer<Angular2IvyDirectiveAttribute> {

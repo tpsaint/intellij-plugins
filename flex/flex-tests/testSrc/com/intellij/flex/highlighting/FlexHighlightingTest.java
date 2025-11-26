@@ -1,4 +1,4 @@
-// Copyright 2000-2022 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.flex.highlighting;
 
 import com.intellij.codeHighlighting.HighlightDisplayLevel;
@@ -19,10 +19,12 @@ import com.intellij.flex.model.bc.TargetPlatform;
 import com.intellij.flex.util.ActionScriptDaemonAnalyzerTestCase;
 import com.intellij.flex.util.FlexTestUtils;
 import com.intellij.flex.util.FlexUnitLibs;
+import com.intellij.grazie.spellcheck.GrazieSpellCheckingInspection;
 import com.intellij.ide.fileTemplates.FileTemplateManager;
 import com.intellij.ide.fileTemplates.FileTemplateUtil;
 import com.intellij.javascript.flex.css.FlexCSSDialect;
 import com.intellij.javascript.flex.mxml.schema.FlexMxmlNSDescriptor;
+import com.intellij.javascript.flex.resolve.ActionScriptFlexPsiImplUtil;
 import com.intellij.lang.actionscript.psi.ActionScriptPsiImplUtil;
 import com.intellij.lang.annotation.HighlightSeverity;
 import com.intellij.lang.css.CssDialect;
@@ -62,9 +64,9 @@ import com.intellij.openapi.editor.XmlHighlighterColors;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
+import com.intellij.openapi.module.JavaModuleType;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleType;
-import com.intellij.openapi.module.StdModuleTypes;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.projectRoots.Sdk;
 import com.intellij.openapi.projectRoots.SdkModificator;
@@ -93,7 +95,6 @@ import com.intellij.psi.xml.XmlAttribute;
 import com.intellij.psi.xml.XmlAttributeValue;
 import com.intellij.psi.xml.XmlFile;
 import com.intellij.refactoring.rename.RenameProcessor;
-import com.intellij.spellchecker.inspections.SpellCheckingInspection;
 import com.intellij.spellchecker.quickfixes.RenameTo;
 import com.intellij.testFramework.*;
 import com.intellij.testFramework.fixtures.CodeInsightTestUtil;
@@ -177,7 +178,7 @@ public class FlexHighlightingTest extends ActionScriptDaemonAnalyzerTestCase {
   @NotNull
   @Override
   protected ModuleType getModuleType() {
-    return needsJavaModule() ? StdModuleTypes.JAVA : FlexModuleType.getInstance();
+    return needsJavaModule() ? JavaModuleType.getModuleType() : FlexModuleType.getInstance();
   }
 
   @Override
@@ -784,7 +785,7 @@ public class FlexHighlightingTest extends ActionScriptDaemonAnalyzerTestCase {
         final PsiElement resolve = node.resolve();
 
         if (node.getParent() instanceof JSUseNamespaceDirective) {
-          foundConst2.set(ActionScriptPsiImplUtil.calcNamespaceReference(node.getParent()));
+          foundConst2.set(ActionScriptFlexPsiImplUtil.calcNamespaceReference(node.getParent()));
         }
         else if (resolve instanceof JSVariable && ((JSVariable)resolve).isConst()) {
           foundConst.set(StringUtil.stripQuotesAroundValue(((JSVariable)resolve).getInitializer().getText()));
@@ -1071,12 +1072,12 @@ public class FlexHighlightingTest extends ActionScriptDaemonAnalyzerTestCase {
 
   @FlexTestOptions(FlexTestOption.WithFlexSdk)
   public void testSpellChecker() throws Exception {
-    enableInspectionTool(new SpellCheckingInspection());
+    enableInspectionTool(new GrazieSpellCheckingInspection());
     configureByFile(getBasePath() + "/" + getTestName(false) + ".mxml");
     ExpectedHighlightingData expectedHighlightingData = new ExpectedHighlightingData(myEditor.getDocument(), true, true, false);
     Collection<HighlightInfo> infoCollection = checkHighlighting(expectedHighlightingData);
     assertEquals(1, countNonInformationHighlights(infoCollection));
-    findAndInvokeActionWithExpectedCheck(RenameTo.getFixName(), "mxml", infoCollection);
+    findAndInvokeActionWithExpectedCheck(RenameTo.getFixName(List.of()), "mxml", infoCollection);
   }
 
   @NeedsJavaModule

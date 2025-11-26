@@ -7,7 +7,7 @@ import com.intellij.openapi.vcs.changes.ChangeListManagerImpl
 import com.intellij.openapi.vcs.changes.VcsDirtyScopeManager
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.testFramework.HeavyTestHelper
-import org.jetbrains.qodana.staticAnalysis.inspections.runner.QodanaRunnerTestCase
+import org.jetbrains.qodana.staticAnalysis.testFramework.QodanaRunnerTestCase
 import java.nio.file.Paths
 import kotlin.io.path.exists
 
@@ -30,7 +30,7 @@ abstract class LocalChangesScriptBaseTest: QodanaRunnerTestCase() {
       PsiDocumentManager.getInstance(myProject).commitAllDocuments()
       // attach repo to project
       val vcsManager = ProjectLevelVcsManager.getInstance(project)
-      vcsManager.directoryMappings = listOf(VcsDirectoryMapping(project.basePath!!, "Git"))
+      vcsManager.setDirectoryMappings(listOf(VcsDirectoryMapping(project.basePath!!, "Git")))
       ChangeListManagerImpl.getInstanceImpl(project).waitUntilRefreshed()
       // await for the distribution
       val dirtyScopeManager = VcsDirtyScopeManager.getInstance(project)

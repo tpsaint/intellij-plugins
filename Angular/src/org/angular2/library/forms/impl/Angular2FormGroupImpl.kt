@@ -4,12 +4,12 @@ import com.intellij.lang.javascript.psi.JSObjectLiteralExpression
 import com.intellij.lang.javascript.psi.JSProperty
 import com.intellij.lang.javascript.psi.ecma6.TypeScriptField
 import com.intellij.model.Pointer
+import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.PolySymbolQualifiedKind
+import com.intellij.polySymbols.query.PolySymbolListSymbolsQueryParams
+import com.intellij.polySymbols.query.PolySymbolQueryStack
 import com.intellij.psi.PsiElement
 import com.intellij.psi.createSmartPointer
-import com.intellij.util.containers.Stack
-import com.intellij.webSymbols.WebSymbolQualifiedKind
-import com.intellij.webSymbols.WebSymbolsScope
-import com.intellij.webSymbols.query.WebSymbolsListSymbolsQueryParams
 import org.angular2.library.forms.Angular2FormAbstractControl
 import org.angular2.library.forms.Angular2FormGroup
 import org.angular2.library.forms.NG_FORM_GROUP_FIELDS
@@ -26,13 +26,13 @@ class Angular2FormGroupImpl(
   }
 
   override fun getSymbols(
-    qualifiedKind: WebSymbolQualifiedKind,
-    params: WebSymbolsListSymbolsQueryParams,
-    scope: Stack<WebSymbolsScope>,
-  ): List<WebSymbolsScope> =
+    qualifiedKind: PolySymbolQualifiedKind,
+    params: PolySymbolListSymbolsQueryParams,
+    stack: PolySymbolQueryStack,
+  ): List<PolySymbol> =
     members.filter { it.qualifiedKind == qualifiedKind }
 
-  override val qualifiedKind: WebSymbolQualifiedKind
+  override val qualifiedKind: PolySymbolQualifiedKind
     get() = if (source is TypeScriptField) NG_FORM_GROUP_FIELDS else NG_FORM_GROUP_PROPS
 
   override fun createPointer(): Pointer<Angular2FormGroupImpl> {

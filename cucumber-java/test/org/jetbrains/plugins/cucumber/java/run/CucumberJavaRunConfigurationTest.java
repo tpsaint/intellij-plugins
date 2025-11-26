@@ -12,15 +12,16 @@ import com.intellij.openapi.actionSystem.PlatformCoreDataKeys;
 import com.intellij.openapi.util.Ref;
 import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiElement;
+import com.intellij.testFramework.LightProjectDescriptor;
 import com.intellij.testFramework.TestApplicationManager;
 import com.intellij.testFramework.TestDataProvider;
+import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.plugins.cucumber.java.CucumberJavaCodeInsightTestCase;
 import org.jetbrains.plugins.cucumber.java.CucumberJavaTestUtil;
 
-public class CucumberJavaRunConfigurationTest extends CucumberJavaCodeInsightTestCase {
+public class CucumberJavaRunConfigurationTest extends BasePlatformTestCase {
   public void testScenarioOutlineNameFilter() {
     doTest("^a few cukes$");
   }
@@ -77,14 +78,14 @@ public class CucumberJavaRunConfigurationTest extends CucumberJavaCodeInsightTes
     myFixture.copyDirectoryToProject(getTestName(true), "");
     myFixture.configureByFile("StepDefs.java");
 
-    CucumberJavaRunConfiguration runConfiguration = createTemplateConfiguration();
+    CucumberJavaRunConfiguration rc = createTemplateConfiguration();
 
     PsiDirectory psiDirectory = myFixture.getFile().getParent();
-    Location location = new PsiLocation<>(psiDirectory);
+    Location<PsiDirectory> location = new PsiLocation<>(psiDirectory);
     ConfigurationContext configurationContext = ConfigurationContext.createEmptyContextForLocation(location);
 
     CucumberJavaAllFeaturesInFolderRunConfigurationProducer producer = new CucumberJavaAllFeaturesInFolderRunConfigurationProducer();
-    assertEquals(isRunConfigurationExpected, producer.setupConfigurationFromContext(runConfiguration, configurationContext, new Ref<>(psiDirectory)));
+    assertEquals(isRunConfigurationExpected, producer.setupConfigurationFromContext(rc, configurationContext, new Ref<>(psiDirectory)));
   }
 
   @NotNull
@@ -112,5 +113,10 @@ public class CucumberJavaRunConfigurationTest extends CucumberJavaCodeInsightTes
         return super.getData(dataId);
       }
     });
+  }
+
+  @Override
+  protected LightProjectDescriptor getProjectDescriptor() {
+    return CucumberJavaTestUtil.createCucumber2ProjectDescriptor();
   }
 }

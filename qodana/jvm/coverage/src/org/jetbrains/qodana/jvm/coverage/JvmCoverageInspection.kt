@@ -5,6 +5,7 @@ import com.intellij.coverage.CoverageEngine
 import com.intellij.coverage.JavaCoverageEngine
 import com.intellij.coverage.xml.XMLReportEngine
 import com.intellij.coverage.xml.XMLReportSuite
+import com.intellij.lang.Language
 import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.editor.Document
@@ -21,12 +22,16 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.rt.coverage.data.ProjectData
 import com.intellij.rt.coverage.report.XMLProjectData
 import com.intellij.uast.UastHintedVisitorAdapter
+import org.jetbrains.kotlin.asJava.elements.KtLightMethod
+import org.jetbrains.kotlin.asJava.elements.isGetter
+import org.jetbrains.kotlin.asJava.elements.isSetter
 import org.jetbrains.qodana.QodanaBundle
 import org.jetbrains.qodana.coverage.CoverageLanguage
 import org.jetbrains.qodana.staticAnalysis.inspections.coverage.*
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.QodanaException
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.QodanaGlobalInspectionContext
 import org.jetbrains.qodana.staticAnalysis.stat.CoverageFeatureEventsCollector
+import org.jetbrains.qodana.staticAnalysis.stat.CoverageFeatureEventsCollector.COVERAGE_LANGUAGE_FIELD
 import org.jetbrains.uast.*
 import org.jetbrains.uast.java.UastAnonymousClassUtil
 import org.jetbrains.uast.visitor.AbstractUastNonRecursiveVisitor
@@ -34,6 +39,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.reflect.KClass
 
 internal val logger = logger<JvmCoverageInspection>()
+
+private enum class MethodType(val printName: String) {
+  CONSTRUCTOR("constructor"),
+  METHOD("method"),
+  PROPERTY("property")
+}
 
 class JvmCoverageInspection : CoverageInspectionBase() {
   private val languages = setOf("Java", "Kotlin")
@@ -50,17 +61,43 @@ class JvmCoverageInspection : CoverageInspectionBase() {
     globalContext.putUserData(xmlcov, lazy(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
       val data = computeXmlCoverageData(globalContext, XMLReportEngine::class)
       if (data != null) {
-        CoverageFeatureEventsCollector.INSPECTION_LOADED_COVERAGE.log(globalContext.project, CoverageLanguage.JVM)
+        CoverageFeatureEventsCollector.INPUT_COVERAGE_LOADED.log(globalContext.project, COVERAGE_LANGUAGE_FIELD.with(CoverageLanguage.JVM))
       }
       data
     })
+  }
+
+  override fun loadReportForIncrementalAnalysis(globalContext: QodanaGlobalInspectionContext) {
+    if (Language.getRegisteredLanguages().any { languages.contains(it.displayName) }) {
+      val stat = globalContext.coverageStatisticsData
+      val xmlReport = globalContext.getUserData(xmlcov)?.value
+      xmlReport?.files?.filter { fileInfo ->
+        runReadAction {
+          val possibleFiles = ModuleManager.getInstance(globalContext.project).modules.flatMap {
+            ModuleRootManager.getInstance(it).sourceRoots.mapNotNull { root ->
+              val filePath = root.toNioPathOrNull()?.resolve(fileInfo.path)
+              filePath?.let { VirtualFileManager.getInstance().findFileByNioPath(filePath) }
+            }
+          }
+          possibleFiles.any { file ->
+            GlobalSearchScope.allScope(globalContext.project).contains(file)
+          }
+        }
+      }?.forEach { x ->
+        stat.processReportXmlData(x)
+      }
+
+      globalContext.getUserData(javacov)?.value?.let { loadReportData(globalContext, it) }
+    }
   }
 
   override fun processReportData(data: ProjectData, globalContext: QodanaGlobalInspectionContext) {
     val stat = globalContext.coverageStatisticsData
     val searchScope = GlobalSearchScope.projectScope(globalContext.project)
     data.classes.filter {
-      JavaPsiFacade.getInstance(globalContext.project).findClass(it.value.name, searchScope) != null
+      runReadAction {
+        JavaPsiFacade.getInstance(globalContext.project).findClass(it.value.name, searchScope) != null
+      }
     }.forEach { x -> stat.processReportClassData(x.value) }
   }
 
@@ -180,15 +217,27 @@ class JvmCoverageInspection : CoverageInspectionBase() {
     }
 
     private fun reportMethodCoverage(node: UMethod, sourcePsi: PsiElement) {
-      val isConstructor = node.isConstructor
-      val signature = methodNameForReports(node, isConstructor)
-      if (isConstructor) {
-        reportElement(problemsHolder, highlightedElement(sourcePsi),
-                      QodanaBundle.message("constructor.coverage.below.threshold", signature, methodThreshold))
-      }
-      else {
-        reportElement(problemsHolder, highlightedElement(sourcePsi),
-                      QodanaBundle.message("method.coverage.below.threshold", signature, methodThreshold))
+      when {
+        node.isConstructor -> {
+          val signature = methodNameForReports(node, MethodType.CONSTRUCTOR)
+          reportElement(problemsHolder, highlightedElement(sourcePsi),
+                        QodanaBundle.message("constructor.coverage.below.threshold", signature, methodThreshold))
+        }
+        (node.javaPsi as? KtLightMethod)?.isSetter == true -> {
+          val signature = methodNameForReports(node, MethodType.PROPERTY)
+          reportElement(problemsHolder, highlightedElement(sourcePsi),
+                        QodanaBundle.message("property.setter.coverage.below.threshold", signature, methodThreshold))
+        }
+        (node.javaPsi as? KtLightMethod)?.isGetter == true -> {
+          val signature = methodNameForReports(node, MethodType.PROPERTY)
+          reportElement(problemsHolder, highlightedElement(sourcePsi),
+                        QodanaBundle.message("property.getter.coverage.below.threshold", signature, methodThreshold))
+        }
+        else -> {
+          val signature = methodNameForReports(node, MethodType.METHOD)
+          reportElement(problemsHolder, highlightedElement(sourcePsi),
+                        QodanaBundle.message("method.coverage.below.threshold", signature, methodThreshold))
+        }
       }
     }
 
@@ -250,8 +299,8 @@ class JvmCoverageInspection : CoverageInspectionBase() {
       return name
     }
 
-    private fun methodNameForReports(node: UMethod, isConstructor: Boolean) =
-      computeName(node, if (isConstructor) "constructor" else "function", node.javaPsi.containingFile)
+    private fun methodNameForReports(node: UMethod, methodType: MethodType) =
+      computeName(node, methodType.printName, node.javaPsi.containingFile)
 
     private fun classNameForReports(node: UClass) =
       computeName(node, "class", node.javaPsi.containingFile)
@@ -283,22 +332,6 @@ class JvmCoverageInspection : CoverageInspectionBase() {
       for (suite in suites.drop(1)) {
         val add = (suite as? XMLReportSuite)?.getReportData() ?: throw QodanaException("JaCoCo suite ${suite.presentableName} is missing report data")
         report.merge(add)
-      }
-      if (globalContext.coverageComputationState().isIncrementalAnalysis()) {
-        val stat = globalContext.coverageStatisticsData
-        report.files.filter { fileInfo ->
-          val possibleFiles = ModuleManager.getInstance(globalContext.project).modules.flatMap {
-            ModuleRootManager.getInstance(it).sourceRoots.mapNotNull { root ->
-              val filePath = root.toNioPathOrNull()?.resolve(fileInfo.path)
-              filePath?.let { VirtualFileManager.getInstance().findFileByNioPath(filePath) }
-            }
-          }
-          possibleFiles.any { file ->
-            GlobalSearchScope.allScope(globalContext.project).contains(file)
-          }
-        }.forEach {
-          x -> stat.processReportXmlData(x)
-        }
       }
       return report
     }

@@ -1,0 +1,7 @@
+<idea-plugin visibility="internal">
+  <dependencies>
+    <plugin id="JavaScript"/>
+  </dependencies>
+
+  <resource-bundle>messages.VueBundle</resource-bundle>
+</idea-plugin>

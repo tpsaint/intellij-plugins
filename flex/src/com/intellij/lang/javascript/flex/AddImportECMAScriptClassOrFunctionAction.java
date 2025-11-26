@@ -18,6 +18,7 @@ import com.intellij.lang.javascript.psi.ecmal4.JSAttributeListOwner;
 import com.intellij.lang.javascript.psi.ecmal4.JSClass;
 import com.intellij.lang.javascript.psi.ecmal4.JSQualifiedNamedElement;
 import com.intellij.lang.javascript.psi.impl.JSPsiImplUtils;
+import com.intellij.lang.javascript.psi.resolve.BackendJSResolveUtil;
 import com.intellij.lang.javascript.psi.resolve.JSResolveUtil;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.command.CommandProcessor;
@@ -86,7 +87,7 @@ public final class AddImportECMAScriptClassOrFunctionAction implements HintActio
   }
 
   @Override
-  public boolean isAvailable(final @NotNull Project project, final Editor editor, final PsiFile file) {
+  public boolean isAvailable(final @NotNull Project project, final Editor editor, final PsiFile psiFile) {
     if (!myReference.getElement().isValid()) return false;
     final long modL = myReference.getElement().getManager().getModificationTracker().getModificationCount();
 
@@ -102,7 +103,7 @@ public final class AddImportECMAScriptClassOrFunctionAction implements HintActio
       }
 
       if (!hasValidResult) {
-        final Collection<JSQualifiedNamedElement> candidates = getCandidates(file);
+        final Collection<JSQualifiedNamedElement> candidates = getCandidates(psiFile);
 
         isAvailableCalculated = true;
         isAvailable = !candidates.isEmpty();
@@ -175,7 +176,7 @@ public final class AddImportECMAScriptClassOrFunctionAction implements HintActio
       } else {
         searchScope = JSResolveUtil.getResolveScope(file);
       }
-      return JSResolveUtil.findElementsByName(name, file.getProject(), searchScope);
+      return BackendJSResolveUtil.findElementsByName(name, file.getProject(), searchScope);
     }
     else {
       return Collections.emptyList();
@@ -188,8 +189,8 @@ public final class AddImportECMAScriptClassOrFunctionAction implements HintActio
   }
 
   @Override
-  public void invoke(final @NotNull Project project, final Editor editor, final PsiFile file) {
-    final Collection<JSQualifiedNamedElement> candidates = getCandidates(file);
+  public void invoke(final @NotNull Project project, final Editor editor, final PsiFile psiFile) {
+    final Collection<JSQualifiedNamedElement> candidates = getCandidates(psiFile);
 
     if (candidates.isEmpty() || myUnambiguousTheFlyMode && candidates.size() != 1) {
       return;

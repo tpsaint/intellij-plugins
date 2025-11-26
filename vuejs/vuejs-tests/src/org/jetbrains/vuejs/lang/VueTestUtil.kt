@@ -7,7 +7,7 @@ import com.intellij.lang.javascript.completion.JSPatternBasedCompletionContribut
 import com.intellij.lang.javascript.completion.ml.JSMLTrackingCompletionProvider
 import com.intellij.lang.javascript.refactoring.JSRefactoringSettings
 import com.intellij.testFramework.fixtures.IdeaTestExecutionPolicy
-import com.intellij.webSymbols.testFramework.LookupElementInfo
+import com.intellij.polySymbols.testFramework.LookupElementInfo
 import org.jetbrains.vuejs.codeInsight.VueCompletionContributor
 import java.io.File
 
@@ -17,6 +17,8 @@ fun getVueTestDataPath(): String =
   getContribPath() + VUE_TEST_DATA_PATH
 
 fun vueRelativeTestDataPath(): String = "/contrib$VUE_TEST_DATA_PATH"
+
+val filterOutAriaAttributes: (LookupElementInfo) -> Boolean = { !it.lookupString.contains("aria-") }
 
 val filterOutMostOfGlobalJSSymbolsInVue: (item: LookupElementInfo) -> Boolean = { info ->
   info.priority >= JSLookupPriority.NON_CONTEXT_KEYWORDS_PRIORITY.priorityValue

@@ -20,14 +20,14 @@ import org.jetbrains.qodana.staticAnalysis.profile.QodanaProfile
 import java.nio.file.Path
 
 /** @param outputPath in the Docker container, this is `/data/results` */
-class QodanaGlobalInspectionContext(
+open class QodanaGlobalInspectionContext(
   project: Project,
   contentManager: NotNullLazyValue<out ContentManager>,
   val config: QodanaConfig,
   private val outputPath: Path,
   val profile: QodanaProfile,
   val qodanaRunScope: CoroutineScope,
-  val coverageStatisticsData: CoverageStatisticsData
+  val coverageStatisticsData: CoverageStatisticsData,
 ) : GlobalInspectionContextImpl(project, contentManager) {
 
   /** In the Docker container, this is `/data/results`. */
@@ -55,9 +55,13 @@ class QodanaGlobalInspectionContext(
   ): EnabledInspectionsProvider.ToolWrappers {
     val wrappers = super.getWrappersFromTools(enabledInspectionsProvider, file, includeDoNotShow)
     return EnabledInspectionsProvider.ToolWrappers(
-      wrappers.allLocalWrappers.filterNot { profileState.shouldSkip(it.shortName, file, wrappers) },
-      wrappers.allGlobalSimpleWrappers.filterNot { profileState.shouldSkip(it.shortName, file, wrappers) },
+      wrappers.allLocalWrappers.filterNot { shouldSkip(it.shortName, file, wrappers) },
+      wrappers.allGlobalSimpleWrappers.filterNot { shouldSkip(it.shortName, file, wrappers) },
     )
+  }
+
+  protected open fun shouldSkip(inspectionId: String, file: PsiFile, wrappers: EnabledInspectionsProvider.ToolWrappers): Boolean {
+    return profileState.shouldSkip(inspectionId, file, wrappers)
   }
 
   override fun runExternalTools() {

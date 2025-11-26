@@ -1,75 +1,96 @@
 ### auto-generated section `build intellij.vuejs.tests` start
-load("@rules_java//java:defs.bzl", "java_library")
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_resources", "jvm_test")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
 
-jvm_resources(
+resourcegroup(
   name = "tests_test_resources",
-  files = glob(["testData/**/*"]),
+  srcs = glob(["testData/**/*"]),
   strip_prefix = "testData"
 )
 
-java_library(
+jvm_library(
   name = "tests",
-  visibility = ["//visibility:public"]
+  visibility = ["//visibility:public"],
+  srcs = glob([], allow_empty = True)
 )
 
 jvm_library(
   name = "tests_test_lib",
+  module_name = "intellij.vuejs.tests",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java", "src-ext/**/*.kt", "src-ext/**/*.java"], allow_empty = True),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form", "src-ext/**/*.kt", "src-ext/**/*.java", "src-ext/**/*.form"], allow_empty = True),
+  resources = [":tests_test_resources"],
   deps = [
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/code-style-api:codeStyle",
+    "@community//platform/core-api:core",
+    "@community//platform/editor-ui-api:editor-ui",
+    "@community//platform/polySymbols/backend",
+    "@community//platform/projectModel-api:projectModel",
+    "@community//platform/refactoring",
     "@community//platform/testFramework",
     "@community//platform/testFramework:testFramework_test_lib",
-    "//plugins/JavaScriptLanguage:javascript",
     "//contrib/vuejs",
-    "//CSS/frontback/css-api:css-frontback",
-    "//CSS:css",
+    "//plugins/css/common",
     "//plugins/JavaScriptLanguage/javascript-psi-impl",
-    "//plugins/JavaScriptLanguage/javascript-frontback-impl",
-    "//CSS/impl:css-impl",
+    "//plugins/css/plugin",
     "@community//java/java-runtime:rt",
     "//plugins/JavaScriptLanguage/javascript-parser",
     "@community//plugins/htmltools:html-tools",
     "@community//xml/xml-parser:parser",
+    "@community//xml/xml-analysis-api:analysis",
     "@community//spellchecker",
     "@community//spellchecker:spellchecker_test_lib",
+    "@community//plugins/grazie/src:core",
     "@community//platform/indexing-impl",
     "//plugins/JavaScriptLanguage:javascript-testFramework",
-    "//plugins/JavaScriptLanguage:javascript-impl",
+    "//plugins/JavaScriptLanguage:javascript-backend",
     "@community//platform/analysis-impl",
     "@community//platform/lang-impl",
     "//plugins/JavaScriptLanguage:javascript-plugin",
-    "//CSS/css-psi-impl:css-psi",
+    "//plugins/css/psi",
     "@community//plugins/copyright",
     "@community//plugins/copyright:copyright_test_lib",
     "//plugins/JavaScriptLanguage:javascript-tests_test_lib",
-    "//plugins/sass",
-    "//plugins/sass:sass_test_lib",
+    "//plugins/sass/plugin",
     "//contrib/jade",
     "//contrib/jade:jade_test_lib",
     "//contrib/postcss",
     "//contrib/postcss:postcss_test_lib",
     "//plugins/stylus",
     "//plugins/stylus:stylus_test_lib",
+    "@community//xml/xml-psi-api:psi",
     "@community//xml/tests:tests_test_lib",
-    "@lib//:stream_ex",
-    "@lib//:gson",
+    "@community//libraries/stream",
+    "@community//libraries/gson",
     "@community//platform/core-ui",
     "//plugins/JavaScriptLanguage/web-platform:javascript-web",
     "//plugins/webpack",
     "//plugins/webpack:webpack_test_lib",
     "//platform/lsp",
-    "@community//platform/webSymbols",
+    "@community//platform/lang-core",
+    "@community//platform/polySymbols",
     "//platform/lsp/testFramework",
     "//plugins/JavaScriptLanguage/web-platform:javascript-web-tests_test_lib",
-    "@community//platform/webSymbols:webSymbols-testFramework",
+    "@community//platform/polySymbols:polySymbols-testFramework",
     "@community//xml/testFramework",
-  ],
-  runtime_deps = [":tests_test_resources"]
+    "//webcore:webide",
+    "//plugins/css/analysis",
+    "//plugins/css/backend",
+    "//plugins/JavaScriptLanguage/javascript-common",
+    "//plugins/sass/backend",
+    "//plugins/sass",
+    "//contrib/vuejs/vuejs-common:common",
+    "//contrib/vuejs/vuejs-backend:backend",
+    "//contrib/vuejs/vuejs-plugin:plugin",
+  ]
 )
+### auto-generated section `build intellij.vuejs.tests` end
 
-jvm_test(
+### auto-generated section `test intellij.vuejs.tests` start
+load("@community//build:tests-options.bzl", "jps_test")
+
+jps_test(
   name = "tests_test",
   runtime_deps = [":tests_test_lib"]
 )
-### auto-generated section `build intellij.vuejs.tests` end
+### auto-generated section `test intellij.vuejs.tests` end

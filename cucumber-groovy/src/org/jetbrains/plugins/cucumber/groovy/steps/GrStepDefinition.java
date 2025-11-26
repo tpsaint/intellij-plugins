@@ -2,13 +2,12 @@
 package org.jetbrains.plugins.cucumber.groovy.steps;
 
 import com.intellij.ide.util.EditSourceUtil;
-import com.intellij.openapi.editor.Document;
 import com.intellij.pom.Navigatable;
 import com.intellij.pom.PomNamedTarget;
-import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.util.CachedValueProvider;
 import com.intellij.psi.util.CachedValuesManager;
+import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.cucumber.groovy.GrCucumberUtil;
 import org.jetbrains.plugins.cucumber.steps.AbstractStepDefinition;
@@ -23,23 +22,23 @@ import java.util.List;
 /**
  * @author Max Medvedev
  */
-public class GrStepDefinition extends AbstractStepDefinition implements PomNamedTarget {
+@NotNullByDefault
+public final class GrStepDefinition extends AbstractStepDefinition implements PomNamedTarget {
   public GrStepDefinition(GrMethodCall stepDefinition) {
     super(stepDefinition);
   }
 
-  public static GrStepDefinition getStepDefinition(final GrMethodCall statement) {
+  public static GrStepDefinition getStepDefinition(GrMethodCall statement) {
     return CachedValuesManager.getCachedValue(statement, () -> {
-      final Document document = PsiDocumentManager.getInstance(statement.getProject()).getDocument(statement.getContainingFile());
-      return CachedValueProvider.Result.create(new GrStepDefinition(statement), document);
+      return CachedValueProvider.Result.create(new GrStepDefinition(statement), statement);
     });
   }
 
   @Override
   public List<String> getVariableNames() {
     PsiElement element = getElement();
-    if (element instanceof GrMethodCall) {
-      GrClosableBlock[] closures = ((GrMethodCall)element).getClosureArguments();
+    if (element instanceof GrMethodCall call) {
+      GrClosableBlock[] closures = call.getClosureArguments();
       assert closures.length == 1;
       GrParameter[] parameters = closures[0].getParameterList().getParameters();
       ArrayList<String> result = new ArrayList<>();
@@ -53,15 +52,15 @@ public class GrStepDefinition extends AbstractStepDefinition implements PomNamed
   }
 
   @Override
-  protected @Nullable String getCucumberRegexFromElement(PsiElement element) {
-    if (!(element instanceof GrMethodCall)) {
+  protected @Nullable String getCucumberRegexFromElement(@Nullable PsiElement element) {
+    if (!(element instanceof GrMethodCall call)) {
       return null;
     }
-    return GrCucumberUtil.getStepDefinitionPatternText((GrMethodCall)element);
+    return GrCucumberUtil.getStepDefinitionPatternText(call);
   }
 
   @Override
-  public String getName() {
+  public @Nullable String getName() {
     return getCucumberRegex();
   }
 
@@ -73,7 +72,9 @@ public class GrStepDefinition extends AbstractStepDefinition implements PomNamed
 
   @Override
   public void navigate(boolean requestFocus) {
-    Navigatable descr = EditSourceUtil.getDescriptor(getElement());
+    final PsiElement element = getElement();
+    if (element == null) return;
+    final Navigatable descr = EditSourceUtil.getDescriptor(element);
     if (descr != null) descr.navigate(requestFocus);
   }
 

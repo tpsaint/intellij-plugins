@@ -17,6 +17,7 @@ import com.intellij.psi.XmlRecursiveElementWalkingVisitor
 import com.intellij.psi.util.parentOfType
 import com.intellij.psi.xml.XmlTag
 import com.intellij.xml.util.XmlTagUtil
+import kotlinx.coroutines.Deferred
 import org.jetbrains.astro.codeInsight.frontmatterScript
 import org.jetbrains.astro.codeInsight.imports.AstroComponentCopyPasteProcessor.AstroComponentImportsTransferableData
 import org.jetbrains.astro.editor.AstroComponentSourceEdit
@@ -79,8 +80,8 @@ class AstroComponentCopyPasteProcessor : ES6CopyPasteProcessorBase<AstroComponen
       AstroComponentSourceEdit.getOrCreateFrontmatterScript(file)
     }
 
-  override fun createTransferableData(importedElements: ArrayList<ImportedElement>): AstroComponentImportsTransferableData =
-    AstroComponentImportsTransferableData(importedElements)
+  override fun createTransferableData(importedElementsDeferred: Deferred<List<ImportedElement>>): AstroComponentImportsTransferableData =
+    AstroComponentImportsTransferableData(importedElementsDeferred)
 
   override fun insertRequiredImports(pasteContext: PsiElement,
                                      data: AstroComponentImportsTransferableData,
@@ -90,7 +91,7 @@ class AstroComponentCopyPasteProcessor : ES6CopyPasteProcessorBase<AstroComponen
     ES6CreateImportUtil.addRequiredImports(destinationModule, pasteContextLanguage, imports)
   }
 
-  class AstroComponentImportsTransferableData(list: ArrayList<ImportedElement>) : ES6ImportsTransferableDataBase(list) {
+  class AstroComponentImportsTransferableData(importedElementsDeferred: Deferred<List<ImportedElement>>) : ES6ImportsTransferableDataBase(importedElementsDeferred) {
     override fun getFlavor(): DataFlavor {
       return ASTRO_COMPONENT_IMPORTS_FLAVOR
     }

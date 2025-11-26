@@ -5,6 +5,7 @@ import com.google.gson.JsonParser
 import com.google.gson.JsonPrimitive
 import com.google.gson.JsonSyntaxException
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
+import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.deno.*
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.filters.Filter
@@ -14,6 +15,8 @@ import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.process.ProcessOutputTypes
 import com.intellij.javascript.nodejs.NodeCommandLineUtil
 import com.intellij.javascript.nodejs.execution.withBackgroundProgress
+import com.intellij.javascript.runtime.settings.getJavaScriptRuntimeConfigurableClass
+import com.intellij.lang.annotation.AnnotationHolder
 import com.intellij.lang.typescript.compiler.TypeScriptServiceRestarter
 import com.intellij.lang.typescript.lsp.BaseLspTypeScriptServiceCompletionSupport
 import com.intellij.openapi.application.ApplicationManager
@@ -24,17 +27,18 @@ import com.intellij.openapi.project.IndexNotReadyException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.util.NlsSafe
+import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.lsp.api.LspServer
 import com.intellij.platform.lsp.api.LspServerSupportProvider
 import com.intellij.platform.lsp.api.ProjectWideLspServerDescriptor
-import com.intellij.platform.lsp.api.customization.LspCommandsSupport
-import com.intellij.platform.lsp.api.customization.LspFormattingSupport
+import com.intellij.platform.lsp.api.customization.*
 import com.intellij.platform.lsp.api.lsWidget.LspServerWidgetItem
 import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.GlobalSearchScope
 import org.eclipse.lsp4j.Command
+import org.eclipse.lsp4j.Diagnostic
 import java.nio.file.Files
 import java.nio.file.Paths
 
@@ -49,7 +53,7 @@ class DenoLspSupportProvider : LspServerSupportProvider {
   }
 
   override fun createLspServerWidgetItem(lspServer: LspServer, currentFile: VirtualFile?): LspServerWidgetItem =
-    object : LspServerWidgetItem(lspServer, currentFile, DenoUtil.getDefaultDenoIcon(), DenoConfigurable::class.java) {
+    object : LspServerWidgetItem(lspServer, currentFile, DenoUtil.getDefaultDenoIcon(), getJavaScriptRuntimeConfigurableClass(DenoConfigurable::class.java)) {
       override val versionPostfix: @NlsSafe String
         get() {
           val postfix = super.versionPostfix
@@ -147,57 +151,76 @@ class DenoLspServerDescriptor(project: Project) : ProjectWideLspServerDescriptor
     return if (Files.exists(Paths.get(anotherPath))) anotherPath else null
   }
 
-  override val lspSemanticTokensSupport = null
-  override val lspGoToDefinitionSupport = false
-  override val lspGoToTypeDefinitionSupport = false
-  override val lspHoverSupport = false
-  override val lspCompletionSupport = BaseLspTypeScriptServiceCompletionSupport()
-  override val lspDiagnosticsSupport = null
-  override val lspFindReferencesSupport = null
+  override val lspCustomization: LspCustomization = object : LspCustomization() {
+    override val semanticTokensCustomizer = LspSemanticTokensDisabled
+    override val goToDefinitionCustomizer = LspGoToDefinitionDisabled
+    override val goToTypeDefinitionCustomizer = LspGoToTypeDefinitionDisabled
+    override val hoverCustomizer = LspHoverDisabled
+    override val completionCustomizer = BaseLspTypeScriptServiceCompletionSupport()
+    override val diagnosticsCustomizer: LspDiagnosticsCustomizer = object : LspDiagnosticsSupport() {
 
-  override val lspFormattingSupport = object : LspFormattingSupport() {
-    override fun shouldFormatThisFileExclusivelyByServer(file: VirtualFile, ideCanFormatThisFileItself: Boolean, serverExplicitlyWantsToFormatThisFile: Boolean): Boolean {
-      return DenoSettings.getService(project).isDenoFormattingEnabled()
-             && isDenoEnableForContextDirectory(project, file)
+      override fun shouldAskServerForDiagnostics(file: VirtualFile): Boolean {
+        if (!isDenoEnableForContextDirectory(project, file)) return false
+        if (project.getService(DenoTypeScriptService::class.java)?.isAcceptable(file) != true) return false
+        return true
+      }
+
+      override fun createAnnotation(holder: AnnotationHolder, diagnostic: Diagnostic, textRange: TextRange, quickFixes: List<IntentionAction>) {
+      }
     }
-  }
+    override val findReferencesCustomizer = LspFindReferencesDisabled
+    override val foldingRangeCustomizer = LspFoldingRangeDisabled
+    override val inlayHintCustomizer: LspInlayHintCustomizer = LspInlayHintDisabled
+    override val workspaceSymbolCustomizer: LspWorkspaceSymbolCustomizer = LspWorkspaceSymbolDisabled
+    override val documentSymbolCustomizer: LspDocumentSymbolCustomizer = LspDocumentSymbolDisabled
+    override val documentHighlightsCustomizer: LspDocumentHighlightsCustomizer = LspDocumentHighlightsDisabled
+    override val callHierarchyCustomizer: LspCallHierarchyCustomizer = LspCallHierarchyDisabled
+    override val selectionRangeCustomizer: LspSelectionRangeCustomizer = LspSelectionRangeDisabled
 
-  override val lspCommandsSupport: LspCommandsSupport = object : LspCommandsSupport() {
-    override fun executeCommand(server: LspServer, contextFile: VirtualFile, command: Command) {
-      if (command.command != "deno.cache") {
-        super.executeCommand(server, contextFile, command)
-        return
+    override val formattingCustomizer = object : LspFormattingSupport() {
+      override fun shouldFormatThisFileExclusivelyByServer(file: VirtualFile, ideCanFormatThisFileItself: Boolean, serverExplicitlyWantsToFormatThisFile: Boolean): Boolean {
+        return DenoSettings.getService(project).isDenoFormattingEnabled()
+               && isDenoEnableForContextDirectory(project, file)
       }
+    }
 
-      val manager = FileDocumentManager.getInstance()
-      val document = manager.getDocument(contextFile) ?: return
-      if (manager.isDocumentUnsaved(document)) {
-        FileDocumentManager.getInstance().saveDocument(document)
-      }
-
-      ApplicationManager.getApplication().executeOnPooledThread {
-        val workingDirectory = findDenoConfig(project, contextFile)?.parent ?: project.guessProjectDir()
-
-        val commandLine = GeneralCommandLine(DenoSettings.getService(server.project).getDenoPath(), "cache", contextFile.path)
-          .withWorkingDirectory(workingDirectory?.toNioPath())
-        val processHandler = withBackgroundProgress(project, DenoBundle.message("deno.cache.name")) {
-          KillableColoredProcessHandler(commandLine)
+    override val commandsCustomizer = object : LspCommandsSupport() {
+      override fun executeCommand(server: LspServer, contextFile: VirtualFile, command: Command) {
+        if (command.command != "deno.cache") {
+          super.executeCommand(server, contextFile, command)
+          return
         }
 
-        processHandler.addProcessListener(object : ProcessListener {
-          override fun processTerminated(event: ProcessEvent) {
-            processHandler.notifyTextAvailable(DenoBundle.message("deno.cache.done"), ProcessOutputTypes.SYSTEM)
+        val manager = FileDocumentManager.getInstance()
+        val document = manager.getDocument(contextFile) ?: return
+        if (manager.isDocumentUnsaved(document)) {
+          FileDocumentManager.getInstance().saveDocument(document)
+        }
 
-            ApplicationManager.getApplication().invokeLater(Runnable {
-              DenoSettings.getService(project).updateLibraries()
-              TypeScriptServiceRestarter.restartServices(project)
-              DaemonCodeAnalyzer.getInstance(project).restart()
-            }, project.disposed)
+        ApplicationManager.getApplication().executeOnPooledThread {
+          val workingDirectory = findDenoConfig(project, contextFile)?.parent ?: project.guessProjectDir()
+
+          val commandLine = GeneralCommandLine(DenoSettings.getService(server.project).getDenoPath(), "cache", contextFile.path)
+            .withWorkingDirectory(workingDirectory?.toNioPath())
+          val processHandler = withBackgroundProgress(project, DenoBundle.message("deno.cache.name")) {
+            KillableColoredProcessHandler(commandLine)
           }
-        })
 
-        ApplicationManager.getApplication().invokeLater {
-          NodeCommandLineUtil.showConsole(processHandler, "DenoConsole", project, emptyList<Filter>(), DenoBundle.message("deno.cache.title"))
+          processHandler.addProcessListener(object : ProcessListener {
+            override fun processTerminated(event: ProcessEvent) {
+              processHandler.notifyTextAvailable(DenoBundle.message("deno.cache.done"), ProcessOutputTypes.SYSTEM)
+
+              ApplicationManager.getApplication().invokeLater(Runnable {
+                DenoSettings.getService(project).updateLibraries()
+                TypeScriptServiceRestarter.restartServices(project)
+                DaemonCodeAnalyzer.getInstance(project).restart("DenoLspSupportProvider.processTerminated")
+              }, project.disposed)
+            }
+          })
+
+          ApplicationManager.getApplication().invokeLater {
+            NodeCommandLineUtil.showConsole(processHandler, "DenoConsole", project, emptyList<Filter>(), DenoBundle.message("deno.cache.title"))
+          }
         }
       }
     }

@@ -2,99 +2,97 @@
 package org.angular2.web.scopes
 
 import com.intellij.model.Pointer
-import com.intellij.util.containers.Stack
-import com.intellij.webSymbols.*
-import com.intellij.webSymbols.WebSymbol.Companion.JS_PROPERTIES
-import com.intellij.webSymbols.completion.WebSymbolCodeCompletionItem
-import com.intellij.webSymbols.patterns.ComplexPatternOptions
-import com.intellij.webSymbols.patterns.WebSymbolsPattern
-import com.intellij.webSymbols.patterns.WebSymbolsPatternFactory
-import com.intellij.webSymbols.patterns.WebSymbolsPatternSymbolsResolver
-import com.intellij.webSymbols.query.WebSymbolsNameMatchQueryParams
-import com.intellij.webSymbols.query.WebSymbolsQueryExecutor
-import com.intellij.webSymbols.utils.match
+import com.intellij.polySymbols.*
+import com.intellij.polySymbols.completion.PolySymbolCodeCompletionItem
+import com.intellij.polySymbols.html.HTML_ATTRIBUTES
+import com.intellij.polySymbols.js.JS_PROPERTIES
+import com.intellij.polySymbols.patterns.ComplexPatternOptions
+import com.intellij.polySymbols.patterns.PolySymbolPattern
+import com.intellij.polySymbols.patterns.PolySymbolPatternFactory
+import com.intellij.polySymbols.patterns.PolySymbolPatternSymbolsResolver
+import com.intellij.polySymbols.query.*
+import com.intellij.polySymbols.utils.match
 import org.angular2.web.Angular2SymbolOrigin
 import org.angular2.web.NG_DIRECTIVE_INPUTS
 import org.angular2.web.PROP_BINDING_PATTERN
 
-object AttributeWithInterpolationsScope : WebSymbolsScope {
+object AttributeWithInterpolationsScope : PolySymbolScope {
 
-  override fun createPointer(): Pointer<out WebSymbolsScope> =
+  override fun createPointer(): Pointer<out PolySymbolScope> =
     Pointer.hardPointer(this)
 
   override fun getModificationCount(): Long = 0
 
   override fun getMatchingSymbols(
-    qualifiedName: WebSymbolQualifiedName,
-    params: WebSymbolsNameMatchQueryParams,
-    scope: Stack<WebSymbolsScope>,
-  ): List<WebSymbol> =
-    if (qualifiedName.matches(WebSymbol.HTML_ATTRIBUTES)) {
-      AttributeWithInterpolationsSymbol.match(qualifiedName.name, params, scope)
+    qualifiedName: PolySymbolQualifiedName,
+    params: PolySymbolNameMatchQueryParams,
+    stack: PolySymbolQueryStack,
+  ): List<PolySymbol> =
+    if (qualifiedName.matches(HTML_ATTRIBUTES)) {
+      AttributeWithInterpolationsSymbol.match(qualifiedName.name, params, stack)
     }
     else emptyList()
 
-  private object AttributeWithInterpolationsSymbol : WebSymbol {
+  private object AttributeWithInterpolationsSymbol : PolySymbolWithPattern {
 
-    override val origin: WebSymbolOrigin
+    override val origin: PolySymbolOrigin
       get() = Angular2SymbolOrigin.empty
 
-    override val namespace: SymbolNamespace
-      get() =
-        WebSymbol.NAMESPACE_HTML
-
-    override val kind: SymbolKind
-      get() =
-        WebSymbol.KIND_HTML_ATTRIBUTES
+    override val qualifiedKind: PolySymbolQualifiedKind
+      get() = HTML_ATTRIBUTES
 
     override val name: String
       get() = "Attribute with interpolations"
 
-    override val properties: Map<String, Any>
-      get() = mapOf(PROP_BINDING_PATTERN to true)
 
-    override fun createPointer(): Pointer<out WebSymbol> =
+    override fun <T : Any> get(property: PolySymbolProperty<T>): T? =
+      when (property) {
+        PROP_BINDING_PATTERN -> property.tryCast(true)
+        else -> super.get(property)
+      }
+
+    override fun createPointer(): Pointer<out PolySymbol> =
       Pointer.hardPointer(this)
 
-    override val pattern: WebSymbolsPattern = WebSymbolsPatternFactory.createComplexPattern(
+    override val pattern: PolySymbolPattern = PolySymbolPatternFactory.createComplexPattern(
       ComplexPatternOptions(
         null, null, true,
-        WebSymbol.Priority.HIGHEST, null, false, false,
+        PolySymbol.Priority.HIGHEST, false, false,
         PropertiesResolver),
       false,
-      WebSymbolsPatternFactory.createSymbolReferencePlaceholder(null))
+      PolySymbolPatternFactory.createSymbolReferencePlaceholder(null))
 
   }
 
-  private object PropertiesResolver : WebSymbolsPatternSymbolsResolver {
-    override fun getSymbolKinds(context: WebSymbol?): Set<WebSymbolQualifiedKind> = setOf(
+  private object PropertiesResolver : PolySymbolPatternSymbolsResolver {
+    override fun getSymbolKinds(context: PolySymbol?): Set<PolySymbolQualifiedKind> = setOf(
       JS_PROPERTIES, NG_DIRECTIVE_INPUTS
     )
 
-    override val delegate: WebSymbol? get() = null
+    override val delegate: PolySymbol? get() = null
 
     override fun codeCompletion(
       name: String,
       position: Int,
-      scopeStack: Stack<WebSymbolsScope>,
-      queryExecutor: WebSymbolsQueryExecutor,
-    ): List<WebSymbolCodeCompletionItem> =
+      stack: PolySymbolQueryStack,
+      queryExecutor: PolySymbolQueryExecutor,
+    ): List<PolySymbolCodeCompletionItem> =
       emptyList()
 
     override fun listSymbols(
-      scopeStack: Stack<WebSymbolsScope>,
-      queryExecutor: WebSymbolsQueryExecutor,
+      stack: PolySymbolQueryStack,
+      queryExecutor: PolySymbolQueryExecutor,
       expandPatterns: Boolean,
-    ): List<WebSymbol> =
+    ): List<PolySymbol> =
       emptyList()
 
     override fun matchName(
       name: String,
-      scopeStack: Stack<WebSymbolsScope>,
-      queryExecutor: WebSymbolsQueryExecutor,
-    ): List<WebSymbol> =
-      queryExecutor.runNameMatchQuery(JS_PROPERTIES.withName(name), additionalScope = scopeStack) +
-      queryExecutor.runNameMatchQuery(NG_DIRECTIVE_INPUTS.withName(name), additionalScope = scopeStack)
+      stack: PolySymbolQueryStack,
+      queryExecutor: PolySymbolQueryExecutor,
+    ): List<PolySymbol> =
+      queryExecutor.nameMatchQuery(JS_PROPERTIES, name).additionalScope(stack).run() +
+      queryExecutor.nameMatchQuery(NG_DIRECTIVE_INPUTS, name).additionalScope(stack).run()
 
   }
 }

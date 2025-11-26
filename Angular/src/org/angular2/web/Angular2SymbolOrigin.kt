@@ -2,21 +2,21 @@
 package org.angular2.web
 
 import com.intellij.javascript.nodejs.PackageJsonData
-import com.intellij.javascript.webSymbols.types.TypeScriptSymbolTypeSupport
+import com.intellij.polySymbols.js.types.TypeScriptSymbolTypeSupport
 import com.intellij.lang.javascript.buildTools.npm.PackageJsonUtil
 import com.intellij.openapi.util.Pair
-import com.intellij.webSymbols.PsiSourcedWebSymbol
-import com.intellij.webSymbols.WebSymbolOrigin
-import com.intellij.webSymbols.WebSymbolTypeSupport
+import com.intellij.polySymbols.search.PsiSourcedPolySymbol
+import com.intellij.polySymbols.PolySymbolOrigin
+import com.intellij.polySymbols.utils.PolySymbolTypeSupport
 import icons.AngularIcons
 import org.angular2.Angular2Framework
 import javax.swing.Icon
 
-class Angular2SymbolOrigin(private val mySymbol: Angular2Symbol) : WebSymbolOrigin {
+class Angular2SymbolOrigin(private val mySymbol: Angular2Symbol) : PolySymbolOrigin {
 
   private val versionAndName: Pair<String, String> by lazy(LazyThreadSafetyMode.PUBLICATION) {
-    val source = if (mySymbol is PsiSourcedWebSymbol)
-      (mySymbol as PsiSourcedWebSymbol).source
+    val source = if (mySymbol is PsiSourcedPolySymbol)
+      (mySymbol as PsiSourcedPolySymbol).source
     else
       null
     val psiFile = source?.containingFile
@@ -41,7 +41,7 @@ class Angular2SymbolOrigin(private val mySymbol: Angular2Symbol) : WebSymbolOrig
   override val defaultIcon: Icon
     get() = AngularIcons.Angular2
 
-  override val typeSupport: WebSymbolTypeSupport?
+  override val typeSupport: PolySymbolTypeSupport?
     get() = TypeScriptSymbolTypeSupport()
 
   override fun equals(other: Any?): Boolean =
@@ -53,9 +53,9 @@ class Angular2SymbolOrigin(private val mySymbol: Angular2Symbol) : WebSymbolOrig
     versionAndName.hashCode()
 
   companion object {
-    val empty: WebSymbolOrigin = WebSymbolOrigin.create(Angular2Framework.ID,
-                                                        library = "@angular/core",
-                                                        defaultIcon = AngularIcons.Angular2,
-                                                        typeSupport = TypeScriptSymbolTypeSupport())
+    val empty: PolySymbolOrigin = PolySymbolOrigin.create(Angular2Framework.ID,
+                                                          library = "@angular/core",
+                                                          defaultIcon = AngularIcons.Angular2,
+                                                          typeSupport = TypeScriptSymbolTypeSupport())
   }
 }

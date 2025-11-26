@@ -1,10 +1,33 @@
 // Copyright 2000-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 package org.jetbrains.plugins.cucumber.java.resolve;
 
+import com.intellij.openapi.module.Module;
+import com.intellij.openapi.roots.ContentEntry;
+import com.intellij.openapi.roots.ModifiableRootModel;
+import com.intellij.project.IntelliJProjectConfiguration;
+import com.intellij.testFramework.IdeaTestUtil;
 import com.intellij.testFramework.LightProjectDescriptor;
+import com.intellij.testFramework.PsiTestUtil;
+import com.intellij.testFramework.fixtures.DefaultLightProjectDescriptor;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.plugins.cucumber.java.CucumberJavaTestUtil;
 
+
 public class CucumberJava3ResolveTest extends BaseCucumberJavaResolveTest {
+  public void testHighlightingOK_1() {
+    init("stepResolve_ParameterType");
+    myFixture.testHighlighting("ParameterTypeSteps.java");
+  }
+
+  public void testHighlightingOK_2() {
+    init("stepResolveJava8CucumberExpressions");
+    myFixture.testHighlighting(
+      "ParameterTypeSteps.java",
+      "TargetStatusSteps.java",
+      "io/cucumber/cucumberexpressions/ParameterType.java"
+    );
+  }
+
   public void testResolveOfStepWithParameterType() {
     init("stepResolve_ParameterType");
     checkReference("tod<caret>ay", "step_method");
@@ -69,6 +92,15 @@ public class CucumberJava3ResolveTest extends BaseCucumberJavaResolveTest {
 
   @Override
   protected LightProjectDescriptor getProjectDescriptor() {
-    return CucumberJavaTestUtil.createCucumber3ProjectDescriptor();
+    return new DefaultLightProjectDescriptor(IdeaTestUtil::getMockJdk11) {
+      @Override
+      public void configureModule(@NotNull Module module, @NotNull ModifiableRootModel model, @NotNull ContentEntry contentEntry) {
+        CucumberJavaTestUtil.attachCucumberCore3(model);
+        CucumberJavaTestUtil.attachStandardCucumberLibraries(model);
+
+        var libraryRoots = IntelliJProjectConfiguration.getModuleLibrary("intellij.cucumber.java", "cucumber-java8-3");
+        PsiTestUtil.addProjectLibrary(model, "cucumber-java8", libraryRoots.getClassesPaths());
+      }
+    };
   }
 }

@@ -6,20 +6,22 @@ import com.intellij.openapi.module.ModuleUtilCore;
 import com.intellij.openapi.roots.ProjectRootManager;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiClassOwner;
-import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.plugins.cucumber.CucumberUtil;
+import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
+import org.jetbrains.plugins.cucumber.ParameterTypeManager;
+import org.jetbrains.plugins.cucumber.java.steps.AbstractJavaStepDefinition;
 import org.jetbrains.plugins.cucumber.psi.GherkinFile;
 import org.jetbrains.plugins.cucumber.steps.AbstractCucumberExtension;
 import org.jetbrains.plugins.cucumber.steps.AbstractStepDefinition;
 
 import java.util.*;
 
+@NotNullByDefault
 public abstract class AbstractCucumberJavaExtension extends AbstractCucumberExtension {
   @Override
-  public boolean isStepLikeFile(final @NotNull PsiElement child, final @NotNull PsiElement parent) {
+  public boolean isStepLikeFile(PsiElement child) {
     if (child instanceof PsiClassOwner) {
       return true;
     }
@@ -27,7 +29,7 @@ public abstract class AbstractCucumberJavaExtension extends AbstractCucumberExte
   }
 
   @Override
-  public boolean isWritableStepLikeFile(@NotNull PsiElement child, @NotNull PsiElement parent) {
+  public boolean isWritableStepLikeFile(PsiElement child) {
     if (child instanceof PsiClassOwner) {
       final PsiFile file = child.getContainingFile();
       if (file != null) {
@@ -42,24 +44,31 @@ public abstract class AbstractCucumberJavaExtension extends AbstractCucumberExte
   }
 
   @Override
-  public Collection<? extends PsiFile> getStepDefinitionContainers(@NotNull GherkinFile featureFile) {
+  public Collection<? extends PsiFile> getStepDefinitionContainers(GherkinFile featureFile) {
     final Module module = ModuleUtilCore.findModuleForPsiElement(featureFile);
     if (module == null) {
       return Collections.emptySet();
     }
-    List<AbstractStepDefinition> stepDefs = CucumberUtil.loadFrameworkSteps(this, featureFile, module);
+    List<AbstractStepDefinition> stepDefs = loadStepsFor(featureFile, module);
 
     Set<PsiFile> result = new HashSet<>();
     for (AbstractStepDefinition stepDef : stepDefs) {
       PsiElement stepDefElement = stepDef.getElement();
       if (stepDefElement != null) {
         final PsiFile psiFile = stepDefElement.getContainingFile();
-        PsiDirectory psiDirectory = psiFile.getParent();
-        if (psiDirectory != null && isWritableStepLikeFile(psiFile, psiDirectory)) {
+        if (isWritableStepLikeFile(psiFile)) {
           result.add(psiFile);
         }
       }
     }
     return result;
+  }
+
+  @Override
+  public @Nullable ParameterTypeManager getParameterTypeManager(AbstractStepDefinition stepDefinition) {
+    if (stepDefinition instanceof AbstractJavaStepDefinition javaStepDefinition) {
+      return CucumberJavaUtil.getAllParameterTypes(javaStepDefinition.getModule());
+    }
+    return null;
   }
 }

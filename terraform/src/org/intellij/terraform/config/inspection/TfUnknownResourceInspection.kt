@@ -1,4 +1,4 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.config.inspection
 
 import com.intellij.codeInspection.LocalInspectionTool
@@ -12,16 +12,15 @@ import org.intellij.terraform.config.Constants.HCL_DATASOURCE_IDENTIFIER
 import org.intellij.terraform.config.Constants.HCL_PROVIDER_IDENTIFIER
 import org.intellij.terraform.config.Constants.HCL_RESOURCE_IDENTIFIER
 import org.intellij.terraform.config.actions.AddProviderAction
-import org.intellij.terraform.config.actions.TfInitAction
+import org.intellij.terraform.config.actions.createQuickFixNotInitialized
 import org.intellij.terraform.config.model.BlockType
-import org.intellij.terraform.config.model.TypeModel
+import org.intellij.terraform.config.model.TfTypeModel
 import org.intellij.terraform.config.model.TypeModelProvider
 import org.intellij.terraform.hcl.HCLBundle
 import org.intellij.terraform.hcl.psi.HCLBlock
 import org.intellij.terraform.hcl.psi.HCLElementVisitor
 import org.intellij.terraform.hcl.psi.getNameElementUnquoted
 import org.intellij.terraform.isTerraformCompatiblePsiFile
-import kotlin.collections.listOfNotNull
 
 internal class TfUnknownResourceInspection : LocalInspectionTool() {
 
@@ -47,7 +46,7 @@ internal class TfUnknownResourceInspection : LocalInspectionTool() {
         holder.registerProblem(block,
                                HCLBundle.message("unknown.resource.identifier.inspection.error.message", blockTypeString, identifier),
                                *listOfNotNull(
-                                 TfInitAction.createQuickFixNotInitialized(block),
+                                 createQuickFixNotInitialized(block),
                                  AddProviderAction(block)
                                ).toArray(LocalQuickFix.EMPTY_ARRAY)
         )
@@ -56,20 +55,19 @@ internal class TfUnknownResourceInspection : LocalInspectionTool() {
         holder.registerProblem(block,
                                HCLBundle.message("unknown.resource.identifier.for.known.provider", blockTypeString, identifier, provider.fullName),
                                *listOfNotNull(
-                                 TfInitAction.createQuickFixNotInitialized(block)
+                                 createQuickFixNotInitialized(block)
                                ).toArray(LocalQuickFix.EMPTY_ARRAY)
         )
       }
     }
   }
 
-  private fun getTypeForBlock(blockType: String, identifier: String, block: HCLBlock, model: TypeModel): BlockType? = when (blockType) {
+  private fun getTypeForBlock(blockType: String, identifier: String, block: HCLBlock, model: TfTypeModel): BlockType? = when (blockType) {
     HCL_RESOURCE_IDENTIFIER -> model.getResourceType(identifier, block)
     HCL_DATASOURCE_IDENTIFIER -> model.getDataSourceType(identifier, block)
     HCL_PROVIDER_IDENTIFIER -> model.getProviderType(identifier, block)
     else -> null
   }
-
 
   private fun getBlockTypeString(block: HCLBlock, allowedIdentifiers: List<String>): String? =
     block.getNameElementUnquoted(0)?.lowercase()?.takeIf { it in allowedIdentifiers }

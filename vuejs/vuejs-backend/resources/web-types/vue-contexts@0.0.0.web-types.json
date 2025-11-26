@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../../community/platform/polySymbols/web-types-gen/resources/web-types.json",
+  "name": "vue-store-contexts",
+  "version": "0.0.0",
+  "contexts-config": {
+    "vue-store": {
+      "vuex": {
+        "enable-when": {
+          "node-packages": [
+            "vuex"
+          ],
+          "ide-libraries": [
+            "vuex"
+          ]
+        }
+      },
+      "pinia": {
+        "enable-when": {
+          "node-packages": [
+            "pinia"
+          ]
+        }
+      }
+    },
+    "vue-ssr-framework": {
+      "nuxt": {
+        "enable-when": {
+          "node-packages": [
+            "nuxt"
+          ]
+        }
+      }
+    },
+    "vue-class-component-library": {
+      "vue-class-component": {
+        "enable-when": {
+          "node-packages": [
+            "vue-class-component"
+          ]
+        }
+      },
+      "vue-property-decorator": {
+        "enable-when": {
+          "node-packages": [
+            "vue-property-decorator"
+          ]
+        }
+      },
+      "vue-facing-decorator": {
+        "enable-when": {
+          "node-packages": [
+            "vue-facing-decorator"
+          ]
+        }
+      }
+    }
+  }
+}

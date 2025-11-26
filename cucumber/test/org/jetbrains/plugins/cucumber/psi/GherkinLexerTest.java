@@ -92,6 +92,14 @@ public class GherkinLexerTest extends TestCase {
     doTest("Given test step <param01> word <param02>", "STEP_KEYWORD:0-5", "WHITE_SPACE:5-6", "TEXT:6-15", "WHITE_SPACE:15-16", "STEP_PARAMETER_BRACE:16-17", "STEP_PARAMETER_TEXT:17-24", "STEP_PARAMETER_BRACE:24-25", "WHITE_SPACE:25-26", "TEXT:26-30", "WHITE_SPACE:30-31", "STEP_PARAMETER_BRACE:31-32", "STEP_PARAMETER_TEXT:32-39", "STEP_PARAMETER_BRACE:39-40");
   }
 
+  public void testStepParameterDoubleCaret() {
+    doTest("Given test step <<param01>> yo", "STEP_KEYWORD:0-5", "WHITE_SPACE:5-6", "TEXT:6-15", "WHITE_SPACE:15-16", "TEXT:16-17", "STEP_PARAMETER_BRACE:17-18", "STEP_PARAMETER_TEXT:18-25", "STEP_PARAMETER_BRACE:25-26", "TEXT:26-30");
+  }
+
+  public void testStepParameterDoubleCaretWithSpace() {
+    doTest("Given test step < <param01>> yo", "STEP_KEYWORD:0-5", "WHITE_SPACE:5-6", "TEXT:6-15", "WHITE_SPACE:15-16", "TEXT:16-17", "WHITE_SPACE:17-18", "STEP_PARAMETER_BRACE:18-19", "STEP_PARAMETER_TEXT:19-26", "STEP_PARAMETER_BRACE:26-27", "TEXT:27-31");
+  }
+
   public void testStepParameterBeforeText() {
     doTest("Given <param01> test <param02>", "STEP_KEYWORD:0-5", "WHITE_SPACE:5-6", "STEP_PARAMETER_BRACE:6-7", "STEP_PARAMETER_TEXT:7-14", "STEP_PARAMETER_BRACE:14-15", "WHITE_SPACE:15-16", "TEXT:16-20", "WHITE_SPACE:20-21", "STEP_PARAMETER_BRACE:21-22", "STEP_PARAMETER_TEXT:22-29", "STEP_PARAMETER_BRACE:29-30");
   }
@@ -169,6 +177,17 @@ public class GherkinLexerTest extends TestCase {
             Given my test value:""",
       "FEATURE_KEYWORD:0-7", "COLON:7-8", "WHITE_SPACE:8-9", "TEXT:9-13", "WHITE_SPACE:13-16", "SCENARIO_KEYWORD:16-24",
       "COLON:24-25", "WHITE_SPACE:25-26", "TEXT:26-30", "WHITE_SPACE:30-35", "STEP_KEYWORD:35-40", "WHITE_SPACE:40-41", "TEXT:41-55"
+    );
+  }
+
+  public void testAtSignInStepName() {
+    doTest(
+      """
+        Feature: test
+          Scenario: test
+            Given @Team is a child of the group @Class""",
+      "FEATURE_KEYWORD:0-7", "COLON:7-8", "WHITE_SPACE:8-9", "TEXT:9-13", "WHITE_SPACE:13-16", "SCENARIO_KEYWORD:16-24",
+      "COLON:24-25", "WHITE_SPACE:25-26", "TEXT:26-30", "WHITE_SPACE:30-35", "STEP_KEYWORD:35-40", "WHITE_SPACE:40-41", "TEXT:41-77"
     );
   }
 

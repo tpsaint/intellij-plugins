@@ -3,24 +3,25 @@
 package org.angular2.web.scopes
 
 import com.intellij.codeInsight.completion.CompletionUtil
-import com.intellij.javascript.webSymbols.symbols.getJSPropertySymbols
+import com.intellij.polySymbols.js.symbols.getJSPropertySymbols
+import com.intellij.polySymbols.js.types.PROP_JS_TYPE
 import com.intellij.model.Pointer
 import com.intellij.openapi.util.IntellijInternalApi
 import com.intellij.openapi.util.NlsSafe
 import com.intellij.openapi.util.RecursionManager
+import com.intellij.polySymbols.*
+import com.intellij.polySymbols.PolySymbol.Priority
+import com.intellij.polySymbols.completion.PolySymbolCodeCompletionItem
+import com.intellij.polySymbols.js.JS_PROPERTIES
+import com.intellij.polySymbols.js.JS_SYMBOLS
+import com.intellij.polySymbols.query.PolySymbolCodeCompletionQueryParams
+import com.intellij.polySymbols.query.PolySymbolQueryStack
+import com.intellij.polySymbols.utils.PolySymbolScopeWithCache
+import com.intellij.polySymbols.utils.ReferencingPolySymbol
 import com.intellij.psi.createSmartPointer
 import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.psi.util.parentOfType
 import com.intellij.util.asSafely
-import com.intellij.util.containers.Stack
-import com.intellij.webSymbols.*
-import com.intellij.webSymbols.WebSymbol.Companion.JS_PROPERTIES
-import com.intellij.webSymbols.WebSymbol.Companion.KIND_JS_SYMBOLS
-import com.intellij.webSymbols.WebSymbol.Companion.NAMESPACE_JS
-import com.intellij.webSymbols.WebSymbol.Priority
-import com.intellij.webSymbols.completion.WebSymbolCodeCompletionItem
-import com.intellij.webSymbols.query.WebSymbolsCodeCompletionQueryParams
-import com.intellij.webSymbols.utils.ReferencingWebSymbol
 import org.angular2.Angular2Framework
 import org.angular2.codeInsight.attributes.Angular2AttributeDescriptor
 import org.angular2.entities.Angular2DirectiveProperty
@@ -34,9 +35,10 @@ import org.angular2.web.NG_DIRECTIVE_INPUTS
 import org.angular2.web.NG_TEMPLATE_BINDINGS
 
 class TemplateBindingKeyScope(binding: Angular2TemplateBindingKey)
-  : WebSymbolsScopeWithCache<Angular2TemplateBindingKey, Unit>(Angular2Framework.ID, binding.project, binding, Unit) {
+  : PolySymbolScopeWithCache<Angular2TemplateBindingKey, Unit>(Angular2Framework.ID, binding.project, binding, Unit) {
 
-  override fun initialize(consumer: (WebSymbol) -> Unit, cacheDependencies: MutableSet<Any>) {
+  @OptIn(IntellijInternalApi::class)
+  override fun initialize(consumer: (PolySymbol) -> Unit, cacheDependencies: MutableSet<Any>) {
     cacheDependencies.add(PsiModificationTracker.MODIFICATION_COUNT)
     val templateBindings = dataHolder.parentOfType<Angular2TemplateBindings>() ?: return
     when ((dataHolder.parent as? Angular2TemplateBinding ?: return).keyKind) {
@@ -52,24 +54,24 @@ class TemplateBindingKeyScope(binding: Angular2TemplateBindingKey)
             .filter { it.name != templateName }
             .forEach(consumer)
         }
-        consumer(ReferencingWebSymbol.create(NG_TEMPLATE_BINDINGS, "Angular template binding mapping",
-                                             Angular2SymbolOrigin.empty,
-                                             NG_DIRECTIVE_INPUTS))
+        consumer(ReferencingPolySymbol.create(NG_TEMPLATE_BINDINGS, "Angular template binding mapping",
+                                              Angular2SymbolOrigin.empty,
+                                              NG_DIRECTIVE_INPUTS))
       }
       else -> {}
     }
   }
 
   override fun getCodeCompletions(
-    qualifiedName: WebSymbolQualifiedName,
-    params: WebSymbolsCodeCompletionQueryParams,
-    scope: Stack<WebSymbolsScope>,
-  ): List<WebSymbolCodeCompletionItem> =
-    super.getCodeCompletions(qualifiedName, params, scope).map {
+    qualifiedName: PolySymbolQualifiedName,
+    params: PolySymbolCodeCompletionQueryParams,
+    stack: PolySymbolQueryStack,
+  ): List<PolySymbolCodeCompletionItem> =
+    super.getCodeCompletions(qualifiedName, params, stack).map {
       it.withPriority(Priority.HIGHEST)
     }
 
-  override fun provides(qualifiedKind: WebSymbolQualifiedKind): Boolean =
+  override fun provides(qualifiedKind: PolySymbolQualifiedKind): Boolean =
     qualifiedKind == NG_TEMPLATE_BINDINGS
     || qualifiedKind == NG_DIRECTIVE_INPUTS
     || qualifiedKind == JS_PROPERTIES
@@ -83,24 +85,23 @@ class TemplateBindingKeyScope(binding: Angular2TemplateBindingKey)
 
   override fun getModificationCount(): Long = 0
 
-  private class TemplateBindingsSymbol(private val bindings: Angular2TemplateBindings) : WebSymbol {
-    override val origin: WebSymbolOrigin
+  private class TemplateBindingsSymbol(private val bindings: Angular2TemplateBindings) : PolySymbol {
+    override val origin: PolySymbolOrigin
       get() = Angular2SymbolOrigin.empty
 
-    override val namespace: @NlsSafe SymbolNamespace
-      get() = NAMESPACE_JS
-
-    override val kind: @NlsSafe SymbolKind
-      get() = KIND_JS_SYMBOLS
+    override val qualifiedKind: PolySymbolQualifiedKind
+      get() = JS_SYMBOLS
 
     override val name: @NlsSafe String
       get() = bindings.templateName
 
-    override val type: Any?
-      get() = BindingsTypeResolver.get(bindings)
-        .resolveTemplateContextType()
+    override fun <T : Any> get(property: PolySymbolProperty<T>): T? =
+      when (property) {
+        PROP_JS_TYPE -> property.tryCast(BindingsTypeResolver.get(bindings).resolveTemplateContextType())
+        else -> super.get(property)
+      }
 
-    override fun createPointer(): Pointer<out WebSymbol> {
+    override fun createPointer(): Pointer<out PolySymbol> {
       val bindingsPtr = bindings.createSmartPointer()
       return Pointer {
         bindingsPtr.dereference()?.let { TemplateBindingsSymbol(it) }

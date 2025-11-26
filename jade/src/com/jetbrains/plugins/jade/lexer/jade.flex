@@ -233,6 +233,14 @@ import com.intellij.openapi.util.text.StringUtil;
     if (bracket.equals(")")) paired = "(";
     if (bracket.equals("]")) paired = "[";
     if (bracket.equals("}")) paired = "{";
+    // We need to treat conditional as brackets to ensure that
+    // we continue lexing the attribute value correctly
+    if (bracket.equals(":")) {
+      paired = "?";
+      if (parenthesisStack.isEmpty() || !parenthesisStack.peek().equals(paired)) {
+        return defaultType;
+      }
+    }
 
     if (parenthesisStack.isEmpty()) {
       if (bracket.equals(exitBracket)) {
@@ -297,12 +305,6 @@ import com.intellij.openapi.util.text.StringUtil;
     if (tail.endsWith("return")) return false;
     if (tail.endsWith("?")) return false;
     if (tail.endsWith(":")) return false;
-
-    if (yycharat(1) == ':') {
-        // can be a part of conditional operator or a beginning of the name of the next attribute
-        if (tail.contains("?")) return false;
-    }
-
     return true;
   }
 %}
@@ -528,9 +530,9 @@ Interpolation = ("#" | "!") "{" [^\n}]* "}"
 }
 
 <ATTRIBUTE_VALUE> {
-  "("|"{"|"[" { updateValueTail(); parenthesisStack.push(yytext().toString()); return JadeTokenTypes.JS_EXPR; }
+  "("|"{"|"["|"?" { updateValueTail(); parenthesisStack.push(yytext().toString()); return JadeTokenTypes.JS_EXPR; }
 
-  ")"|"}"|"]" {
+  ")"|"}"|"]"|":" {
     updateValueTail();
     IElementType result = processClosingBracket(")", JadeTokenTypes.RPAREN, JadeTokenTypes.JS_EXPR);
     if (result == JadeTokenTypes.RPAREN) {
@@ -727,16 +729,25 @@ Interpolation = ("#" | "!") "{" [^\n}]* "}"
 <MIXIN_DECL> {
   {IdentifierEx} { return JadeTokenTypes.IDENTIFIER; }
   {WhiteSpace} { return TokenType.WHITE_SPACE; }
-  "(" { yybegin(JS_MIXIN_PARAMS); return JadeTokenTypes.JS_MIXIN_PARAMS; }
+  "(" { yybegin(JS_MIXIN_PARAMS); parenthesisStack.clear(); return JadeTokenTypes.JS_MIXIN_PARAMS; }
   ")" { return JadeTokenTypes.RPAREN; }
 }
 
 <JS_MIXIN_PARAMS> {
-  ")" { yybegin(MIXIN_DECL); return JadeTokenTypes.JS_MIXIN_PARAMS; }
+  "("|"{"|"[" { parenthesisStack.push(yytext().toString()); return JadeTokenTypes.JS_MIXIN_PARAMS; }
+  ")"|"}"|"]" {
+    IElementType result = processClosingBracket(")", JadeTokenTypes.TEXT, JadeTokenTypes.JS_MIXIN_PARAMS);
+    if (result == JadeTokenTypes.TEXT) {
+      yybegin(MIXIN_DECL);
+    }
+    return JadeTokenTypes.JS_MIXIN_PARAMS;
+  }
   {LineTerminator} { return processEol(); }
   {Identifier} |
   {WhiteSpace} |
   . { return JadeTokenTypes.JS_MIXIN_PARAMS; }
+  {StringLiteral} |
+  {CharLiteral} { indentDone(); return JadeTokenTypes.JS_MIXIN_PARAMS; }
 }
 
 

@@ -4,7 +4,6 @@ package org.jetbrains.qodana.staticAnalysis.stat
 import com.intellij.codeInspection.ex.InspectListener.InspectionKind
 import com.intellij.codeInspection.ex.InspectionToolWrapper
 import com.intellij.internal.statistic.collectors.fus.fileTypes.FileTypeUsagesCollector
-import com.intellij.internal.statistic.eventLog.EventLogGroup
 import com.intellij.internal.statistic.eventLog.events.EventFields
 import com.intellij.internal.statistic.service.fus.collectors.CounterUsagesCollector
 import com.intellij.internal.statistic.utils.PluginInfo
@@ -16,9 +15,9 @@ import org.jetbrains.qodana.inspectionKts.KtsInspectionsManager
 internal const val FLEXINSPECT_STATS_INSPECTION_ID = "flexinspect"
 
 internal object InspectionEventsCollector : CounterUsagesCollector() {
-  private val GROUP = EventLogGroup("qodana.inspections", 13)
+  private val GROUP = QodanaEventLogGroup("qodana.inspections", 16)
 
-  override fun getGroup() = GROUP
+  override fun getGroup() = GROUP.eventLogGroup
 
   private val inspectionIdField = EventFields.StringValidatedByCustomRule<InspectionIdValidationRule>("inspectionId")
   private val durationField = EventFields.Long("duration")
@@ -26,15 +25,16 @@ internal object InspectionEventsCollector : CounterUsagesCollector() {
   private val problemsCountField = EventFields.RoundedInt("problemsCount")
   private val inspectionKindField = EventFields.Enum<InspectionKind>("kind")
   private val activityKindField = EventFields.String("kind", listOf("REFERENCE_SEARCH",
-      "GLOBAL_POST_RUN_ACTIVITIES",
-      "EXTERNAL_TOOLS_CONFIGURATION",
-      "EXTERNAL_TOOLS_EXECUTION"))
+                                                                    "GLOBAL_POST_RUN_ACTIVITIES",
+                                                                    "EXTERNAL_TOOLS_CONFIGURATION",
+                                                                    "EXTERNAL_TOOLS_EXECUTION"))
   private val lowerBoundField = EventFields.Long("lowerBound")
   private val upperBoundField = EventFields.Long("upperBound")
   private val filesCountField = EventFields.Int("filesCount")
   private val filetypeField = EventFields.StringValidatedByCustomRule<FileTypeUsagesCollector.ValidationRule>("filetype")
   private val totalCountField = EventFields.RoundedInt("totalCount")
   private val analyzedCountField = EventFields.RoundedInt("analyzedCount")
+  private val qodanaActivityKindField = EventFields.Enum<QodanaActivityKind>("activityKind")
 
   private val inspectionFinished = GROUP.registerVarargEvent(
     "inspection.finished",
@@ -71,10 +71,18 @@ internal object InspectionEventsCollector : CounterUsagesCollector() {
     analyzedCountField
   )
 
-  private val qodanaActivityFinished = GROUP.registerEvent(
+  private val inspectionProblemsFound = GROUP.registerVarargEvent(
+    "inspection.problems.found",
+    inspectionIdField,
+    problemsCountField,
+    filesCountField,
+    EventFields.PluginInfo
+  )
+
+  private val qodanaActivityFinished = GROUP.registerVarargEvent(
     "qodana.activity.finished",
     durationField,
-    EventFields.Enum<QodanaActivityKind>("activityKind")
+    qodanaActivityKindField
   )
 
   private val flexInspectTotalFilesField = EventFields.RoundedInt("files_total")
@@ -103,7 +111,10 @@ internal object InspectionEventsCollector : CounterUsagesCollector() {
       return action()
     }
     finally {
-      qodanaActivityFinished.log(System.currentTimeMillis() - start, activityKind)
+      qodanaActivityFinished.log(
+        durationField.with(System.currentTimeMillis() - start),
+        qodanaActivityKindField.with(activityKind)
+      )
     }
   }
 
@@ -122,13 +133,15 @@ internal object InspectionEventsCollector : CounterUsagesCollector() {
   }
 
   @JvmStatic
-  fun logInspectionDuration(lowerBound: Long,
-                            upperBound: Long,
-                            problemsCount: Int,
-                            filesCount: Int,
-                            tool: InspectionToolWrapper<*, *>,
-                            kind: InspectionKind,
-                            project: Project) {
+  fun logInspectionDuration(
+    lowerBound: Long,
+    upperBound: Long,
+    problemsCount: Int,
+    filesCount: Int,
+    tool: InspectionToolWrapper<*, *>,
+    kind: InspectionKind,
+    project: Project,
+  ) {
     val pluginInfo = getInfo(tool)
     val inspectionId = getInspectionIdToReport(project, pluginInfo, tool.id)
 
@@ -150,8 +163,34 @@ internal object InspectionEventsCollector : CounterUsagesCollector() {
   }
 
   @JvmStatic
-  fun logInspectionFinished(duration: Long, threadId: Long, problemsCount: Int, tool: InspectionToolWrapper<*, *>,
-                            kind: InspectionKind, project: Project) {
+  fun logInspectionProblemsFound(
+    problemsCount: Int,
+    filesCount: Int,
+    tool: InspectionToolWrapper<*, *>,
+    project: Project,
+  ) {
+    val pluginInfo = getInfo(tool)
+    val inspectionId = getInspectionIdToReport(project, pluginInfo, tool.id)
+
+    val pairs = listOf(
+      inspectionIdField.with(inspectionId),
+      problemsCountField.with(problemsCount),
+      filesCountField.with(filesCount)
+    )
+
+    if (pluginInfo != null) {
+      inspectionProblemsFound.log(project, pairs + EventFields.PluginInfo.with(pluginInfo))
+    }
+    else {
+      inspectionProblemsFound.log(project, pairs)
+    }
+  }
+
+  @JvmStatic
+  fun logInspectionFinished(
+    duration: Long, threadId: Long, problemsCount: Int, tool: InspectionToolWrapper<*, *>,
+    kind: InspectionKind, project: Project,
+  ) {
     val pluginInfo = getInfo(tool)
     val inspectionId = getInspectionIdToReport(project, pluginInfo, tool.id)
 

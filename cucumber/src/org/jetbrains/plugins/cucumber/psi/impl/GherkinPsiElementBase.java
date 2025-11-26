@@ -20,7 +20,7 @@ import javax.swing.*;
 public abstract class GherkinPsiElementBase extends ASTWrapperPsiElement implements GherkinPsiElement {
   private static final TokenSet TEXT_FILTER = TokenSet.create(GherkinTokenTypes.TEXT);
 
-  public GherkinPsiElementBase(final @NotNull ASTNode node) {
+  public GherkinPsiElementBase(@NotNull ASTNode node) {
     super(node);
   }
 
@@ -39,8 +39,8 @@ public abstract class GherkinPsiElementBase extends ASTWrapperPsiElement impleme
       }
 
       @Override
-      public Icon getIcon(final boolean open) {
-        return GherkinPsiElementBase.this.getIcon(Iconable.ICON_FLAG_VISIBILITY);
+      public Icon getIcon(boolean open) {
+        return GherkinPsiElementBase.this.getIcon(ICON_FLAG_VISIBILITY);
       }
     };
   }
@@ -49,7 +49,7 @@ public abstract class GherkinPsiElementBase extends ASTWrapperPsiElement impleme
     return toString();
   }
 
-  protected String buildPresentableText(final String prefix) {
+  protected String buildPresentableText(String prefix) {
     final StringBuilder result = new StringBuilder(prefix);
     final String name = getElementText();
     if (!StringUtil.isEmpty(name)) {
@@ -60,8 +60,8 @@ public abstract class GherkinPsiElementBase extends ASTWrapperPsiElement impleme
 
   @Override
   public void accept(@NotNull PsiElementVisitor visitor) {
-    if (visitor instanceof GherkinElementVisitor) {
-      acceptGherkin((GherkinElementVisitor) visitor);
+    if (visitor instanceof GherkinElementVisitor elementVisitor) {
+      acceptGherkin(elementVisitor);
     }
     else {
       super.accept(visitor);

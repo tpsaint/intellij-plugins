@@ -13,7 +13,7 @@ function _tcb1<T extends mytype>(this: AppComponent<T>) {
 var _t1 = _ctor1({"ngIf": this.title != 'foo', "ngIfThen": 0 as any});
 _t1.ngIf = this.title != 'foo';
 var _t2 = null! as any;
-if (TestIf.ngTemplateContextGuard(_t1, _t2) && this.title != 'foo') {
+if ((TestIf.ngTemplateContextGuard(_t1, _t2)) && (this.title != 'foo')) {
 _t2;
 var _t3 = _t2.ngIf;
 var _t4 = document.createElement("main");
@@ -28,6 +28,6 @@ _t9.foo2 = _pipe1.transform(12);
 var _t10 = document.createElement("router-outlet");
 }
 var _t11 = document.createElement("span");
-"" + this.minutes;
-"" + this.minutes;
+"" + (this.minutes);
+"" + (this.minutes);
 }

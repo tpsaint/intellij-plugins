@@ -1,42 +1,83 @@
-apply(from = "../contrib-configuration/common.gradle.kts")
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+rootProject.extensions.add("gradle.version", "9.0")
+rootProject.extensions.add("kotlin.jvmTarget", "21")
+rootProject.extensions.add("java.sourceCompatibility", "21")
+rootProject.extensions.add("java.targetCompatibility", "21")
+rootProject.extensions.add("kotlin.freeCompilerArgs", listOf("-Xjvm-default=all"))
+rootProject.extensions.add("junit.version", "4.13.2")
 
 /**
  * Initialize this property in a specific Gradle task to determine the plugin runtime layout
  * that is different for various compatible IDEs
  */
-//val defaultPluginRunMode = ProtobufPluginLayout.ProtobufInIdeaUltimateWithGoAndPython("2024.1", "241.14494.240")
-val defaultPluginRunMode = ProtobufPluginLayout.ProtobufCoreTestsInIdeaCommunity("2024.1")
+val defaultPluginRunMode = ProtobufPluginLayout.ProtobufCoreWithJavaAndTestsInIdeaCommunity("2025.2")
 
 plugins {
   id("java")
   id("org.jetbrains.kotlin.jvm")
-  id("org.jetbrains.intellij")
+  id("org.jetbrains.intellij.platform")
+}
+
+repositories {
+  intellijPlatform {
+    defaultRepositories()
+    snapshots()
+  }
+
+  mavenCentral()
+  google()
+}
+
+intellijPlatform {
+  pluginConfiguration {
+    name = "protobuf"
+  }
 }
 
 dependencies {
+  intellijPlatform {
+    jetbrainsRuntime()
+    intellijIdeaCommunity(defaultPluginRunMode.baseIDEVersion, useInstaller = true)
+
+    defaultPluginRunMode.pluginDependencies.forEach {
+      bundledPlugins(it)
+    }
+    defaultPluginRunMode.moduleDependencies.forEach {
+      bundledModule(it)
+    }
+    testFramework(TestFrameworkType.Platform)
+    testFramework(TestFrameworkType.Plugin.Java)
+  }
+
   implementation("com.google.protobuf:protobuf-java-util:3.24.4")
   implementation("com.google.truth:truth:0.42")
 }
 
-intellij {
-  pluginName.set("protobuf")
-  type.set(defaultPluginRunMode.baseIDE)
-  version.set(defaultPluginRunMode.baseIDEVersion)
-  plugins.set(defaultPluginRunMode.pluginDependencies)
+sourceSets {
+  main {
+    kotlin.srcDirs(defaultPluginRunMode.sourcesDirs)
+    java.srcDirs(defaultPluginRunMode.sourcesDirs)
+    resources.srcDirs(defaultPluginRunMode.resourcesDirs)
+  }
+  test {
+    kotlin.srcDirs(defaultPluginRunMode.testSourcesDirs)
+    java.srcDirs(defaultPluginRunMode.testSourcesDirs)
+    resources.srcDirs(defaultPluginRunMode.testResourcesDirs)
+  }
 }
 
-sourceSets {
-  sourceSets {
-    main {
-      kotlin.srcDirs(defaultPluginRunMode.sourcesDirs)
-      java.srcDirs(defaultPluginRunMode.sourcesDirs)
-      resources.srcDirs(defaultPluginRunMode.resourcesDirs)
-    }
-    test {
-      kotlin.srcDirs(defaultPluginRunMode.testSourcesDirs)
-      java.srcDirs(defaultPluginRunMode.testSourcesDirs)
-      resources.srcDirs(defaultPluginRunMode.testResourcesDirs)
-    }
+java {
+  sourceCompatibility = JavaVersion.toVersion(ext("java.sourceCompatibility"))
+  targetCompatibility = JavaVersion.toVersion(ext("java.targetCompatibility"))
+}
+
+kotlin {
+  compilerOptions {
+    jvmTarget.set(JvmTarget.fromTarget(ext("kotlin.jvmTarget")))
+    @Suppress("UNCHECKED_CAST")
+    freeCompilerArgs.addAll(rootProject.extensions["kotlin.freeCompilerArgs"] as List<String>)
   }
 }
 
@@ -57,35 +98,23 @@ tasks {
       fileToChange.writeText(newPluginXmlText)
     }
   }
-  named("buildPlugin") {
-    dependsOn(manipulatePluginXml)
-  }
-  named("runIde") {
-    dependsOn(manipulatePluginXml)
-  }
-  named("test") {
+  buildPlugin {
     dependsOn(manipulatePluginXml)
   }
   test {
+    dependsOn(manipulatePluginXml)
     systemProperty("ij.protoeditor.test.home.path", "${rootProject.rootDir}")
+    useJUnit()
   }
   buildSearchableOptions {
     enabled = false
   }
-  compileKotlin {
-    kotlinOptions.jvmTarget = ext("kotlin.jvmTarget")
-    @Suppress("UNCHECKED_CAST")
-    kotlinOptions.freeCompilerArgs = rootProject.extensions["kotlin.freeCompilerArgs"] as List<String>
-  }
-  java {
-    sourceCompatibility = JavaVersion.toVersion(ext("java.sourceCompatibility"))
-    targetCompatibility = JavaVersion.toVersion(ext("java.targetCompatibility"))
-  }
   wrapper {
-    gradleVersion = "8.5"
+    gradleVersion = ext("gradle.version")
   }
   runIde {
-    autoReloadPlugins.set(false)
+    dependsOn(manipulatePluginXml)
+    autoReload.set(false)
   }
 }
 
@@ -94,62 +123,24 @@ fun ext(name: String): String {
 }
 
 sealed class ProtobufPluginLayout(
-  val baseIDE: String,
   val baseIDEVersion: String,
   val pluginDependencies: List<String>,
+  val moduleDependencies: List<String>,
   val pluginXmlContents: List<String>,
   val sourcesDirs: Array<String>,
   val resourcesDirs: Array<String>,
   val testSourcesDirs: Array<String>,
   val testResourcesDirs: Array<String>
 ) {
-  abstract class ProtobufCoreWithIjPlatform(
-    baseIDE: String,
-    baseIDEVersion: String,
-    pluginDependencies: List<String>,
-    pluginXmlContents: List<String>,
-    sourcesDirs: Array<String>,
-    resourcesDirs: Array<String>,
-    testSourcesDirs: Array<String>,
-    testResourcesDirs: Array<String>
-  ) : ProtobufPluginLayout(
-    baseIDE,
-    baseIDEVersion,
-    pluginDependencies,
-    pluginXmlContents,
-    sourcesDirs + arrayOf("protoeditor-core/src", "protoeditor-core/gen"),
-    resourcesDirs + arrayOf("resources", "protoeditor-core/resources"),
-    testSourcesDirs + arrayOf("protoeditor-core/test"),
-    testResourcesDirs + arrayOf("protoeditor-core/testData")
-  )
-
-  class ProtobufInIdeaUltimateWithGoAndPython(majorIdeVersion: String, latestCompatiblePluginsVersion: String) :
-    ProtobufCoreWithIjPlatform(
-      "IU",
+  class ProtobufCoreWithJavaAndTestsInIdeaCommunity(majorIdeVersion: String) :
+    ProtobufPluginLayout(
       majorIdeVersion,
-      listOf(
-        "com.intellij.java",
-        "org.jetbrains.plugins.go:$latestCompatiblePluginsVersion",
-        "Pythonid:$latestCompatiblePluginsVersion"
-      ),
-      listOf("intellij.protoeditor.go", "intellij.protoeditor.python", "intellij.protoeditor.jvm"),
-      arrayOf("protoeditor-jvm/src"),
-      arrayOf("protoeditor-jvm/resources"),
-      arrayOf("protoeditor-jvm/test"),
-      arrayOf("protoeditor-jvm/testData")
-    )
-
-  class ProtobufCoreTestsInIdeaCommunity(majorIdeVersion: String) :
-    ProtobufCoreWithIjPlatform(
-      "IC",
-      majorIdeVersion,
-      listOf(
-        "com.intellij.java",
-      ),
+      listOf("com.intellij.java"),
+      listOf("intellij.spellchecker"),
       listOf("intellij.protoeditor.jvm"),
-      arrayOf("protoeditor-jvm/src"),
-      arrayOf("protoeditor-jvm/resources"),
-      arrayOf("protoeditor-jvm/test"),
-      arrayOf("protoeditor-jvm/testData")
+      arrayOf("protoeditor-jvm/src", "protoeditor-core/src", "protoeditor-core/gen"),
+      arrayOf("protoeditor-jvm/resources", "resources", "protoeditor-core/resources"),
+      arrayOf("protoeditor-jvm/test", "protoeditor-core/test"),
+      arrayOf("protoeditor-jvm/testData", "protoeditor-core/testData")
     )
 }

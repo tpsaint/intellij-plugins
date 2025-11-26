@@ -1,23 +1,28 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.plugins.cucumber.psi.impl;
 
+import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiReferenceBase;
 import com.intellij.psi.util.PsiTreeUtil;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.cucumber.psi.*;
 
-public class GherkinStepParameterReference extends GherkinSimpleReference {
+@NotNullByDefault
+public class GherkinStepParameterReference extends PsiReferenceBase<GherkinStepParameter> {
   public GherkinStepParameterReference(GherkinStepParameter stepParameter) {
-    super(stepParameter);
+    super(stepParameter, new TextRange(0, stepParameter.getTextLength()));
   }
 
   @Override
-  public @NotNull GherkinStepParameter getElement() {
-    return (GherkinStepParameter)super.getElement();
+  public boolean isReferenceTo(PsiElement element) {
+    PsiElement resolved = resolve();
+    return element.getManager().areElementsEquivalent(element, resolved);
   }
 
   @Override
-  public PsiElement resolve() {
+  public @Nullable PsiElement resolve() {
     final GherkinScenarioOutline scenario = PsiTreeUtil.getParentOfType(getElement(), GherkinScenarioOutline.class);
     if (scenario == null) {
       return null;

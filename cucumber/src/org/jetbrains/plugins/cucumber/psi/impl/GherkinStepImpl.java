@@ -3,10 +3,7 @@ package org.jetbrains.plugins.cucumber.psi.impl;
 
 import com.intellij.lang.ASTNode;
 import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.psi.PsiCheckedRenameElement;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiReference;
-import com.intellij.psi.TokenType;
+import com.intellij.psi.*;
 import com.intellij.psi.impl.source.resolve.reference.ReferenceProvidersRegistry;
 import com.intellij.psi.tree.TokenSet;
 import com.intellij.psi.util.CachedValueProvider;
@@ -27,8 +24,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 
 public class GherkinStepImpl extends GherkinPsiElementBase implements GherkinStep, PsiCheckedRenameElement {
@@ -37,7 +32,6 @@ public class GherkinStepImpl extends GherkinPsiElementBase implements GherkinSte
     .create(GherkinTokenTypes.TEXT, GherkinElementTypes.STEP_PARAMETER, TokenType.WHITE_SPACE, GherkinTokenTypes.STEP_PARAMETER_TEXT,
             GherkinTokenTypes.STEP_PARAMETER_BRACE);
 
-  private static final Pattern PARAMETER_SUBSTITUTION_PATTERN = Pattern.compile("<([^>\n\r]+)>");
   private final Object LOCK = new Object();
 
   private List<String> mySubstitutions;
@@ -101,49 +95,31 @@ public class GherkinStepImpl extends GherkinPsiElementBase implements GherkinSte
       if (mySubstitutions == null) {
         final ArrayList<String> substitutions = new ArrayList<>();
 
-
         // step name
         final String text = getName();
         if (StringUtil.isEmpty(text)) {
           return Collections.emptyList();
         }
-        addSubstitutionFromText(text, substitutions);
+        CucumberUtil.addSubstitutionFromText(text, substitutions);
 
         // pystring
         final GherkinPystring pystring = getPystring();
         String pystringText = pystring != null ? pystring.getText() : null;
         if (!StringUtil.isEmpty(pystringText)) {
-          addSubstitutionFromText(pystringText, substitutions);
+          CucumberUtil.addSubstitutionFromText(pystringText, substitutions);
         }
 
         // table
         final GherkinTable table = getTable();
         final String tableText = table == null ? null : table.getText();
         if (tableText != null) {
-          addSubstitutionFromText(tableText, substitutions);
+          CucumberUtil.addSubstitutionFromText(tableText, substitutions);
         }
 
         mySubstitutions = substitutions.isEmpty() ? Collections.emptyList() : substitutions;
       }
       return mySubstitutions;
     }
-  }
-
-  private static void addSubstitutionFromText(String text, ArrayList<String> substitutions) {
-    final Matcher matcher = PARAMETER_SUBSTITUTION_PATTERN.matcher(text);
-    boolean result = matcher.find();
-    if (!result) {
-      return;
-    }
-
-    do {
-      final String substitution = matcher.group(1);
-      if (!StringUtil.isEmpty(substitution) && !substitutions.contains(substitution)) {
-        substitutions.add(substitution);
-      }
-      result = matcher.find();
-    }
-    while (result);
   }
 
   @Override
@@ -175,7 +151,19 @@ public class GherkinStepImpl extends GherkinPsiElementBase implements GherkinSte
 
   @Override
   public PsiElement setName(@NonNls @NotNull String name) throws IncorrectOperationException {
-    GherkinStep newStep = GherkinChangeUtil.createStep(getKeyword().getText() + " " + name, getProject());
+    PsiFile containingFile = getContainingFile();
+    if (containingFile == null) {
+      throw new IllegalStateException("Cannot rename step whose containing file is null");
+    }
+    if (!(containingFile instanceof GherkinFile gherkinFile)) {
+      throw new IllegalStateException("Cannot rename step whose containing file isn't GherkinFile");
+    }
+    ASTNode keyword = getKeyword();
+    if (keyword == null) {
+      throw new IllegalStateException("Cannot rename step whose keyword is null");
+    }
+
+    GherkinStep newStep = GherkinChangeUtil.createStep(keyword.getText() + " " + name, gherkinFile, getProject());
     replace(newStep);
     return newStep;
   }
@@ -189,8 +177,8 @@ public class GherkinStepImpl extends GherkinPsiElementBase implements GherkinSte
   public @NotNull Collection<AbstractStepDefinition> findDefinitions() {
     final List<AbstractStepDefinition> result = new ArrayList<>();
     for (final PsiReference reference : getReferences()) {
-      if (reference instanceof CucumberStepReference) {
-        result.addAll(((CucumberStepReference)reference).resolveToDefinitions());
+      if (reference instanceof CucumberStepReference cucumberStepReference) {
+        result.addAll(cucumberStepReference.resolveToDefinitions());
       }
     }
     return result;
@@ -198,21 +186,21 @@ public class GherkinStepImpl extends GherkinPsiElementBase implements GherkinSte
 
 
   @Override
-  public boolean isRenameAllowed(final @Nullable String newName) {
+  public boolean isRenameAllowed(@Nullable String newName) {
     final Collection<AbstractStepDefinition> definitions = findDefinitions();
     if (definitions.isEmpty()) {
-      return false; // No sense to rename step with out of definitions
+      return false; // Cannot rename a step without definitions
     }
     for (final AbstractStepDefinition definition : definitions) {
       if (!definition.supportsRename(newName)) {
-        return false; //At least one definition does not support renaming
+        return false; // Cannot rename a step if at least one of its definitions does not support renaming
       }
     }
     return true; // Nothing prevents us from renaming
   }
 
   @Override
-  public void checkSetName(final String name) {
+  public void checkSetName(String name) {
     if (!isRenameAllowed(name)) {
       throw new IncorrectOperationException(CucumberBundle.message("cucumber.refactor.rename.bad_symbols"));
     }

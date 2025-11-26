@@ -14,13 +14,13 @@ import com.intellij.openapi.util.Pair
 import com.intellij.psi.tree.IElementType
 import com.intellij.util.ArrayUtil
 import com.intellij.util.containers.map2Array
-import org.angular2.lang.expr.Angular2Language
+import org.angular2.lang.expr.Angular2ExprDialect
 import org.angular2.lang.expr.highlighting.Angular2HighlighterColors
 import org.angular2.lang.expr.lexer.Angular2TokenTypes
 import org.angular2.lang.html.Angular2TemplateSyntax
 import org.angular2.lang.html.lexer.Angular2HtmlLexer
 import org.angular2.lang.html.lexer.Angular2HtmlTokenTypes
-import org.angular2.lang.html.stub.Angular2HtmlStubElementTypes
+import org.angular2.lang.html.parser.Angular2HtmlElementTypes
 import java.util.concurrent.ConcurrentHashMap
 
 class Angular2HtmlFileHighlighter(
@@ -28,12 +28,12 @@ class Angular2HtmlFileHighlighter(
   private val interpolationConfig: Pair<String, String>?,
 ) : HtmlFileHighlighter() {
   override fun getTokenHighlights(tokenType: IElementType): Array<out TextAttributesKey> {
-    var result = keys[tokenType]
+    var result = getKeys(templateSyntax)[tokenType]
     if (result != null) {
       return result
     }
     result = super.getTokenHighlights(tokenType)
-    if (tokenType.language is Angular2Language
+    if (tokenType.language is Angular2ExprDialect
         || tokenType.language is JavascriptLanguage) {
       result = ArrayUtil.insert(result, 1, Angular2HtmlHighlighterColors.NG_EXPRESSION)
     }
@@ -45,15 +45,23 @@ class Angular2HtmlFileHighlighter(
   }
 
   companion object {
-    private val keys: MutableMap<IElementType, Array<out TextAttributesKey>> = HashMap()
-    private val ourJsHighlighter = JSHighlighter(DialectOptionHolder.JS_1_5)
+    private val keys: MutableMap<Angular2TemplateSyntax, MutableMap<IElementType, Array<out TextAttributesKey>>> = ConcurrentHashMap()
+    private val ourJsHighlighter = JSHighlighter(DialectOptionHolder.JS_WITHOUT_JSX)
     private val ourTsHighlighter = TypeScriptHighlighter()
     private val ourTsKeyMap: MutableMap<Pair<TextAttributesKey, IElementType>, TextAttributesKey> = ConcurrentHashMap()
-    private fun put(token: IElementType, vararg keysArr: TextAttributesKey) {
-      keys[token] = keysArr.toList().toTypedArray()
+
+    private fun getKeys(syntax: Angular2TemplateSyntax): MutableMap<IElementType, Array<out TextAttributesKey>> {
+      return keys.computeIfAbsent(syntax) { syntax: Angular2TemplateSyntax ->
+        HashMap<IElementType, Array<out TextAttributesKey>>().also { buildTokenMap(syntax, it) }
+      }
     }
 
-    init {
+    private fun buildTokenMap(templateSyntax: Angular2TemplateSyntax, map: MutableMap<IElementType, Array<out TextAttributesKey>>) {
+
+      fun put(token: IElementType, vararg keysArr: TextAttributesKey) {
+        map[token] = keysArr.toList().toTypedArray()
+      }
+
       for (token in sequenceOf(Angular2HtmlTokenTypes.INTERPOLATION_START, Angular2HtmlTokenTypes.INTERPOLATION_END)) {
         put(token, XmlHighlighterColors.HTML_CODE,
             Angular2HtmlHighlighterColors.NG_EXPRESSION, Angular2HtmlHighlighterColors.NG_INTERPOLATION_DELIMITER)
@@ -74,22 +82,22 @@ class Angular2HtmlFileHighlighter(
           Angular2HtmlHighlighterColors.NG_EXPANSION_FORM_COMMA)
 
       for (p in sequenceOf(
-        Pair(Angular2HtmlStubElementTypes.BANANA_BOX_BINDING,
+        Pair(Angular2HtmlElementTypes.BANANA_BOX_BINDING,
              Angular2HtmlHighlighterColors.NG_BANANA_BINDING_ATTR_NAME),
-        Pair(Angular2HtmlStubElementTypes.EVENT,
+        Pair(Angular2HtmlElementTypes.EVENT,
              Angular2HtmlHighlighterColors.NG_EVENT_BINDING_ATTR_NAME),
-        Pair(Angular2HtmlStubElementTypes.PROPERTY_BINDING,
+        Pair(Angular2HtmlElementTypes.PROPERTY_BINDING,
              Angular2HtmlHighlighterColors.NG_PROPERTY_BINDING_ATTR_NAME),
-        Pair(Angular2HtmlStubElementTypes.REFERENCE,
+        Pair(Angular2HtmlElementTypes.REFERENCE,
              Angular2HighlighterColors.NG_VARIABLE),
-        Pair(Angular2HtmlStubElementTypes.TEMPLATE_BINDINGS,
+        Pair(Angular2HtmlElementTypes.TEMPLATE_BINDINGS,
              Angular2HtmlHighlighterColors.NG_TEMPLATE_BINDINGS_ATTR_NAME),
-        Pair(Angular2HtmlStubElementTypes.LET,
+        Pair(Angular2HtmlElementTypes.LET,
              Angular2HtmlHighlighterColors.NG_TEMPLATE_LET_ATTR_NAME))) {
         put(p.first, XmlHighlighterColors.HTML_CODE, XmlHighlighterColors.HTML_TAG, XmlHighlighterColors.HTML_ATTRIBUTE_NAME, p.second)
       }
 
-      for (token in Angular2TokenTypes.KEYWORDS.types) {
+      for (token in templateSyntax.expressionLanguage.getKeywords().types) {
         put(token, XmlHighlighterColors.HTML_CODE,
             Angular2HtmlHighlighterColors.NG_EXPRESSION, TypeScriptHighlighter.TS_KEYWORD)
       }

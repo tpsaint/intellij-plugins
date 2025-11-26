@@ -1,9 +1,9 @@
 ### auto-generated section `build intellij.vcs.perforce` start
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_resources")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
 
-jvm_resources(
+resourcegroup(
   name = "vcs-perforce_resources",
-  files = glob(["resources/**/*"]),
+  srcs = glob(["resources/**/*"]),
   strip_prefix = "resources"
 )
 
@@ -11,8 +11,13 @@ jvm_library(
   name = "vcs-perforce",
   module_name = "intellij.vcs.perforce",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java"], allow_empty = True),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form"], allow_empty = True),
+  resources = [":vcs-perforce_resources"],
   deps = [
+    "@community//platform/core-api:core",
+    "@community//platform/credential-store",
+    "@community//platform/editor-ui-api:editor-ui",
+    "@community//platform/projectModel-api:projectModel",
     "@community//platform/util",
     "//contrib/PerforceIntegration/perforce_util:vcs-perforce-util",
     "@community//platform/vcs-api:vcs",
@@ -22,42 +27,47 @@ jvm_library(
     "@community//platform/vcs-impl",
     "@community//platform/platform-impl:ide-impl",
     "@community//platform/ide-core-impl",
-    "@lib//:guava",
-    "@lib//:fastutil-min",
+    "@community//libraries/guava",
+    "@community//libraries/fastutil",
     "@community//platform/core-ui",
     "@community//platform/platform-util-io:ide-util-io",
     "@community//platform/dvcs-impl:vcs-dvcs-impl",
     "@community//platform/dvcs-api:vcs-dvcs",
     "@community//platform/backend/workspace",
     "@community//platform/util/coroutines",
-  ],
-  runtime_deps = [":vcs-perforce_resources"]
+    "@community//platform/vcs-impl/shared",
+  ]
 )
 ### auto-generated section `build intellij.vcs.perforce` end
 
 ### auto-generated section `build intellij.vcs.perforce.tests` start
-load("@rules_java//java:defs.bzl", "java_library")
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_resources", "jvm_test")
-
-jvm_resources(
+resourcegroup(
   name = "vcs-perforce-tests_test_resources",
-  files = glob(["testResources/**/*"]),
+  srcs = glob(["testResources/**/*"]),
   strip_prefix = "testResources"
 )
 
-java_library(
+jvm_library(
   name = "vcs-perforce-tests",
-  visibility = ["//visibility:public"]
+  visibility = ["//visibility:public"],
+  srcs = glob([], allow_empty = True)
 )
 
 jvm_library(
   name = "vcs-perforce-tests_test_lib",
+  module_name = "intellij.vcs.perforce.tests",
   visibility = ["//visibility:public"],
-  srcs = glob(["testSource/**/*.kt", "testSource/**/*.java"], allow_empty = True),
+  srcs = glob(["testSource/**/*.kt", "testSource/**/*.java", "testSource/**/*.form"], allow_empty = True),
+  resources = [":vcs-perforce-tests_test_resources"],
   deps = [
     "@lib//:junit4",
     "@community//platform/analysis-api:analysis",
+    "@community//platform/core-api:core",
     "@community//platform/core-impl",
+    "@community//platform/core-ui",
+    "@community//platform/editor-ui-api:editor-ui",
+    "@community//jps/model-api:model",
+    "@community//platform/projectModel-api:projectModel",
     "//contrib/PerforceIntegration:vcs-perforce",
     "@community//platform/vcs-api:vcs",
     "//contrib/PerforceIntegration/perforce_util:vcs-perforce-util",
@@ -70,12 +80,15 @@ jvm_library(
     "@community//platform/vcs-tests:vcs-testFramework",
     "@community//platform/platform-util-io:ide-util-io",
     "@lib//:mockito",
-  ],
-  runtime_deps = [":vcs-perforce-tests_test_resources"]
+  ]
 )
+### auto-generated section `build intellij.vcs.perforce.tests` end
 
-jvm_test(
+### auto-generated section `test intellij.vcs.perforce.tests` start
+load("@community//build:tests-options.bzl", "jps_test")
+
+jps_test(
   name = "vcs-perforce-tests_test",
   runtime_deps = [":vcs-perforce-tests_test_lib"]
 )
-### auto-generated section `build intellij.vcs.perforce.tests` end
+### auto-generated section `test intellij.vcs.perforce.tests` end

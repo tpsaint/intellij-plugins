@@ -1,10 +1,11 @@
 package org.jetbrains.qodana.staticAnalysis.inspections.runner
 
 import com.intellij.testFramework.TestDataPath
+import org.jetbrains.qodana.staticAnalysis.testFramework.QodanaRunnerTestCase
 import org.junit.Test
 
 
-@TestDataPath("\$CONTENT_ROOT/testData/QodanaStructuralSearchTest")
+@TestDataPath($$"$CONTENT_ROOT/testData/QodanaStructuralSearchTest")
 class QodanaStructuralSearchTest : QodanaRunnerTestCase(){
   @Test
   fun testProfileWithDisabledRule() {

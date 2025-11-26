@@ -1,7 +1,7 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.angular2.codeInsight
 
-import com.intellij.webSymbols.testFramework.checkLookupItems
+import com.intellij.polySymbols.testFramework.checkLookupItems
 import org.angular2.Angular2TestCase
 import org.angular2.Angular2TestModule
 
@@ -123,4 +123,14 @@ class Angular2CompletionAutoPopupTest : Angular2TestCase("completionAutoPopup", 
       type("ab\n")
     }
   }
+
+  fun testKeyupCodeModifierTyping() =
+    doCompletionAutoPopupTest(Angular2TestModule.ANGULAR_CORE_17_3_0, extension = "html", checkResult = false) {
+      type("(keyup.")
+      checkLookupItems { it.lookupString.endsWith(".") }
+      type("al\n")
+      checkLookupItems { it.lookupString.endsWith(".") }
+      type("co\n")
+      checkLookupItems()
+    }
 }

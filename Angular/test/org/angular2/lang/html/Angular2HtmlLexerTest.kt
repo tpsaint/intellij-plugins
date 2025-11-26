@@ -1,18 +1,18 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.angular2.lang.html
 
+import com.intellij.lexer.HtmlLexer
 import com.intellij.lexer.Lexer
-import com.intellij.testFramework.LexerTestCase
 import com.intellij.testFramework.LightProjectDescriptor
 import com.intellij.testFramework.fixtures.IdeaProjectTestFixture
-import com.intellij.testFramework.fixtures.IdeaTestExecutionPolicy
 import com.intellij.testFramework.fixtures.IdeaTestFixtureFactory
-import org.angular2.lang.html.lexer.Angular2HtmlLexer
 import org.angular2.Angular2TestUtil
+import org.angular2.AngularLexerTestCase
+import org.angular2.lang.html.lexer.Angular2HtmlLexer
 import org.jetbrains.annotations.NonNls
 import java.io.File
 
-open class Angular2HtmlLexerTest : LexerTestCase() {
+open class Angular2HtmlLexerTest : AngularLexerTestCase() {
   private var myFixture: IdeaProjectTestFixture? = null
 
   protected open val templateSyntax: Angular2TemplateSyntax
@@ -342,9 +342,23 @@ open class Angular2HtmlLexerTest : LexerTestCase() {
     """.trimIndent())
   }
 
+  fun testVoidKeyword() {
+    doTest("""
+      <div (click)='void fun()'></div>
+    """)
+  }
+
+  fun testPowerOperator() {
+    doTest("""
+      <div (click)='12 ** 2 ** 3'></div>
+    """)
+  }
+
   override fun doTest(text: @NonNls String) {
     super.doTest(text)
-    checkCorrectRestart(text)
+    if ((createLexer() as? HtmlLexer)?.isHighlighting == false) {
+      checkCorrectRestartUsingPosition(text)
+    }
   }
 
   override fun createLexer(): Lexer {
@@ -356,16 +370,16 @@ open class Angular2HtmlLexerTest : LexerTestCase() {
   }
 
   override fun getPathToTestDataFile(extension: String): String {
-    val basePath = IdeaTestExecutionPolicy.getHomePathWithPolicy() + "/" + dirPath
+    val basePath = dirPath
     val fileName = getTestName(true) + extension
     // Iterate over syntax versions starting from the `templateSyntax` down to V_2
     return Angular2TemplateSyntax.entries.toList().asReversed().asSequence()
-      .dropWhile { it != templateSyntax }
-      .filter { it != Angular2TemplateSyntax.V_2_NO_EXPANSION_FORMS }
-      .firstNotNullOfOrNull { syntax ->
-        "${basePath}${syntax.dirSuffix}/$fileName".takeIf { File(it).exists() }
-      }
-    ?: "${basePath}${templateSyntax.dirSuffix}/$fileName"
+             .dropWhile { it != templateSyntax }
+             .filter { it != Angular2TemplateSyntax.V_2_NO_EXPANSION_FORMS }
+             .firstNotNullOfOrNull { syntax ->
+               "${basePath}${syntax.dirSuffix}/$fileName".takeIf { File(it).exists() }
+             }
+           ?: "${basePath}${templateSyntax.dirSuffix}/$fileName"
   }
 
   private val Angular2TemplateSyntax.dirSuffix: String get() = if (this == Angular2TemplateSyntax.V_2) "" else "_$this"

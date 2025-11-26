@@ -10,24 +10,28 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="intellij.platform.analysis" />
+    <orderEntry type="module" module-name="intellij.platform.core" />
     <orderEntry type="module" module-name="intellij.platform.ide" />
     <orderEntry type="module" module-name="intellij.platform.lang" />
+    <orderEntry type="module" module-name="intellij.platform.lang.core" />
     <orderEntry type="module" module-name="intellij.platform.lang.impl" />
     <orderEntry type="module" module-name="intellij.platform.core.impl" />
-    <orderEntry type="module" module-name="intellij.javascript.impl" />
+    <orderEntry type="module" module-name="intellij.javascript.backend" />
     <orderEntry type="module" module-name="intellij.platform.ide.impl" />
+    <orderEntry type="module" module-name="intellij.platform.projectModel" />
     <orderEntry type="module" module-name="intellij.xml.impl" />
+    <orderEntry type="module" module-name="intellij.xml.analysis" scope="TEST" />
     <orderEntry type="module" module-name="intellij.platform.testFramework" scope="TEST" />
     <orderEntry type="module" module-name="intellij.javascript.psi.impl" />
     <orderEntry type="module" module-name="intellij.platform.webide" />
     <orderEntry type="module" module-name="intellij.platform.webide.impl" />
-    <orderEntry type="module" module-name="intellij.javascript" />
     <orderEntry type="module" module-name="intellij.javascript.tests" scope="TEST" />
     <orderEntry type="module" module-name="intellij.javascript.testFramework" scope="TEST" />
-    <orderEntry type="module" module-name="intellij.platform.scriptDebugger.ui" />
     <orderEntry type="module" module-name="intellij.platform.core.ui" />
     <orderEntry type="module" module-name="intellij.platform.ide.util.io" />
-    <orderEntry type="module" module-name="intellij.platform.webSymbols" />
+    <orderEntry type="module" module-name="intellij.platform.polySymbols" />
+    <orderEntry type="module" module-name="intellij.xml.psi" />
     <orderEntry type="module" module-name="intellij.javascript.web" scope="TEST" />
   </component>
 </module>

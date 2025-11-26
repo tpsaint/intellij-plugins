@@ -11,9 +11,7 @@ import com.intellij.lang.javascript.psi.JSReferenceExpression;
 import com.intellij.lang.javascript.psi.ecmal4.*;
 import com.intellij.lang.javascript.psi.impl.JSChangeUtil;
 import com.intellij.lang.javascript.psi.impl.JSPsiImplUtils;
-import com.intellij.lang.javascript.psi.resolve.ActionScriptResolveUtil;
 import com.intellij.lang.javascript.psi.resolve.JSResolveUtil;
-import com.intellij.lang.javascript.psi.resolve.ResolveProcessor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.PackageIndex;
 import com.intellij.openapi.roots.ProjectFileIndex;
@@ -157,15 +155,6 @@ public final class FlexResolveHelper implements JSResolveHelper {
   }
 
   @Override
-  public boolean resolveTypeNameUsingImports(final ResolveProcessor resolveProcessor, PsiNamedElement parent) {
-    if (parent instanceof XmlBackedJSClassImpl) {
-      return processInlineComponentsInScope((XmlBackedJSClassImpl)parent,
-                                            inlineComponent -> resolveProcessor.execute(inlineComponent, ResolveState.initial()));
-    }
-    return true;
-  }
-
-  @Override
   public long getResolveResultTimestamp(PsiElement candidate) {
     return SwcCatalogXmlUtil.getTimestampFromCatalogXml(candidate);
   }
@@ -271,7 +260,7 @@ public final class FlexResolveHelper implements JSResolveHelper {
 
   public static ImportStatus evaluateImportStatus(String newName, PsiElement context) {
     EvaluateImportStatusProcessor statusProcessor = new EvaluateImportStatusProcessor(newName);
-    ActionScriptResolveUtil.walkOverStructure(context, statusProcessor);
+    ActionScriptFlexResolveUtil.walkOverStructure(context, statusProcessor);
     return statusProcessor.myStatus.get();
   }
 
@@ -307,7 +296,7 @@ public final class FlexResolveHelper implements JSResolveHelper {
     });
   }
 
-  private static boolean processInlineComponentsInScope(XmlBackedJSClassImpl context, Processor<? super XmlBackedJSClass> processor) {
+  public static boolean processInlineComponentsInScope(XmlBackedJSClassImpl context, Processor<? super XmlBackedJSClass> processor) {
     XmlTag rootTag = ((XmlFile)context.getContainingFile()).getDocument().getRootTag();
     boolean recursive =
       context.getParent().getParentTag() != null && XmlBackedJSClassImpl.isComponentTag(context.getParent().getParentTag());

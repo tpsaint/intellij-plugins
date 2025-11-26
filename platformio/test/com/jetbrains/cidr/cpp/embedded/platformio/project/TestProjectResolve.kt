@@ -17,8 +17,9 @@ import com.intellij.testFramework.JUnit38AssumeSupportRunner
 import com.intellij.testFramework.LightPlatformTestCase
 import com.intellij.util.asSafely
 import com.intellij.util.system.OS
-import com.jetbrains.cidr.cpp.CPPTestCase
+import com.jetbrains.cidr.cpp.CPPTestUtil
 import com.jetbrains.cidr.cpp.embedded.platformio.PlatformioService
+import com.jetbrains.cidr.cpp.embedded.platformio.project.TestUtils.findExternalModule
 import com.jetbrains.cidr.cpp.execution.manager.CLionRunConfigurationManager
 import com.jetbrains.cidr.external.system.model.ExternalModule
 import com.jetbrains.cidr.lang.CLanguageKind
@@ -74,7 +75,7 @@ class TestProjectResolve : LightPlatformTestCase() {
   fun testScanFiles2023() = doTestScanFiles("-2023")
 
   private fun doTestScanFiles(suffix: String = "") {
-    Assume.assumeFalse(CPPTestCase.getTestToolSet().kind.isRemoteLike)
+    Assume.assumeFalse(CPPTestUtil.getTestToolSet().kind.isRemoteLike)
 
     val taskId: ExternalSystemTaskId = ExternalSystemTaskId.create(ID, ExternalSystemTaskType.RESOLVE_PROJECT, project)
     val testListener = TaskNotificationListerForTest()
@@ -118,13 +119,16 @@ class TestProjectResolve : LightPlatformTestCase() {
 
     verifySwitches(projectNode, CLanguageKind.CPP, commonSwitches + cppSwitches, cSwitches)
     verifySwitches(projectNode, CLanguageKind.C, commonSwitches + cSwitches, cppSwitches)
+
+    assertEquals("Changed name", projectNode.data.externalName)
+    assertEquals("Changed name", projectNode.data.internalName)
   }
 
   private fun verifySwitches(projectNode: DataNode<ProjectData>,
                              langKind: OCLanguageKind,
                              mandatorySwitches: List<String>,
                              undesiredSwitches: List<String>) {
-    val languageConfig = (projectNode.children.first().children.first().data as ExternalModule)
+    val languageConfig = projectNode.findExternalModule().data
       .resolveConfigurations.first()
       .languageConfigurations.first { it.languageKind == langKind }!!
     assertEquals(GCCCompilerKind, languageConfig.compilerKind)
@@ -137,11 +141,7 @@ class TestProjectResolve : LightPlatformTestCase() {
   }
 
   private fun verifySources(projectNode: DataNode<ProjectData>) {
-    assertEquals(ProjectKeys.PROJECT, projectNode.key)
-    assertEquals(1, projectNode.children.size)
-    val moduleNode = projectNode.children.first()
-    assertEquals(ProjectKeys.MODULE, moduleNode.key)
-    val externalModule = moduleNode.children.first()
+    val externalModule = projectNode.findExternalModule()
     val actualSourceFiles = externalModule
       .data.asSafely<ExternalModule>()!!
       .resolveConfigurations.first()

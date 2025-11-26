@@ -1,4 +1,4 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.javascript.flex;
 
 import com.intellij.javascript.flex.index.ActionScriptCustomIndexer;
@@ -13,12 +13,17 @@ import com.intellij.lang.javascript.psi.JSExpectedTypeKind;
 import com.intellij.lang.javascript.psi.ecmal4.JSQualifiedNamedElement;
 import com.intellij.lang.javascript.psi.impl.JSReferenceExpressionImpl;
 import com.intellij.lang.javascript.psi.resolve.*;
+import com.intellij.lang.javascript.psi.resolve.processors.JSQualifiedItemProcessor;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.ResolveState;
 import com.intellij.psi.impl.source.resolve.ResolveCache;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.function.BiFunction;
 
 /**
  * @author Konstantin.Ulitin
@@ -79,17 +84,38 @@ public final class ActionScriptSpecificHandlersFactory extends JSDialectSpecific
   }
 
   @Override
-  public @NotNull AccessibilityProcessingHandler createAccessibilityProcessingHandler(@Nullable PsiElement place, boolean skipNsResolving) {
-    return new ActionScriptAccessibilityProcessingHandler(place, skipNsResolving);
+  public @NotNull JSSinkResolveProcessor createSinkResolveProcessor(@NotNull ResultSink resultSink) {
+    return new ActionScriptSinkResolveProcessor<>(resultSink);
   }
 
   @Override
   public <T extends ResultSink> QualifiedItemProcessor<T> createQualifiedItemProcessor(@NotNull T sink, @NotNull PsiElement place) {
-    return new ActionScriptQualifiedItemProcessor<>(sink, place.getContainingFile());
+    Logger.getInstance(ActionScriptSpecificHandlersFactory.class).error(
+      "Use ActionScriptQualifiedItemProcessor directly, or createJSQualifiedItemProcessor");
+    return super.createQualifiedItemProcessor(sink, place);
+  }
+
+  @Override
+  public @NotNull JSQualifiedItemProcessor createJSQualifiedItemProcessor(@NotNull ResultSink sink, @NotNull PsiElement place) {
+    return new ActionScriptQualifiedItemProcessor<>(sink);
   }
 
   @Override
   public @NotNull JSGenericTypesEvaluator getGenericTypeEvaluator() {
     return JSGenericTypesEvaluator.NO_OP;
+  }
+
+  @Override
+  public @NotNull JSResolveProcessorEx createJSResolveProcessorEx(
+    @Nullable String name,
+    @Nullable PsiElement place,
+    @NotNull BiFunction<? super @NotNull PsiElement, ? super @NotNull ResolveState, Boolean> executeHandler
+  ) {
+    return new ActionScriptResolveProcessor(name, place) {
+      @Override
+      public boolean execute(@NotNull PsiElement element, @NotNull ResolveState state) {
+        return executeHandler.apply(element, state);
+      }
+    };
   }
 }

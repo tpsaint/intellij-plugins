@@ -77,7 +77,7 @@ public class GherkinLexer extends LexerBase {
     return myPosition;
   }
 
-  private boolean isStepParameter(final @NotNull String currentElementTerminator) {
+  private boolean isStepParameter(@NotNull String currentElementTerminator) {
     int pos = myPosition;
 
     if (myBuffer.charAt(pos) == '<') {
@@ -177,7 +177,7 @@ public class GherkinLexer extends LexerBase {
       myCurrentToken = GherkinTokenTypes.COLON;
       myPosition++;
     }
-    else if (c == '@') {
+    else if (c == '@' && myState != STATE_AFTER_STEP_KEYWORD) {
       myCurrentToken = GherkinTokenTypes.TAG;
       myPosition++;
       while (myPosition < myEndOffset && isValidTagChar(myBuffer.charAt(myPosition))) {
@@ -233,9 +233,13 @@ public class GherkinLexer extends LexerBase {
         return;
       } else if (isParameterAllowed()) {
         if (myPosition < myEndOffset && myBuffer.charAt(myPosition) == '<' && isStepParameter("\n")) {
-          myState = STATE_PARAMETER_INSIDE_STEP;
+          if (myPosition + 1 < myEndOffset && myBuffer.charAt(myPosition + 1) != '<' && !Character.isWhitespace(myBuffer.charAt(myPosition + 1))) {
+            myState = STATE_PARAMETER_INSIDE_STEP;
+            myCurrentToken = GherkinTokenTypes.STEP_PARAMETER_BRACE;
+          } else {
+            myCurrentToken = GherkinTokenTypes.TEXT;
+          }
           myPosition++;
-          myCurrentToken = GherkinTokenTypes.STEP_PARAMETER_BRACE;
         } else {
           myCurrentToken = GherkinTokenTypes.TEXT;
           advanceToParameterOrSymbol("\n", STATE_AFTER_STEP_KEYWORD, true);
@@ -251,7 +255,7 @@ public class GherkinLexer extends LexerBase {
     return myState == STATE_AFTER_STEP_KEYWORD || myState == STATE_AFTER_SCENARIO_KEYWORD;
   }
 
-  public static @Nullable String fetchLocationLanguage(final @NotNull String commentText) {
+  public static @Nullable String fetchLocationLanguage(@NotNull String commentText) {
     if (commentText.startsWith("language:")) {
       return commentText.substring(9).trim();
     }

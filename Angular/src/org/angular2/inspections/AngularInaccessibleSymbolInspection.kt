@@ -18,15 +18,15 @@ import com.intellij.lang.javascript.psi.ecmal4.JSAttributeListOwner
 import com.intellij.lang.javascript.refactoring.JSVisibilityUtil.getPresentableAccessModifier
 import com.intellij.lang.javascript.validation.fixes.JSRemoveReadonlyModifierFix
 import com.intellij.openapi.util.text.StringUtil.capitalize
+import com.intellij.polySymbols.search.PsiSourcedPolySymbol
+import com.intellij.polySymbols.utils.unwrapMatchedSymbols
+import com.intellij.psi.HintedPsiElementVisitor
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementVisitor
 import com.intellij.psi.PsiNamedElement
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.util.parentOfType
 import com.intellij.util.asSafely
-import com.intellij.webSymbols.PsiSourcedWebSymbol
-import com.intellij.webSymbols.utils.qualifiedKind
-import com.intellij.webSymbols.utils.unwrapMatchedSymbols
 import org.angular2.codeInsight.Angular2HighlightingUtils.TextAttributesKind.TS_KEYWORD
 import org.angular2.codeInsight.Angular2HighlightingUtils.htmlName
 import org.angular2.codeInsight.Angular2HighlightingUtils.withColor
@@ -47,13 +47,16 @@ import org.angular2.web.NG_DIRECTIVE_INPUTS
 
 class AngularInaccessibleSymbolInspection : JSInspection() {
 
-  override fun getElementsToOptimizeForTSServiceHighlighting(): Set<Class<out PsiElement>> =
-    setOf(JSReferenceExpression::class.java, Angular2HtmlPropertyBinding::class.java)
+  override val isCoveredByTypeScriptServiceHighlighting: Boolean
+    get() = true
 
   override fun createVisitor(holder: ProblemsHolder, session: LocalInspectionToolSession): PsiElementVisitor {
     val fileLang = holder.file.language
-    if (fileLang.isKindOf(Angular2HtmlLanguage) || Angular2Language.`is`(fileLang)) {
-      return object : Angular2ElementVisitor() {
+    if (fileLang.isKindOf(Angular2HtmlLanguage) || fileLang.isKindOf(Angular2Language)) {
+      return object : Angular2ElementVisitor(), HintedPsiElementVisitor {
+
+        override fun getHintPsiElements(): List<Class<*>> =
+          listOf(JSReferenceExpression::class.java, Angular2HtmlPropertyBinding::class.java)
 
         override fun visitElement(element: PsiElement) {
           when (element) {
@@ -105,7 +108,7 @@ class AngularInaccessibleSymbolInspection : JSInspection() {
                   AngularChangeModifierQuickFix(minAccessType, inputOwner.name))
               }
               else if (input.attributeList?.hasModifier(JSAttributeList.ModifierType.READONLY) == true
-                       && !withTypeEvaluationLocation(element) { Angular2SignalUtils.isSignal(input, null) }) {
+                       && !withTypeEvaluationLocation(element) { Angular2SignalUtils.isDirectiveSignalInputOrOutput(input) }) {
                 holder.registerProblem(
                   element.nameElement,
                   Angular2Bundle.htmlMessage(
@@ -128,7 +131,7 @@ fun getInputSourceElements(element: Angular2HtmlPropertyBinding): List<JSAttribu
   element.descriptor?.asSafely<Angular2AttributeDescriptor>()?.symbol
     ?.unwrapMatchedSymbols()
     ?.filter { it.qualifiedKind == NG_DIRECTIVE_INPUTS }
-    ?.filterIsInstance<PsiSourcedWebSymbol>()
+    ?.filterIsInstance<PsiSourcedPolySymbol>()
     ?.mapNotNull { it.source }
     ?.filterIsInstance<JSAttributeListOwner>()
     ?.toList()

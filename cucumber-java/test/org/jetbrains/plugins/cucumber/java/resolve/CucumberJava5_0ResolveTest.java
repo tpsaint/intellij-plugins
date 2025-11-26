@@ -5,6 +5,11 @@ import com.intellij.testFramework.LightProjectDescriptor;
 import org.jetbrains.plugins.cucumber.java.CucumberJavaTestUtil;
 
 public class CucumberJava5_0ResolveTest extends BaseCucumberJavaResolveTest {
+  public void testHighlightingOK() {
+    init("stepResolve_cucumber_5");
+    myFixture.testHighlighting("ShoppingStepdefs.java");
+  }
+
   public void testResolveToNewAnnotation() {
     init("stepResolve_cucumber_5");
     checkReference("my step<caret> definition", "my_step_definition");
@@ -15,9 +20,45 @@ public class CucumberJava5_0ResolveTest extends BaseCucumberJavaResolveTest {
     checkReference("my jav<caret>a8 step", "Given");
   }
 
+  public void testResolveToJava8StepDefinitionsWithCast() {
+    init("stepResolve_cucumber_5");
+    checkReference("my jav<caret>a8 step with cast", "And");
+  }
+
+  public void testResolveEscapeCharactersIsConsistent() {
+    init("stepResolve_cucumber_5");
+    checkReference("my \\ <caret>step java 8", "When");
+    checkReference("my \\ step<caret> java ann", "my_step_java_ann");
+  }
+
   public void testResolveToMethodWithColon() {
     init("stepResolve_cucumber_5");
     checkReference("step <caret><color>:", "my_step_with_colon");
+  }
+
+  public void testResolveSingleCaret() {
+    init("stepResolve_cucumber_5");
+    checkReference("my another <caret>step definition with param \"<param>\"", "my_another_step_definition");
+  }
+
+  public void testResolveDoubleCaret() {
+    init("stepResolve_cucumber_5");
+    checkReference("my another <caret>step definition with param \"<<param>>\"", "my_another_step_definition");
+  }
+
+  public void testResolveScenarioParameterNotSurroundedWithCaret() {
+    init("stepResolve_cucumber_5");
+    checkReference("I expect inspection <caret>warning on <type> with messages 1", "iExpectInspection1");
+  }
+
+  public void testResolveScenarioParameterSurroundedWithCaret() {
+    init("stepResolve_cucumber_5");
+    checkReference("I expect inspection <caret>warning on <<type>> with messages 2", "iExpectInspection2");
+  }
+
+  public void testResolveScenarioParameterSurroundedWithManyCarets() {
+    init("stepResolve_cucumber_5");
+    checkReference("I expect inspection <caret>warning on <<<type>>> with messages 3", "iExpectInspection3");
   }
 
   public void testResolveWithSeveralStepDefinitionAnnotations() {

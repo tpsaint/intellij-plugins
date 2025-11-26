@@ -2,20 +2,21 @@ package org.intellij.prisma.ide.schema.definitions
 
 import com.intellij.codeInsight.completion.util.ParenthesesInsertHandler
 import com.intellij.patterns.PlatformPatterns.psiElement
+import com.intellij.patterns.StandardPatterns
 import org.intellij.prisma.ide.completion.PrismaInsertHandler
 import org.intellij.prisma.ide.schema.PrismaSchemaKind
-import org.intellij.prisma.ide.schema.PrismaSchemaRef
-import org.intellij.prisma.ide.schema.schema
-import org.intellij.prisma.ide.schema.types.PrismaDatasourceType
+import org.intellij.prisma.ide.schema.builder.schema
+import org.intellij.prisma.ide.schema.types.PrismaDatasourceProviderType
+import org.intellij.prisma.ide.schema.types.PrismaDatasourceProviderType.*
 import org.intellij.prisma.lang.PrismaConstants.FieldAttributes
 import org.intellij.prisma.lang.PrismaConstants.Functions
 import org.intellij.prisma.lang.PrismaConstants.ParameterNames
 import org.intellij.prisma.lang.PrismaConstants.Types
-import org.intellij.prisma.lang.psi.PrismaFile
 import org.intellij.prisma.lang.psi.PrismaModelDeclaration
 import org.intellij.prisma.lang.psi.PrismaPsiPatterns
 import org.intellij.prisma.lang.psi.PrismaTableEntityDeclaration
 import org.intellij.prisma.lang.types.PrismaBooleanType
+import org.intellij.prisma.lang.types.PrismaPrimitiveType
 import java.util.*
 
 val PRISMA_SCHEMA_FIELD_ATTRIBUTES = schema {
@@ -32,7 +33,7 @@ val PRISMA_SCHEMA_FIELD_ATTRIBUTES = schema {
         type = "String?"
       }
       length()
-      sort(datasourceTypes = EnumSet.of(PrismaDatasourceType.SQLSERVER))
+      sort(datasourceTypes = EnumSet.of(SQLSERVER))
       clustered()
     }
 
@@ -76,15 +77,60 @@ val PRISMA_SCHEMA_FIELD_ATTRIBUTES = schema {
         type = "Expression"
         skipInCompletion = true
 
-        variant { ref = PrismaSchemaRef(PrismaSchemaKind.FUNCTION, Functions.DBGENERATED) }
-        variant { ref = PrismaSchemaRef(PrismaSchemaKind.FUNCTION, Functions.AUTO) }
-        variant { ref = PrismaSchemaRef(PrismaSchemaKind.FUNCTION, Functions.SEQUENCE) }
-        variant { ref = PrismaSchemaRef(PrismaSchemaKind.FUNCTION, Functions.AUTOINCREMENT) }
-        variant { ref = PrismaSchemaRef(PrismaSchemaKind.FUNCTION, Functions.NOW) }
-        variant { ref = PrismaSchemaRef(PrismaSchemaKind.FUNCTION, Functions.CUID) }
-        variant { ref = PrismaSchemaRef(PrismaSchemaKind.FUNCTION, Functions.UUID) }
-        variant { ref = PrismaSchemaRef(PrismaSchemaKind.FUNCTION, Functions.ULID) }
-        variant { ref = PrismaSchemaRef(PrismaSchemaKind.FUNCTION, Functions.NANOID) }
+        variant {
+          ref {
+            kind = PrismaSchemaKind.FUNCTION
+            label = Functions.DBGENERATED
+          }
+        }
+        variant {
+          ref {
+            kind = PrismaSchemaKind.FUNCTION
+            label = Functions.AUTO
+          }
+        }
+        variant {
+          ref {
+            kind = PrismaSchemaKind.FUNCTION
+            label = Functions.SEQUENCE
+          }
+        }
+        variant {
+          ref {
+            kind = PrismaSchemaKind.FUNCTION
+            label = Functions.AUTOINCREMENT
+          }
+        }
+        variant {
+          ref {
+            kind = PrismaSchemaKind.FUNCTION
+            label = Functions.NOW
+          }
+        }
+        variant {
+          ref {
+            kind = PrismaSchemaKind.FUNCTION
+            label = Functions.CUID
+          }
+        }
+        variant {
+          ref {
+            kind = PrismaSchemaKind.FUNCTION
+            label = Functions.UUID
+          }
+        }
+        variant {
+          ref {
+            kind = PrismaSchemaKind.FUNCTION
+            label = Functions.ULID
+          }
+        }
+        variant {
+          ref {
+            kind = PrismaSchemaKind.FUNCTION
+            label = Functions.NANOID
+          }
+        }
 
         booleanTypeValues(PrismaPsiPatterns.withFieldType(true) { type, _ -> type is PrismaBooleanType })
       }
@@ -109,7 +155,7 @@ val PRISMA_SCHEMA_FIELD_ATTRIBUTES = schema {
         insertHandler = PrismaInsertHandler.COLON_QUOTED_ARGUMENT
         documentation = "Defines a custom name for the foreign key in the database."
         type = "String?"
-        datasources = PrismaDatasourceType.except(PrismaDatasourceType.MONGODB)
+        datasources = PrismaDatasourceProviderType.except(MONGODB)
       }
       param {
         label = ParameterNames.FIELDS
@@ -128,7 +174,7 @@ val PRISMA_SCHEMA_FIELD_ATTRIBUTES = schema {
         documentation =
           "Specifies the action to perform when a referenced entry in the referenced model is being deleted. [Learn more](https://pris.ly/d/referential-actions)."
         type = Types.REFERENTIAL_ACTION.optional()
-        datasources = PrismaDatasourceType.except(PrismaDatasourceType.MONGODB)
+        datasources = PrismaDatasourceProviderType.except(MONGODB)
 
         variantsForType(Types.REFERENTIAL_ACTION)
       }
@@ -137,7 +183,7 @@ val PRISMA_SCHEMA_FIELD_ATTRIBUTES = schema {
         documentation =
           "Specifies the action to perform when a referenced field in the referenced model is being updated to a new value. [Learn more](https://pris.ly/d/referential-actions)."
         type = Types.REFERENTIAL_ACTION.optional()
-        datasources = PrismaDatasourceType.except(PrismaDatasourceType.MONGODB)
+        datasources = PrismaDatasourceProviderType.except(MONGODB)
 
         variantsForType(Types.REFERENTIAL_ACTION)
       }
@@ -155,16 +201,26 @@ val PRISMA_SCHEMA_FIELD_ATTRIBUTES = schema {
         "A field with an `@ignore` attribute can be kept in sync with the database schema using Prisma Migrate and Introspection, but won't be exposed in Prisma Client."
       pattern = PrismaPsiPatterns.insideEntityDeclaration(psiElement(PrismaModelDeclaration::class.java))
     }
+
+    element {
+      label = FieldAttributes.SHARD_KEY
+      documentation = "The `@shardKey` attribute is only compatible with [PlanetScale](https://planetscale.com/) databases. It enables you to define a [shard key](https://planetscale.com/docs/vitess/sharding) on multiple fields of your model."
+      pattern = StandardPatterns.and(
+        PrismaPsiPatterns.insideEntityDeclaration(psiElement(PrismaModelDeclaration::class.java)),
+        PrismaPsiPatterns.withFieldType { type, _ -> type is PrismaPrimitiveType },
+      )
+      datasources = EnumSet.of(MYSQL)
+    }
   }
 
-  dynamic(PrismaSchemaKind.FIELD_ATTRIBUTE) { ctx ->
-    (ctx.file as? PrismaFile)?.metadata?.datasources?.forEach { (name) ->
+  deferred(PrismaSchemaKind.FIELD_ATTRIBUTE) { ctx ->
+    ctx.metadata?.datasources?.forEach { (name) ->
       element {
         label = "@$name"
         documentation =
           "Defines a native database type that should be used for this field. See https://www.prisma.io/docs/concepts/components/prisma-schema/data-model#native-types-mapping."
         insertHandler = PrismaInsertHandler.QUALIFIED_NAME
-        datasources = PrismaDatasourceType.except(PrismaDatasourceType.SQLITE)
+        datasources = PrismaDatasourceProviderType.except(SQLITE)
         pattern = PrismaPsiPatterns.insideEntityDeclaration(psiElement(PrismaModelDeclaration::class.java))
       }
     }

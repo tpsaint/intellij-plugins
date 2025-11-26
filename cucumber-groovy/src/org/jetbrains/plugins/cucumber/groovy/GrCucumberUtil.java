@@ -1,16 +1,15 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.plugins.cucumber.groovy;
 
-import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.util.NullableComputable;
+import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiMirrorElement;
 import com.intellij.util.ArrayUtil;
+import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.plugins.cucumber.java.config.CucumberConfigUtil;
 import org.jetbrains.plugins.groovy.lang.lexer.GroovyTokenTypes;
 import org.jetbrains.plugins.groovy.lang.psi.GroovyPsiElement;
 import org.jetbrains.plugins.groovy.lang.psi.api.statements.arguments.GrArgumentList;
@@ -23,20 +22,20 @@ import org.jetbrains.plugins.groovy.lang.psi.api.statements.expressions.literals
 /**
  * @author Max Medvedev
  */
+@NotNullByDefault
 public final class GrCucumberUtil {
-  public static final String VERSION1_1 = "1.1";
 
   public static final String[] HOOKS = new String[]{"Before", "After"};
 
   public static boolean isStepDefinition(PsiElement element) {
-    return element instanceof GrMethodCall &&
-           getCucumberStepRef((GrMethodCall)element) != null &&
-           getStepDefinitionPatternText((GrMethodCall)element) != null;
+    return element instanceof GrMethodCall call &&
+           getCucumberStepRef(call) != null &&
+           getStepDefinitionPatternText(call) != null;
   }
 
-  public static @Nullable GrReferenceExpression getCucumberStepRef(final GrMethodCall stepDefinition) {
+  public static @Nullable GrReferenceExpression getCucumberStepRef(GrMethodCall stepDefinition) {
     final GrExpression ref = stepDefinition.getInvokedExpression();
-    if (!(ref instanceof GrReferenceExpression)) return null;
+    if (!(ref instanceof GrReferenceExpression expression)) return null;
 
     final PsiMethod method = stepDefinition.resolveMethod();
     if (method == null) return null;
@@ -51,43 +50,43 @@ public final class GrCucumberUtil {
 
     if (!GrCucumberCommonClassNames.isCucumberRuntimeGroovyPackage(packageName)) return null;
 
-    return (GrReferenceExpression)ref;
+    return expression;
   }
 
-  public static @Nullable String getStepDefinitionPatternText(final GrMethodCall stepDefinition) {
-    return ApplicationManager.getApplication().runReadAction((NullableComputable<String>)() -> {
+  public static @Nullable String getStepDefinitionPatternText(GrMethodCall stepDefinition) {
+    return ReadAction.compute(() -> {
       GrLiteral pattern = getStepDefinitionPattern(stepDefinition);
       if (pattern == null) return null;
       Object value = pattern.getValue();
-      return value instanceof String ? (String)value : null;
+      return value instanceof String s ? s : null;
     });
   }
 
-  public static @Nullable GrLiteral getStepDefinitionPattern(final GrMethodCall stepDefinition) {
-    return ApplicationManager.getApplication().runReadAction((NullableComputable<GrLiteral>)() -> {
+  public static @Nullable GrLiteral getStepDefinitionPattern(GrMethodCall stepDefinition) {
+    return ReadAction.compute(() -> {
       GrArgumentList argumentList = stepDefinition.getArgumentList();
 
       GroovyPsiElement[] arguments = argumentList.getAllArguments();
       if (arguments.length == 0 || arguments.length > 2) return null;
 
       GroovyPsiElement arg = arguments[0];
-      if (!(arg instanceof GrUnaryExpression && ((GrUnaryExpression)arg).getOperationTokenType() == GroovyTokenTypes.mBNOT)) return null;
+      if (!(arg instanceof GrUnaryExpression expression && expression.getOperationTokenType() == GroovyTokenTypes.mBNOT)) return null;
 
-      GrExpression operand = ((GrUnaryExpression)arg).getOperand();
-      if (!(operand instanceof GrLiteral)) return null;
+      GrExpression operand = expression.getOperand();
+      if (!(operand instanceof GrLiteral literal)) return null;
 
-      Object value = ((GrLiteral)operand).getValue();
-      return value instanceof String ? ((GrLiteral)operand) : null;
+      Object value = literal.getValue();
+      return value instanceof String ? literal : null;
     });
   }
 
   public static boolean isHook(GrMethodCall methodCall) {
     PsiMethod method = methodCall.resolveMethod();
-    if (method instanceof PsiMirrorElement) {
-      final PsiElement prototype = ((PsiMirrorElement)method).getPrototype();
-      if (!(prototype instanceof PsiMethod)) return false;
+    if (method instanceof PsiMirrorElement element) {
+      final PsiElement prototype = element.getPrototype();
+      if (!(prototype instanceof PsiMethod psiMethod)) return false;
 
-      method = (PsiMethod)prototype;
+      method = psiMethod;
     }
 
     if (method == null) return false;
@@ -98,10 +97,5 @@ public final class GrCucumberUtil {
     if (containingClass == null) return false;
 
     return GrCucumberCommonClassNames.isHookClassName(containingClass.getQualifiedName());
-  }
-
-  public static boolean isCucumber_1_1_orAbove(PsiElement context) {
-    final String version = CucumberConfigUtil.getCucumberCoreVersion(context);
-    return version != null && version.compareTo(VERSION1_1) >= 0;
   }
 }

@@ -12,17 +12,20 @@ import com.intellij.openapi.util.removeUserData
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.search.scope.packageSet.*
 import com.intellij.util.application
+import com.jetbrains.qodana.sarif.model.Result
+import com.jetbrains.qodana.sarif.model.Run
 import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.withContext
 import org.jetbrains.qodana.extensions.VcsIgnoredFilesProvider
 import org.jetbrains.qodana.license.QodanaLicense
 import org.jetbrains.qodana.license.QodanaLicenseType
 import org.jetbrains.qodana.staticAnalysis.StaticAnalysisDispatchers
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.*
 import org.jetbrains.qodana.staticAnalysis.profile.QodanaInspectionProfile
+import org.jetbrains.qodana.staticAnalysis.sarif.hasFixes
 import org.jetbrains.qodana.staticAnalysis.script.DEFAULT_SCRIPT_NAME
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.util.*
 
@@ -142,7 +145,6 @@ val Project.qodanaAnalysisConfig: QodanaConfig?
  * Not available in IDE run, use it for project configuration
  * If you need qodana config during analysis, use [Project.qodanaAnalysisConfig]
  */
-@Suppress("unused")
 // TODO – use in dotnet
 val Application.qodanaAnalysisConfigForConfiguration: QodanaConfig?
   get() = getUserData(QODANA_CONFIG_KEY)
@@ -163,7 +165,7 @@ data class QodanaConfig(
   val includeAbsent: Boolean,
   val outputFormat: OutputFormat,
   var license: QodanaLicense,
-  val sourceDirectory: String?,
+  val onlyDirectory: Path?,
   val exclude: InspectScopes,
   val include: InspectScopes,
   val bootstrap: String?,
@@ -172,14 +174,16 @@ data class QodanaConfig(
   val failureConditions: FailureConditions,
   val coverage: QodanaCoverageConfig,
   val hardcodedPasswords: HardcodedPasswords,
+  val rootJavaProjects: List<Path>,
 
   val dotnet: DotNetProjectConfiguration?,
+  val cpp: QodanaCppConfig?,
   val php: QodanaPhpConfig?,
   val jvm: QodanaJvmConfig,
   val dependencyAnalysis: DependencyAnalysisConfig,
 
   val skipPreamble: Boolean = System.getProperty("qodana.skip.preamble").toBoolean(), // Set by CLI for second run in scoped script
-  val skipResultOutput: Boolean = System.getProperty("qodana.skip.result").toBoolean(), // Set by CLI for first run in scoped script
+  val skipResultStrategy: SkipResultStrategy = SkipResultStrategy.fromParameters(),
   val stopThreshold: Int? = System.getProperty("qodana.stop.threshold")?.toInt(),
   val fileSuspendThreshold: Int = System.getProperty("qodana.file.suspend.threshold", DEFAULT_FILE_SUSPEND_THRESHOLD).toInt(),
   val moduleSuspendThreshold: Int = System.getProperty("qodana.module.suspend.threshold", DEFAULT_MODULE_SUSPEND_THRESHOLD).toInt(),
@@ -205,7 +209,7 @@ data class QodanaConfig(
       includeAbsent: Boolean = yaml.includeAbsent,
       outputFormat: OutputFormat = getOutputFormat(),
       license: QodanaLicense = QodanaLicense(QodanaLicenseType.ULTIMATE_PLUS, false, null),
-      sourceDirectory: String? = null,
+      onlyDirectory: Path? = yaml.onlyDirectory,
       exclude: InspectScopes = yaml.exclude,
       include: InspectScopes = yaml.include,
       bootstrap: String? = yaml.bootstrap,
@@ -215,7 +219,8 @@ data class QodanaConfig(
       coverage: QodanaCoverageConfig = QodanaCoverageConfig(
         reportProblems = yaml.coverage.reportProblems,
         coveragePath = outPath.resolve("$COVERAGE_OUTPUT_DIR/")
-      )
+      ),
+      rootJavaProjects: List<Path> = yaml.rootJavaProjects
     ): QodanaConfig {
       val dotnet = yaml.dotnet
       val php = yaml.php
@@ -240,7 +245,7 @@ data class QodanaConfig(
         includeAbsent = includeAbsent,
         outputFormat = outputFormat,
         license = license,
-        sourceDirectory = sourceDirectory,
+        onlyDirectory = onlyDirectory,
         exclude = exclude,
         include = include,
         bootstrap = bootstrap,
@@ -250,9 +255,11 @@ data class QodanaConfig(
         coverage = coverage,
         hardcodedPasswords = HardcodedPasswords.fromConfig(yaml.hardcodedPasswords),
         dotnet = dotnet,
+        cpp = yaml.cpp,
         php = php,
         jvm = jvm,
         dependencyAnalysis = dependencyAnalysis,
+        rootJavaProjects = rootJavaProjects
       )
     }
   }
@@ -294,12 +301,45 @@ data class QodanaConfig(
   fun isAboveStopThreshold(count: Int): Boolean = stopThreshold != null && count > stopThreshold
 }
 
+enum class SkipResultStrategy {
+  ALWAYS, // always skip posting results; set by CLI for first run in the scoped script
+  ANY, // skip posting results on any non-empty result
+  FIXABLE,  // skip posting results on any fixable result
+  NEVER; // never skip posting results
+
+  companion object {
+    fun fromParameters(): SkipResultStrategy {
+      System.getProperty("qodana.skip.result.strategy")?.let {
+        return SkipResultStrategy.valueOf(it)
+      }
+      if (System.getProperty("qodana.skip.result").toBoolean()) return ALWAYS
+      return NEVER
+    }
+  }
+
+  suspend fun shouldSkip(run: Run): Boolean {
+    val newByBaseline: (Result) -> Boolean = { result ->
+      result.baselineState == null
+      || (result.baselineState != Result.BaselineState.ABSENT
+          && result.baselineState != Result.BaselineState.UNCHANGED)
+    }
+    return withContext(StaticAnalysisDispatchers.Default) {
+      when (this@SkipResultStrategy) {
+        ALWAYS -> true
+        ANY -> run.results.any { newByBaseline(it) }
+        FIXABLE -> run.results.any { newByBaseline(it) && it.hasFixes() }
+        NEVER -> false
+      }
+    }
+  }
+}
+
 /**
  * Always write qodana.yaml even if config was read from file with different name
  */
-internal suspend fun copyConfigToLog(config: QodanaConfig) {
+internal suspend fun copyConfigToDir(config: QodanaConfig, outDir: Path = PathManager.getLogDir()) {
   runInterruptible(StaticAnalysisDispatchers.IO) {
-    val filesWithNamesInLog = listOfNotNull(
+    val filesWithNamesInDir = listOfNotNull(
       config.yamlFiles.localQodanaYaml?.let { it to QodanaYamlFiles.LOCAL_QODANA_YAML_FILENAME },
       config.yamlFiles.qodanaConfigJson?.let { it to QodanaYamlFiles.QODANA_CONFIG_JSON_FILENAME },
 
@@ -307,11 +347,11 @@ internal suspend fun copyConfigToLog(config: QodanaConfig) {
       config.yamlFiles.effectiveQodanaYaml?.let { it to QodanaYamlFiles.LOCAL_QODANA_YAML_FILENAME },
     )
 
-    filesWithNamesInLog.forEach { (file, nameInLog) ->
-      val pathInLog = Paths.get(PathManager.getLogPath(), nameInLog)
-      runCatching { Files.deleteIfExists(pathInLog) }
+    filesWithNamesInDir.forEach { (file, nameInLog) ->
+      val pathInDir = outDir.resolve(nameInLog)
+      runCatching { Files.deleteIfExists(pathInDir) }
 
-      Files.copy(file, pathInLog, StandardCopyOption.REPLACE_EXISTING)
+      Files.copy(file, pathInDir, StandardCopyOption.REPLACE_EXISTING)
     }
   }
 }

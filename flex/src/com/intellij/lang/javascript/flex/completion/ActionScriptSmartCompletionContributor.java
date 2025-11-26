@@ -1,4 +1,4 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.lang.javascript.flex.completion;
 
 import com.intellij.codeInsight.lookup.LookupElement;
@@ -6,10 +6,11 @@ import com.intellij.javascript.flex.FlexPredefinedTagNames;
 import com.intellij.javascript.flex.mxml.FlexCommonTypeNames;
 import com.intellij.javascript.flex.mxml.MxmlJSClass;
 import com.intellij.javascript.flex.resolve.ActionScriptClassResolver;
-import com.intellij.lang.javascript.flex.FlexSupportLoader;
+import com.intellij.javascript.flex.resolve.ActionScriptSinkResolveProcessor;
 import com.intellij.lang.javascript.JSTokenTypes;
 import com.intellij.lang.javascript.completion.*;
 import com.intellij.lang.javascript.dialects.JSDialectSpecificHandlersFactory;
+import com.intellij.lang.javascript.flex.FlexSupportLoader;
 import com.intellij.lang.javascript.flex.ImportUtils;
 import com.intellij.lang.javascript.flex.XmlBackedJSClassImpl;
 import com.intellij.lang.javascript.index.JSPackageIndex;
@@ -180,7 +181,7 @@ public final class ActionScriptSmartCompletionContributor extends JSSmartComplet
   }
 
   @Override
-  protected void processClasses(PsiElement parentInOriginalTree, final SinkResolveProcessor<?> processor) {
+  protected void processClasses(PsiElement parentInOriginalTree, JSResolveProcessorEx processor) {
     final Project project = parentInOriginalTree.getProject();
     final GlobalSearchScope resolveScope = JSResolveUtil.getResolveScope(parentInOriginalTree);
     final LinkedHashSet<String> qualifiedNames = new LinkedHashSet<>();
@@ -311,7 +312,7 @@ public final class ActionScriptSmartCompletionContributor extends JSSmartComplet
                                     PsiElement parent,
                                     List<LookupElement> variants,
                                     int qualifiedStaticVariantsStart,
-                                    SinkResolveProcessor<?> processor,
+                                    @NotNull JSSinkResolveProcessor processor,
                                     JSClass ourClass) {
     JSClass clazz = expectedType.resolveClass();
     if (clazz != null && !clazz.isEquivalentTo(ourClass)) {
@@ -432,12 +433,25 @@ public final class ActionScriptSmartCompletionContributor extends JSSmartComplet
     }
   }
 
-  private static void processStaticsOf(JSClass parameterClass, ResolveProcessor processor, @Nullable JSClass contextClass) {
+  private static void processStaticsOf(@NotNull JSClass parameterClass, JSResolveProcessorEx processor, @Nullable JSClass contextClass) {
     processor.configureClassScope(contextClass);
 
     processWithStatic(processor, true, () -> {
       processor.setTypeName(parameterClass.getQualifiedName());
       return parameterClass.processDeclarations(processor, ResolveState.initial(), parameterClass, parameterClass);
     });
+  }
+
+  @Override
+  protected @NotNull JSSinkResolveProcessor createSinkResolveProcessor(JSType expectedType, CompletionResultSink resultSink) {
+    return new ActionScriptSinkResolveProcessor<>(resultSink) {
+
+      @Override
+      public boolean execute(@NotNull PsiElement element, @NotNull ResolveState state) {
+        return !JSSmartCompletionVariantsHandler.isAcceptableVariant(element, expectedType,
+                                                                     resultSink.getSmartCompletionInheritanceProcessingContext()) ||
+               super.execute(element, state);
+      }
+    };
   }
 }

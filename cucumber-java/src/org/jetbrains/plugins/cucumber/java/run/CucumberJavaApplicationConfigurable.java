@@ -2,7 +2,6 @@
 package org.jetbrains.plugins.cucumber.java.run;
 
 import com.intellij.application.options.ModuleDescriptionsComboBox;
-import com.intellij.execution.configurations.ConfigurationUtil;
 import com.intellij.execution.ui.*;
 import com.intellij.openapi.actionSystem.LangDataKeys;
 import com.intellij.openapi.fileChooser.FileChooser;
@@ -77,7 +76,7 @@ public class CucumberJavaApplicationConfigurable extends SettingsEditor<Cucumber
     myMainClass = new LabeledComponentNoThrow<>();
     myMainClass.setComponent(new EditorTextFieldWithBrowseButton(myProject, true, (declaration, place) -> {
       if (declaration instanceof PsiClass aClass) {
-        if (ConfigurationUtil.MAIN_CLASS.value(aClass) && PsiMethodUtil.findMainMethod(aClass) != null) {
+        if (PsiMethodUtil.MAIN_CLASS.value(aClass) && PsiMethodUtil.findMainMethod(aClass) != null) {
           return JavaCodeFragment.VisibilityChecker.Visibility.VISIBLE;
         }
       }

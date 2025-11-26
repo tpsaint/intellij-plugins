@@ -9,3 +9,5 @@
 { a }
 { break }
 { "a" = "b"}
+"foo" in {bar: 12}
+{ void : 12}

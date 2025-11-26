@@ -12,7 +12,7 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.tree.TokenSet;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.util.PsiUtilCore;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.cucumber.CucumberBundle;
 import org.jetbrains.plugins.cucumber.psi.*;
@@ -30,24 +30,25 @@ import static org.jetbrains.plugins.cucumber.CucumberUtil.getCucumberStepReferen
 /**
  * @author Roman.Chernyatchik
  */
+@NotNullByDefault
 public class GherkinAnnotatorVisitor extends GherkinElementVisitor {
   private final AnnotationHolder myHolder;
 
-  public GherkinAnnotatorVisitor(final @NotNull AnnotationHolder holder) {
+  public GherkinAnnotatorVisitor(AnnotationHolder holder) {
     myHolder = holder;
   }
 
-  private void highlight(final PsiElement element, final TextAttributesKey colorKey) {
+  private void highlight(PsiElement element, TextAttributesKey colorKey) {
     myHolder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(element).textAttributes(colorKey).create();
   }
 
-  private void highlight(final PsiElement element, TextRange range, final TextAttributesKey colorKey) {
+  private void highlight(PsiElement element, TextRange range, TextAttributesKey colorKey) {
     range = range.shiftRight(element.getTextOffset());
     myHolder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(range).textAttributes(colorKey).create();
   }
 
   @Override
-  public void visitElement(final @NotNull PsiElement element) {
+  public void visitElement(PsiElement element) {
     ProgressManager.checkCanceled();
     super.visitElement(element);
 
@@ -58,7 +59,7 @@ public class GherkinAnnotatorVisitor extends GherkinElementVisitor {
     }
   }
 
-  private static boolean hasStepsBefore(@NotNull PsiElement element) {
+  private static boolean hasStepsBefore(PsiElement element) {
     element = element.getPrevSibling();
     while (element != null && (!(element instanceof GherkinStep))) {
       element = element.getPrevSibling();
@@ -124,7 +125,7 @@ public class GherkinAnnotatorVisitor extends GherkinElementVisitor {
     }
   }
 
-  private void highlightOutlineParams(final @NotNull GherkinStep step, final @NotNull CucumberStepReference reference) {
+  private void highlightOutlineParams(GherkinStep step, CucumberStepReference reference) {
     final List<String> realSubstitutions = getRealSubstitutions(step);
     if (realSubstitutions != null && !realSubstitutions.isEmpty()) {
       // regexp for searching outline parameters substitutions
@@ -161,8 +162,8 @@ public class GherkinAnnotatorVisitor extends GherkinElementVisitor {
     }
   }
 
-  private void highlightOutlineParamsForText(final String text, final int textStartInElementOffset,  final Pattern pattern,
-                                             final GherkinStep step) {
+  private void highlightOutlineParamsForText(String text, int textStartInElementOffset, Pattern pattern,
+                                             GherkinStep step) {
     if (StringUtil.isEmpty(text)) {
       return;
     }
@@ -179,11 +180,12 @@ public class GherkinAnnotatorVisitor extends GherkinElementVisitor {
           highlight(step, range, GherkinHighlighter.OUTLINE_PARAMETER_SUBSTITUTION);
         }
         result = matcher.find();
-      } while (result);
+      }
+      while (result);
     }
   }
 
-  private static @Nullable List<String> getRealSubstitutions(final @NotNull GherkinStep step) {
+  private static @Nullable List<String> getRealSubstitutions(GherkinStep step) {
     final List<String> possibleSubstitutions = step.getParamsSubstitutions();
     if (!possibleSubstitutions.isEmpty()) {
       // get step definition
@@ -195,7 +197,7 @@ public class GherkinAnnotatorVisitor extends GherkinElementVisitor {
         if (examplesBlocks.isEmpty()) {
           return null;
         }
-        final GherkinTable table = examplesBlocks.get(0).getTable();
+        final GherkinTable table = examplesBlocks.getFirst().getTable();
         if (table == null) {
           return null;
         }

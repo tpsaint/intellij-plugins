@@ -1,0 +1,18 @@
+<idea-plugin>
+  <dependencies>
+    <module name="intellij.cidr.workspaceModel"/>
+    <module name="intellij.cidr.projectModel"/>
+    <module name="intellij.cidr.runner"/>
+    <module name="intellij.cidr.util.execution"/>
+    <module name="intellij.apple.sdk"/>
+    <module name="intellij.appcode"/>
+  </dependencies>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <statistics.counterUsagesCollector implementationClass="org.jetbrains.appcode.reveal.RevealUsageTriggerCollector"/>
+  </extensions>
+
+  <extensions defaultExtensionNs="appcode">
+    <runConfigurationExtension implementation="org.jetbrains.appcode.reveal.RevealRunConfigurationExtension"/>
+  </extensions>
+</idea-plugin>

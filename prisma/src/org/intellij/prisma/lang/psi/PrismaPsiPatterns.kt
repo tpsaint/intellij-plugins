@@ -1,5 +1,6 @@
 package org.intellij.prisma.lang.psi
 
+import com.intellij.codeInsight.completion.CompletionUtil
 import com.intellij.patterns.ObjectPattern
 import com.intellij.patterns.PatternCondition
 import com.intellij.patterns.PlatformPatterns.psiElement
@@ -12,6 +13,7 @@ import com.intellij.psi.util.parentOfType
 import com.intellij.psi.util.prevLeaf
 import com.intellij.util.ProcessingContext
 import org.intellij.prisma.ide.completion.PRISMA_ENTITY_DECLARATION
+import org.intellij.prisma.lang.PrismaConstants
 import org.intellij.prisma.lang.types.PrismaType
 import org.intellij.prisma.lang.types.unwrapOptionalType
 
@@ -34,9 +36,23 @@ object PrismaPsiPatterns {
       .withParent(PrismaKeyValue::class.java)
       .withSuperParent(3, PrismaGeneratorDeclaration::class.java)
 
+  fun withGeneratorProvider(expectedProviderType: String): PsiElementPattern.Capture<PsiElement> =
+    psiElement().with("withGeneratorProvider") { element ->
+      val file = CompletionUtil.getOriginalOrSelf(element).containingFile as? PrismaFile ?: return@with false
+      expectedProviderType in file.metadata.generatorProviderTypes
+    }
+
   val newLine: PsiElementPattern.Capture<PsiElement> = psiElement().with("newLine") { element ->
     element.elementType == TokenType.WHITE_SPACE && element.textContains('\n')
   }
+
+  val prismaSchemaDeclaration: PsiElementPattern.Capture<out PsiElement> =
+    psiElement(PrismaStringLiteralExpression::class.java)
+      .withParent(PrismaArrayExpression::class.java)
+      .withSuperParent(
+        2,
+        psiElement(PrismaKeyValue::class.java).withName(PrismaConstants.DatasourceFields.SCHEMAS)
+      )
 
   fun withFieldType(unwrapOptional: Boolean = false, predicate: (PrismaType, PsiElement) -> Boolean): PsiElementPattern.Capture<PsiElement> {
     return psiElement().with("withFieldType") { element ->

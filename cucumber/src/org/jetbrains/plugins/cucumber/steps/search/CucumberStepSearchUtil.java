@@ -7,9 +7,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.plugins.cucumber.psi.GherkinFileType;
 
 public final class CucumberStepSearchUtil {
-  public static @NotNull SearchScope restrictScopeToGherkinFiles(final @NotNull SearchScope originalScope) {
-    if (originalScope instanceof GlobalSearchScope) {
-      return GlobalSearchScope.getScopeRestrictedByFileTypes((GlobalSearchScope)originalScope, GherkinFileType.INSTANCE);
+  public static @NotNull SearchScope restrictScopeToGherkinFiles(@NotNull SearchScope originalScope) {
+    if (originalScope instanceof GlobalSearchScope scope) {
+      return GlobalSearchScope.getScopeRestrictedByFileTypes(scope, GherkinFileType.INSTANCE);
     }
 
     return originalScope;

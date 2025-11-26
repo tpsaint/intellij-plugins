@@ -13,19 +13,30 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="intellij.flex.shared" />
+    <orderEntry type="module" module-name="intellij.platform.analysis" />
+    <orderEntry type="module" module-name="intellij.platform.codeStyle" />
+    <orderEntry type="module" module-name="intellij.platform.concurrency" />
+    <orderEntry type="module" module-name="intellij.platform.core" />
+    <orderEntry type="module" module-name="intellij.platform.editor.ui" />
+    <orderEntry type="module" module-name="intellij.platform.execution.impl" />
     <orderEntry type="module" module-name="intellij.platform.ide.core.impl" />
     <orderEntry type="module" module-name="intellij.java.compiler" />
+    <orderEntry type="module" module-name="intellij.platform.indexing" />
+    <orderEntry type="module" module-name="intellij.platform.jps.model" />
+    <orderEntry type="module" module-name="intellij.platform.jps.model.serialization" />
     <orderEntry type="module" module-name="intellij.platform.lang" />
-    <orderEntry type="module" module-name="intellij.css.frontback" />
+    <orderEntry type="module" module-name="intellij.css.common" />
+    <orderEntry type="module" module-name="intellij.platform.lang.core" />
+    <orderEntry type="module" module-name="intellij.platform.projectModel" />
+    <orderEntry type="module" module-name="intellij.platform.refactoring" />
+    <orderEntry type="module" module-name="intellij.platform.structureView.impl" />
+    <orderEntry type="module" module-name="intellij.xml.psi" />
     <orderEntry type="module" module-name="intellij.xml.structureView" />
     <orderEntry type="module" module-name="intellij.platform.usageView" />
     <orderEntry type="module" module-name="intellij.javascript.parser" />
-    <orderEntry type="module" module-name="intellij.javascript.impl" />
+    <orderEntry type="module" module-name="intellij.javascript.backend" />
     <orderEntry type="module" module-name="intellij.xml.parser" />
-    <orderEntry type="module" module-name="intellij.javascript" />
     <orderEntry type="module" module-name="intellij.platform.indexing.impl" />
-    <orderEntry type="module" module-name="intellij.javascript.frontback.impl" />
-    <orderEntry type="module" module-name="intellij.javascript.debugger" />
     <orderEntry type="module" module-name="intellij.javascript.debugger.backend" />
     <orderEntry type="module" module-name="intellij.platform.util.progress" />
     <orderEntry type="module" module-name="intellij.platform.duplicatesDetector" />
@@ -33,33 +44,30 @@
     <orderEntry type="module" module-name="intellij.platform.debugger" />
     <orderEntry type="module" module-name="intellij.java.execution" />
     <orderEntry type="module" module-name="intellij.platform.lang.impl" />
-    <orderEntry type="module" module-name="intellij.xml" />
     <orderEntry type="module" module-name="intellij.java" />
     <orderEntry type="module" module-name="intellij.xml.impl" />
-    <orderEntry type="module" module-name="intellij.css.impl" />
+    <orderEntry type="module" module-name="intellij.css.plugin" />
     <orderEntry type="module" module-name="intellij.css.psi" />
     <orderEntry type="module" module-name="intellij.platform.testRunner" />
     <orderEntry type="module" module-name="intellij.java.execution.impl" />
     <orderEntry type="module" module-name="intellij.platform.smRunner" />
-    <orderEntry type="module" module-name="intellij.css" />
     <orderEntry type="module" module-name="intellij.java.ui" />
     <orderEntry type="module" module-name="intellij.maven" />
     <orderEntry type="module" module-name="intellij.ant" />
     <orderEntry type="module" module-name="intellij.copyright" />
     <orderEntry type="module" module-name="intellij.platform.jps.build" />
-    <orderEntry type="library" name="Velocity" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.velocity" />
     <orderEntry type="module" module-name="intellij.properties.backend" />
     <orderEntry type="module" module-name="intellij.platform.webide" />
     <orderEntry type="module" module-name="intellij.properties.psi" />
-    <orderEntry type="module" module-name="intellij.platform.scriptDebugger.ui" />
     <orderEntry type="module" module-name="intellij.diagram" />
     <orderEntry type="module" module-name="intellij.platform.graph" />
     <orderEntry type="module" module-name="intellij.flex.jps" scope="RUNTIME" />
     <orderEntry type="library" name="protobuf" level="project" />
     <orderEntry type="module" module-name="intellij.platform.util.nanoxml" />
-    <orderEntry type="library" name="StreamEx" level="project" />
-    <orderEntry type="library" name="fastutil-min" level="project" />
-    <orderEntry type="library" name="commons-compress" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.stream" />
+    <orderEntry type="module" module-name="intellij.libraries.fastutil" />
+    <orderEntry type="module" module-name="intellij.libraries.commons.compress" />
     <orderEntry type="module" module-name="intellij.platform.core.ui" />
     <orderEntry type="module" module-name="intellij.properties.backend.psi" />
     <orderEntry type="module" module-name="intellij.platform.ide.util.io" />
@@ -67,6 +75,12 @@
     <orderEntry type="module" module-name="intellij.platform.util.jdom" />
     <orderEntry type="module" module-name="intellij.javascript.debugger.ui" />
     <orderEntry type="module" module-name="intellij.platform.util.text.matching" />
-    <orderEntry type="module" module-name="intellij.css.frontback.psi" />
+    <orderEntry type="module" module-name="intellij.css.common.psi" />
+    <orderEntry type="module" module-name="intellij.css.backend" />
+    <orderEntry type="module" module-name="intellij.javascript.common" />
+    <orderEntry type="module" module-name="intellij.platform.workspace.storage" />
+    <orderEntry type="module" module-name="intellij.platform.debugger.impl" />
+    <orderEntry type="module" module-name="intellij.javascript.duplicatesDetection" />
+    <orderEntry type="module" module-name="intellij.xml.analysis" />
   </component>
 </module>

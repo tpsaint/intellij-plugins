@@ -5,19 +5,15 @@ import com.intellij.codeInspection.InspectionsBundle
 import com.intellij.codeInspection.ex.GlobalInspectionContextUtil
 import com.intellij.configurationStore.JbXmlOutputter
 import com.intellij.openapi.application.PathManager
-import com.intellij.openapi.application.readAction
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.progress.jobToIndicator
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.GeneratedSourcesFilter
-import com.intellij.openapi.util.NotNullLazyValue
-import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ex.ProgressIndicatorEx
 import com.intellij.profile.ProfileEx
 import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.toolWindow.ToolWindowHeadlessManagerImpl
 import com.intellij.util.io.createDirectories
 import com.jetbrains.qodana.sarif.model.Result
 import com.jetbrains.qodana.sarif.model.Run
@@ -29,8 +25,6 @@ import org.jdom.Element
 import org.jetbrains.qodana.inspectionKts.INSPECTIONS_KTS_EXTENSION
 import org.jetbrains.qodana.runActivityWithTiming
 import org.jetbrains.qodana.staticAnalysis.StaticAnalysisDispatchers
-import org.jetbrains.qodana.staticAnalysis.inspections.coverageData.CoverageStatisticsData
-import org.jetbrains.qodana.staticAnalysis.inspections.coverageData.QodanaCoverageComputationState
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.QodanaException
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.QodanaGlobalInspectionContext
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.QodanaRunContext
@@ -71,28 +65,6 @@ suspend fun QodanaRunContext.writeProjectDescriptionAfterWork(projectStructurePa
     projectStructure.toFile().mkdirs()
   }
   QodanaProjectDescriber.runDescribersAfterWork(projectStructure, project)
-}
-
-suspend fun QodanaRunContext.createGlobalInspectionContext(
-  outputPath: Path = config.resultsStorage,
-  profile: QodanaProfile = qodanaProfile,
-  coverageComputationState: QodanaCoverageComputationState = QodanaCoverageComputationState.DEFAULT
-): QodanaGlobalInspectionContext {
-  val contentManagerProvider = NotNullLazyValue.lazy {
-    val mockContentManager = ToolWindowHeadlessManagerImpl.MockToolWindow(project).contentManager
-    mockContentManager
-  }
-  return withContext(StaticAnalysisDispatchers.IO) {
-    QodanaGlobalInspectionContext(
-      project,
-      contentManagerProvider,
-      config,
-      outputPath,
-      profile,
-      runCoroutineScope,
-      CoverageStatisticsData(coverageComputationState, project, changes)
-    )
-  }
 }
 
 suspend fun QodanaRunContext.runAnalysis(
@@ -197,39 +169,4 @@ private fun QodanaAnalysisScope.patchToNotAnalyzeGeneratedCode(project: Project)
       return true
     }
   })
-}
-
-internal suspend fun QodanaRunContext.applyExternalFileScope(
-  paths: Iterable<Path>,
-  onFileIncluded: ((VirtualFile) -> Unit)? = null,
-  onFileExcluded: ((VirtualFile) -> Unit)? = null
-): QodanaRunContext {
-  val fs = LocalFileSystem.getInstance()
-  val files = runInterruptible(StaticAnalysisDispatchers.IO) {
-    paths.asSequence()
-      .map { if (it.isAbsolute) it else config.projectPath.resolve(it) }
-      .mapNotNull(fs::findFileByNioFile)
-      .toList()
-  }
-  return QodanaRunContext(
-    project,
-    loadedProfile,
-    externalFileScope(files, onFileIncluded, onFileExcluded),
-    qodanaProfile,
-    config,
-    runCoroutineScope,
-    messageReporter,
-    changes
-  )
-}
-
-internal suspend fun QodanaRunContext.externalFileScope(
-  files: Iterable<VirtualFile>,
-  onFileIncluded: ((VirtualFile) -> Unit)? = null,
-  onFileExcluded: ((VirtualFile) -> Unit)? = null
-): QodanaAnalysisScope {
-  val (included, excluded) = readAction { files.partition(scope::contains) }
-  onFileIncluded?.let(included::forEach)
-  onFileExcluded?.let(excluded::forEach)
-  return QodanaAnalysisScope(project, included)
 }

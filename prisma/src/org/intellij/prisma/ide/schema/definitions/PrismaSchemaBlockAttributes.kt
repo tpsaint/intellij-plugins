@@ -3,9 +3,9 @@ package org.intellij.prisma.ide.schema.definitions
 import com.intellij.patterns.PlatformPatterns.psiElement
 import org.intellij.prisma.ide.completion.PrismaInsertHandler
 import org.intellij.prisma.ide.schema.PrismaSchemaKind
-import org.intellij.prisma.ide.schema.PrismaSchemaRef
-import org.intellij.prisma.ide.schema.schema
-import org.intellij.prisma.ide.schema.types.PrismaDatasourceType
+import org.intellij.prisma.ide.schema.builder.PrismaSchemaParameterLocation
+import org.intellij.prisma.ide.schema.builder.schema
+import org.intellij.prisma.ide.schema.types.PrismaDatasourceProviderType.*
 import org.intellij.prisma.lang.PrismaConstants.BlockAttributes
 import org.intellij.prisma.lang.PrismaConstants.Functions
 import org.intellij.prisma.lang.PrismaConstants.ParameterNames
@@ -56,8 +56,8 @@ val PRISMA_SCHEMA_BLOCK_ATTRIBUTES = schema {
         documentation = "Defines a custom name for the primary key in the database."
         type = "String?"
       }
-      length(true)
-      sort(true, datasourceTypes = EnumSet.of(PrismaDatasourceType.SQLSERVER))
+      length(PrismaSchemaParameterLocation.FIELD)
+      sort(PrismaSchemaParameterLocation.FIELD, datasourceTypes = EnumSet.of(SQLSERVER))
       clustered()
     }
 
@@ -85,8 +85,8 @@ val PRISMA_SCHEMA_BLOCK_ATTRIBUTES = schema {
         documentation = "Defines a custom constraint name in the database."
         type = "String?"
       }
-      length(true)
-      sort(true)
+      length(PrismaSchemaParameterLocation.FIELD)
+      sort(PrismaSchemaParameterLocation.FIELD)
       clustered()
     }
 
@@ -112,7 +112,7 @@ val PRISMA_SCHEMA_BLOCK_ATTRIBUTES = schema {
         label = ParameterNames.TYPE
         documentation = "Defines the access type of indexes: BTree (default) or Hash."
         type = Types.INDEX_TYPE.optional()
-        datasources = EnumSet.of(PrismaDatasourceType.POSTGRESQL)
+        datasources = EnumSet.of(POSTGRESQL)
 
         variantsForType(Types.INDEX_TYPE)
       }
@@ -120,13 +120,18 @@ val PRISMA_SCHEMA_BLOCK_ATTRIBUTES = schema {
         label = ParameterNames.OPS
         documentation = "Specify the operator class for an indexed field."
         type = Types.OPERATOR_CLASS.optional()
-        datasources = EnumSet.of(PrismaDatasourceType.POSTGRESQL)
-        isOnFieldLevel = true
+        datasources = EnumSet.of(POSTGRESQL)
+        location = PrismaSchemaParameterLocation.FIELD
 
-        variant { ref = PrismaSchemaRef(PrismaSchemaKind.FUNCTION, Functions.RAW) }
+        variant {
+          ref {
+            kind = PrismaSchemaKind.FUNCTION
+            label = Functions.RAW
+          }
+        }
       }
-      length(true)
-      sort(true)
+      length(PrismaSchemaParameterLocation.FIELD)
+      sort(PrismaSchemaParameterLocation.FIELD)
       clustered()
     }
 
@@ -134,7 +139,7 @@ val PRISMA_SCHEMA_BLOCK_ATTRIBUTES = schema {
       label = BlockAttributes.FULLTEXT
       insertHandler = PrismaInsertHandler.PARENS_LIST_ARGUMENT
       documentation = "Defines a full-text index on the model."
-      datasources = EnumSet.of(PrismaDatasourceType.MYSQL, PrismaDatasourceType.MONGODB)
+      datasources = EnumSet.of(MYSQL, MONGODB)
       pattern = PrismaPsiPatterns.insideEntityDeclaration(psiElement(PrismaModelDeclaration::class.java))
 
       param {
@@ -156,6 +161,41 @@ val PRISMA_SCHEMA_BLOCK_ATTRIBUTES = schema {
       documentation =
         "A model with an `@@ignore` attribute can be kept in sync with the database schema using Prisma Migrate and Introspection, but won't be exposed in Prisma Client."
       pattern = PrismaPsiPatterns.insideEntityDeclaration(psiElement(PrismaModelDeclaration::class.java))
+    }
+
+    element {
+      label = BlockAttributes.SCHEMA
+      insertHandler = PrismaInsertHandler.PARENS_QUOTED_ARGUMENT
+      documentation = "Designate which schema this belongs to. [Learn more](https://pris.ly/d/multi-schema-configuration)"
+      pattern = PrismaPsiPatterns.insideEntityDeclaration(psiElement(PrismaModelDeclaration::class.java))
+      datasources = EnumSet.of(POSTGRESQL, COCKROACHDB, SQLSERVER)
+
+      param {
+        label = ParameterNames.NAME
+        documentation = "The name of the schema."
+        type = "String"
+        skipInCompletion = true
+
+        variant {
+          ref { kind = PrismaSchemaKind.SCHEMA_NAME }
+        }
+      }
+    }
+
+    element {
+      label = BlockAttributes.SHARD_KEY
+      documentation = "The `@@shardKey` attribute is only compatible with [PlanetScale](https://planetscale.com/) databases. It enables you to define a [shard key](https://planetscale.com/docs/vitess/sharding) on multiple fields of your model."
+      pattern = PrismaPsiPatterns.insideEntityDeclaration(psiElement(PrismaModelDeclaration::class.java))
+      insertHandler = PrismaInsertHandler.PARENS_LIST_ARGUMENT
+      datasources = EnumSet.of(MYSQL)
+
+      param {
+        label = ParameterNames.FIELDS
+        insertHandler = PrismaInsertHandler.COLON_LIST_ARGUMENT
+        documentation = "A list of references."
+        type = "FieldReference[]"
+        skipInCompletion = true
+      }
     }
   }
 }

@@ -7,7 +7,7 @@ import com.intellij.openapi.util.JDOMUtil
 import org.intellij.terraform.install.TfToolType
 import java.nio.file.Paths
 
-internal class TfRunConfigurationTest : BaseRunConfigurationTest() {
+internal class TfRunConfigurationTest : TfBaseRunConfigurationTest() {
 
   fun testMigratingRunConfigFrom242() {
     val runManager = RunManager.getInstance(project) as? RunManagerImpl
@@ -29,10 +29,10 @@ internal class TfRunConfigurationTest : BaseRunConfigurationTest() {
     assertEquals(TfConfigurationType.TF_RUN_CONFIGURATION_ID, configurationType?.id)
   }
 
-
   fun testGlobalOptionsEditor() {
     val toolType = TfToolType.TERRAFORM
-    val initFactory = tfRunConfigurationType(toolType).initFactory
+    val configurationType = tfRunConfigurationType(toolType) ?: return
+    val initFactory = configurationType.initFactory
 
     val runManager = RunManager.getInstance(project)
     val settings = runManager.createConfiguration("Test 'global option'", initFactory)

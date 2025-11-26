@@ -1,19 +1,34 @@
 // Copyright 2000-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 package org.jetbrains.plugins.cucumber.java.intentions;
 
+import com.intellij.idea.TestFor;
 import com.intellij.testFramework.LightProjectDescriptor;
+import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.jetbrains.plugins.cucumber.CucumberBundle;
 import org.jetbrains.plugins.cucumber.java.CucumberJavaTestUtil;
-import org.jetbrains.plugins.cucumber.java.resolve.BaseCucumberJavaResolveTest;
 
 import static com.intellij.testFramework.fixtures.CodeInsightTestUtil.doIntentionTest;
 
-public class ConvertScenarioTest extends BaseCucumberJavaResolveTest {
+public class ConvertScenarioTest extends BasePlatformTestCase {
   public void testOptionalParameter() {
     doTest();
   }
 
   public void testTheSameParameterNamesInDifferentSteps() {
+    doTest();
+  }
+
+  public void testAnnotationStepWithParameter() {
+    doTest();
+  }
+
+  @TestFor(issues = "IDEA-379823")
+  public void testLambdaStepWithParameter() {
+    doTest();
+  }
+
+  @TestFor(issues = "IDEA-379823")
+  public void testLambdaStepWithCustomParameter() {
     doTest();
   }
 
@@ -25,12 +40,12 @@ public class ConvertScenarioTest extends BaseCucumberJavaResolveTest {
   }
 
   @Override
-  protected String getRelatedTestDataPath() {
+  protected String getBasePath() {
     return CucumberJavaTestUtil.RELATED_TEST_DATA_PATH + "intentions";
   }
 
   @Override
   protected LightProjectDescriptor getProjectDescriptor() {
-    return CucumberJavaTestUtil.createCucumberJava8ProjectDescriptor();
+    return CucumberJavaTestUtil.createCucumber7ProjectDescriptor();
   }
 }

@@ -25,6 +25,10 @@ import com.intellij.lang.javascript.psi.util.runWithTimeout
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.patterns.PatternCondition
 import com.intellij.patterns.PlatformPatterns.psiElement
+import com.intellij.polySymbols.completion.PolySymbolsCompletionProviderBase
+import com.intellij.polySymbols.js.JS_KEYWORDS
+import com.intellij.polySymbols.js.JS_PROPERTIES
+import com.intellij.polySymbols.js.JS_SYMBOLS
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.impl.source.resolve.reference.impl.PsiMultiReference
@@ -37,7 +41,7 @@ import com.intellij.util.containers.ContainerUtil
 import icons.AngularIcons
 import org.angular2.Angular2DecoratorUtil
 import org.angular2.codeInsight.Angular2DeclarationsScope.DeclarationProximity
-import org.angular2.codeInsight.attributes.Angular2TemplateBindingKeyCompletionProvider
+import org.angular2.codeInsight.attributes.Angular2TemplateBindingKeysCompletionProvider
 import org.angular2.codeInsight.blocks.Angular2BlockParameterNameCompletionProvider
 import org.angular2.codeInsight.blocks.Angular2HtmlBlockReferenceExpressionCompletionProvider
 import org.angular2.codeInsight.blocks.isLetReferenceBeforeDeclaration
@@ -67,13 +71,13 @@ class Angular2CompletionContributor : CompletionContributor() {
     extend(CompletionType.BASIC,
            psiElement(JSTokenTypes.IDENTIFIER)
              .withParents(Angular2TemplateBindingKey::class.java, Angular2TemplateBinding::class.java),
-           Angular2TemplateBindingKeyCompletionProvider()
+           Angular2TemplateBindingKeysCompletionProvider()
     )
 
     extend(CompletionType.BASIC,
            psiElement(JSTokenTypes.IDENTIFIER)
              .withParents(Angular2TemplateVariableImpl::class.java),
-           object: CompletionProvider<CompletionParameters>() {
+           object : CompletionProvider<CompletionParameters>() {
              override fun addCompletions(parameters: CompletionParameters, context: ProcessingContext, result: CompletionResultSet) {
                result.stopHere()
              }
@@ -209,7 +213,8 @@ class Angular2CompletionContributor : CompletionContributor() {
         val localNames = HashSet<String>()
 
         // Block support
-        if (Angular2HtmlBlockReferenceExpressionCompletionProvider.addCompletions(result, ref)) {
+        if (Angular2HtmlBlockReferenceExpressionCompletionProvider.addCompletions(result, ref)
+            || PolySymbolsCompletionProviderBase.isFurtherCodeCompletionPreventedFor(parameters, JS_PROPERTIES, JS_KEYWORDS, JS_SYMBOLS)) {
           return
         }
 
@@ -246,7 +251,7 @@ class Angular2CompletionContributor : CompletionContributor() {
         }
 
         if (ref.qualifier != null) {
-          result.stopHere()
+          PolySymbolsCompletionProviderBase.preventFurtherCodeCompletionsFor(parameters, JS_PROPERTIES)
           return
         }
 
@@ -388,7 +393,7 @@ private val BLOCK_PARAMETER_NAME_TOKENS = TokenSet.create(Angular2TokenTypes.BLO
 fun <T : PsiElement> language(language: Language): PatternCondition<T> {
   return object : PatternCondition<T>("language(" + language.id + ")") {
     override fun accepts(t: T, context: ProcessingContext): Boolean {
-      return language.`is`(PsiUtilCore.findLanguageFromElement(t))
+      return PsiUtilCore.findLanguageFromElement(t).isKindOf(language)
     }
   }
 }

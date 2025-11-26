@@ -409,6 +409,10 @@ public class DartVisitor extends PsiElementVisitor {
     visitPsiCompositeElement(o);
   }
 
+  public void visitNullAwareElement(@NotNull DartNullAwareElement o) {
+    visitPsiCompositeElement(o);
+  }
+
   public void visitObjectPattern(@NotNull DartObjectPattern o) {
     visitPsiCompositeElement(o);
   }
@@ -557,6 +561,10 @@ public class DartVisitor extends PsiElementVisitor {
 
   public void visitShortTemplateEntry(@NotNull DartShortTemplateEntry o) {
     visitPsiCompositeElement(o);
+  }
+
+  public void visitShorthandExpression(@NotNull DartShorthandExpression o) {
+    visitExpression(o);
   }
 
   public void visitShowCombinator(@NotNull DartShowCombinator o) {

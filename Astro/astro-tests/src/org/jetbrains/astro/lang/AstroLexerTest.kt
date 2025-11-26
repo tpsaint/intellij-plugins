@@ -152,6 +152,35 @@ open class AstroLexerTest : LexerTestCase() {
     |</script>
   """)
 
+  fun testHtmlInScript() = doTest("""
+    |<script>
+    |  const n = '<p></p>'
+    |  const form = '<form><input><input></form>'
+    |</script>
+  """)
+
+  fun testScriptEmbedding() = doTest("""
+    |<script type="foo/bar">
+    |  <div></div>
+    |</script>
+  """)
+
+  fun testScriptInScript() = doTest("""
+    |<script>
+    |  <script><script>
+    |</script>
+  """)
+
+
+  fun testMultipleScriptBlocks() = doTest("""
+    |<div>
+    |  <script type="text/javascript"
+    |          src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    |  <script src="/js/highcharts/highcharts.js" defer></script>
+    |  <script src="/js/buoychart.js" data={JSON.stringify(chartData)} defer></script>
+    |</div>
+    """)
+
   fun testEmptyFrontmatter1() = doTest("""
     |Some comment
     |------
@@ -521,7 +550,7 @@ open class AstroLexerTest : LexerTestCase() {
     |<>
   """.trimIndent())
 
-  fun testTitleComponent(){
+  fun testTitleComponent() {
     doTest("<head><title>This is <std>title</std></title></head><div><Title>This is <custom>title</custom></Title></div>")
   }
 
@@ -546,6 +575,53 @@ open class AstroLexerTest : LexerTestCase() {
     |  </p>
     |}
   """.trimIndent())
+
+  fun testRawTextWithInterpolation() {
+    doTest($$"""
+      <title>{ title as number } and { 12 + "foo" }</title>
+      <textarea>My { title ? `${title} foo` : `bar` } is cool</textarea>
+      <div>My {title ? `${title} foo` : `bar`}</div>
+    """.trimIndent())
+  }
+
+  fun testJsxWithAndOperator() {
+    doTest("""
+       <table>
+         {data.map((wd:any) =>
+           <tr>
+             <td>{wd.wdir !== null && <i></i>}</td>
+             <td></td>
+           </tr>
+         )}
+       </table>
+    """.trimIndent())
+  }
+
+  fun testJsxWithAndOperatorBroken1() {
+    doTest("""
+       <table>
+         {data.map((wd:any) =>
+           <tr>
+             <td>{wd.wdir !== null && </i>}</td>
+             <td></td>
+           </tr>
+         )}
+       </table>
+    """.trimIndent())
+  }
+
+  fun testJsxWithAndOperatorBroken2() {
+    doTest("""
+       <table>
+         {data.map((wd:any) =>
+           <tr>
+             <td>{wd.wdir !== null && </i></td>
+             <td></td>
+           </tr>
+         )}
+       </table>
+    """.trimIndent())
+  }
 
   override fun createLexer(): Lexer = AstroLexer(fixture.project, false, false)
 

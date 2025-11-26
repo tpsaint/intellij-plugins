@@ -2,7 +2,7 @@
 package org.angular2.options
 
 import com.intellij.lang.typescript.compiler.TypeScriptCompilerSettings
-import com.intellij.lang.typescript.compiler.TypeScriptCompilerSettings.isEffectiveUseTypesFromServer
+import com.intellij.lang.typescript.compiler.TypeScriptCompilerConfigUtil.isEffectiveUseTypesFromServer
 import com.intellij.lang.typescript.compiler.ui.TypeScriptServiceRestartService
 import com.intellij.lang.typescript.lsp.defaultPackageKey
 import com.intellij.openapi.Disposable
@@ -42,8 +42,7 @@ class AngularSettings(val project: Project) : SimplePersistentStateComponent<Ang
 
   var useTypesFromServer: Boolean
     get() {
-      val useTypesFromServerInTests = TypeScriptCompilerSettings.isUseTypesFromServerInTests()
-      return useTypesFromServerInTests ?: state.useTypesFromServer
+      return TypeScriptCompilerSettings.useTypesFromServerInTests ?: state.useTypesFromServer
     }
     set(value) {
       val prevUseTypesFromServer = state.useTypesFromServer

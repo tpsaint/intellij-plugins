@@ -1,9 +1,9 @@
 ### auto-generated section `build intellij.astro` start
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_resources")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
 
-jvm_resources(
+resourcegroup(
   name = "astro_resources",
-  files = glob(["resources/**/*"]),
+  srcs = glob(["resources/**/*"]),
   strip_prefix = "resources"
 )
 
@@ -11,12 +11,19 @@ jvm_library(
   name = "astro",
   module_name = "intellij.astro",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java", "gen/**/*.kt", "gen/**/*.java"], allow_empty = True),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form", "gen/**/*.kt", "gen/**/*.java"], allow_empty = True),
+  resources = [":astro_resources"],
   deps = [
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/code-style-api:codeStyle",
+    "@community//platform/editor-ui-api:editor-ui",
     "@community//platform/platform-impl:ide-impl",
-    "//CSS/frontback/css-api:css-frontback",
+    "//plugins/css/common",
     "@community//platform/platform-api:ide",
     "//plugins/JavaScriptLanguage/javascript-parser",
+    "@community//platform/indexing-api:indexing",
+    "@community//platform/projectModel-api:projectModel",
+    "@community//platform/refactoring",
     "@community//xml/xml-parser:parser",
     "@lib//:kotlin-stdlib",
     "@community//xml/xml-psi-api:psi",
@@ -29,22 +36,20 @@ jvm_library(
     "@community//platform/core-api:core",
     "@community//platform/analysis-impl",
     "@community//platform/core-ui",
-    "//plugins/JavaScriptLanguage/javascript-frontback-impl",
-    "@community//platform/webSymbols",
+    "@community//platform/polySymbols",
     "//plugins/JavaScriptLanguage/web-platform:javascript-web",
     "@community//xml/impl",
     "//plugins/JavaScriptLanguage/javascript-psi-impl",
-    "//plugins/JavaScriptLanguage:javascript",
-    "@lib//:fastutil-min",
-    "//plugins/JavaScriptLanguage:javascript-impl",
+    "@community//libraries/fastutil",
+    "//plugins/JavaScriptLanguage:javascript-backend",
     "@community//platform/code-style-impl:codeStyle-impl",
-    "//CSS:css",
     "//contrib/postcss",
     "//platform/lsp",
     "@ultimate_lib//:eclipse-lsp4j",
-    "//CSS/css-psi-impl:css-psi",
-    "//platform/lsp-impl",
-  ],
-  runtime_deps = [":astro_resources"]
+    "//plugins/css/psi",
+    "@community//platform/polySymbols/backend",
+    "//plugins/JavaScriptLanguage/javascript-common",
+    "@community//libraries/gson",
+  ]
 )
 ### auto-generated section `build intellij.astro` end

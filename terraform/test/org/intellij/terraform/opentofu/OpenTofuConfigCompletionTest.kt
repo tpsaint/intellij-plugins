@@ -1,9 +1,10 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.opentofu
 
 import org.intellij.terraform.config.codeinsight.TfBaseCompletionTestCase
+import org.intellij.terraform.terragrunt.TerragruntCompletionTest
 
-internal class OpenTofuConfigCompletionTest: TfBaseCompletionTestCase() {
+internal class OpenTofuConfigCompletionTest : TfBaseCompletionTestCase() {
 
   fun testTofuBlockCompletion() {
     val file = myFixture.configureByText("main.tofu", """ 
@@ -11,7 +12,28 @@ internal class OpenTofuConfigCompletionTest: TfBaseCompletionTestCase() {
         <caret>
       }
       """)
-    myFixture.testCompletionVariants(file.virtualFile.name, "backend", "cloud", "encryption", "experiments", "required_providers", "required_version")
+    myFixture.testCompletionVariants(file.virtualFile.name, "backend", "cloud", "encryption", "experiments", "provider_meta",
+                                     "required_providers", "required_version")
+  }
+
+  fun testNotAllowedRootBlockInTofu() {
+    val file = myFixture.configureByText("main.tofu", "<caret>")
+    val completionVariants = myFixture.getCompletionVariants(file.virtualFile.name)
+      ?.filterNot { it == "terraform" || it == "locals" }
+      .orEmpty()
+    assertNotEmpty(completionVariants)
+
+    val unexpectedTerragruntBlocks = TerragruntCompletionTest.TerragruntBlockKeywords.filter { it in completionVariants }
+    assertTrue(
+      "These Terragrunt-only root blocks should not appear in a Tofu file: $unexpectedTerragruntBlocks",
+      unexpectedTerragruntBlocks.isEmpty()
+    )
+
+    val unexpectedStackBlocks = TerragruntCompletionTest.StackBlockKeywords.filter { it in completionVariants }
+    assertTrue(
+      "These Terragrunt Stack-only root blocks should not appear in a Tofu file: $unexpectedStackBlocks",
+      unexpectedStackBlocks.isEmpty()
+    )
   }
 
   fun testTofuEncryptionBlockPropertiesCompletion() {
@@ -317,5 +339,10 @@ internal class OpenTofuConfigCompletionTest: TfBaseCompletionTestCase() {
     myFixture.testCompletionVariants(file.virtualFile.name, "some_method_name", "some_method_name2")
   }
 
-
+  fun testEphemeralResourcesAtTopLevel() {
+    val file = myFixture.configureByText("main.tofu", """
+       al<caret>
+     """.trimIndent())
+    myFixture.testCompletionVariants(file.virtualFile.name, "ephemeral", "locals")
+  }
 }

@@ -1,23 +1,24 @@
-import {<symbolName descr="identifiers//exported function">Component</symbolName>, <symbolName descr="identifiers//exported function">Directive</symbolName>, <symbolName descr="identifiers//exported variable">EventEmitter</symbolName>, <symbolName descr="identifiers//exported function">Input</symbolName>, <symbolName descr="identifiers//exported function">Output</symbolName>} <info textAttributesKey="TS.KEYWORD">from</info> '@angular/core';
+import {<symbolName descr="identifiers//exported function">Component</symbolName>, <symbolName descr="identifiers//exported function">Directive</symbolName>, <symbolName descr="identifiers//exported function">EventEmitter</symbolName>, <symbolName descr="identifiers//exported function">Input</symbolName>, <symbolName descr="identifiers//exported function">Output</symbolName>} <info textAttributesKey="TS.KEYWORD">from</info> '@angular/core';
 
-<info descr="decorator">@</info><info descr="decorator">Directive</info>({
+<symbolName descr="decorator">@</symbolName><symbolName descr="decorator">Directive</symbolName>({
     <symbolName descr="instance field">selector</symbolName>: '[<symbolName textAttributesKey="HTML_ATTRIBUTE_NAME">appBold</symbolName>]',
     <symbolName descr="instance field">standalone</symbolName>: true,
     <symbolName descr="instance field">exportAs</symbolName>: "boldDir"
 })
 export class <symbolName descr="classes//exported class">BoldDirective</symbolName> {
-    <info descr="decorator">@</info><info descr="decorator">Output</info>() <symbolName descr="instance field">hover</symbolName> = new <symbolName descr="identifiers//exported variable">EventEmitter</symbolName>()
+    // EventEmitter interface has new() signature, so from TS point of view it's possible to write `new new EventEmitter()`, so we highlight `hover` as a method
+    <symbolName descr="decorator">@</symbolName><symbolName descr="decorator">Output</symbolName>() <symbolName descr="instance method">hover</symbolName> = new <symbolName descr="identifiers//exported function">EventEmitter</symbolName>()
 }
 
-<info descr="decorator">@</info><info descr="decorator">Directive</info>({
+<symbolName descr="decorator">@</symbolName><symbolName descr="decorator">Directive</symbolName>({
     <symbolName descr="instance field">selector</symbolName>: '[<symbolName textAttributesKey="HTML_ATTRIBUTE_NAME">appUnderline</symbolName>]',
     <symbolName descr="instance field">standalone</symbolName>: true
 })
 export class <symbolName descr="classes//exported class">UnderlineDirective</symbolName> {
-    <info descr="decorator">@</info><info descr="decorator">Input</info>() <symbolName descr="instance field">color</symbolName> = 'black';
+    <symbolName descr="decorator">@</symbolName><symbolName descr="decorator">Input</symbolName>() <symbolName descr="instance field">color</symbolName> = 'black';
 }
 
-<info descr="decorator">@</info><info descr="decorator">Directive</info>({
+<symbolName descr="decorator">@</symbolName><symbolName descr="decorator">Directive</symbolName>({
     <symbolName descr="instance field">selector</symbolName>: '[<symbolName textAttributesKey="HTML_ATTRIBUTE_NAME">appMouseenter</symbolName>]',
     <symbolName descr="instance field">standalone</symbolName>: true,
     <symbolName descr="instance field">exportAs</symbolName>: "boldDir,mouseDir",
@@ -33,7 +34,7 @@ export class <symbolName descr="classes//exported class">MouseenterDirective</sy
 
 }
 
-<info descr="decorator">@</info><info descr="decorator">Component</info>({
+<symbolName descr="decorator">@</symbolName><symbolName descr="decorator">Component</symbolName>({
     <symbolName descr="instance field">standalone</symbolName>: true,
     <symbolName descr="instance field">selector</symbolName>: '<symbolName textAttributesKey="HTML_TAG_NAME">resolved</symbolName>',
     <symbolName descr="instance field">template</symbolName>: "",
@@ -45,7 +46,7 @@ export class <symbolName descr="classes//exported class">ResolvedComponent</symb
 
 }
 
-<info descr="decorator">@</info><info descr="decorator">Component</info>({
+<symbolName descr="decorator">@</symbolName><symbolName descr="decorator">Component</symbolName>({
     <symbolName descr="instance field">standalone</symbolName>: true,
     <symbolName descr="instance field">selector</symbolName>: '<symbolName textAttributesKey="HTML_TAG_NAME">app-test</symbolName>',
     <symbolName descr="instance field">template</symbolName>: '',

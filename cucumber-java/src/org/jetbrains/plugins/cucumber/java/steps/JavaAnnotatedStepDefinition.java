@@ -2,31 +2,84 @@
 package org.jetbrains.plugins.cucumber.java.steps;
 
 import com.intellij.openapi.module.Module;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiMethod;
-import org.jetbrains.annotations.NotNull;
+import com.intellij.psi.*;
+import com.intellij.psi.search.GlobalSearchScope;
+import com.intellij.psi.util.CachedValueProvider;
+import com.intellij.psi.util.CachedValuesManager;
+import com.intellij.psi.util.PsiTreeUtil;
+import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.plugins.cucumber.java.CucumberJavaUtil;
 
+import java.util.*;
+
+@NotNullByDefault
 public class JavaAnnotatedStepDefinition extends AbstractJavaStepDefinition {
-  private final @NotNull String myAnnotationValue;
 
-  public JavaAnnotatedStepDefinition(@NotNull PsiElement stepDef, @NotNull Module module, @NotNull String annotationValue) {
-    super(stepDef, module);
-    myAnnotationValue = annotationValue;
+  public JavaAnnotatedStepDefinition(PsiAnnotation element, Module module) {
+    super(element, module);
+  }
+
+  public static JavaAnnotatedStepDefinition create(PsiAnnotation element, Module module) {
+    final JavaAnnotatedStepDefinition stepDefinition = CachedValuesManager.getCachedValue(element, () -> {
+      return CachedValueProvider.Result.create(new JavaAnnotatedStepDefinition(element, module), element);
+    });
+    return stepDefinition;
   }
 
   @Override
-  protected @Nullable String getCucumberRegexFromElement(PsiElement element) {
-    if (element == null) {
-      return null;
-    }
+  protected @Nullable String getCucumberRegexFromElement(@Nullable PsiElement element) {
+    // NOTE(bartekpacia): This implementation doesn't conform to this method's name because it can return either a regex or a cukex.
+    //  However, it has been like this for many years, and it seems to work fine. If possible, consider refactoring in the future.
+    if (!(element instanceof PsiAnnotation annotation)) return null;
+    return CucumberJavaUtil.getAnnotationValue(annotation);
+  }
 
-    if (!(element instanceof PsiMethod)) {
-      return null;
+  @Override
+  public void setValue(String newValue) {
+    if (!(getElement() instanceof PsiAnnotation annotation)) {
+      return;
     }
-    if (myAnnotationValue.length() > 1) {
-      return myAnnotationValue.replace("\\\\", "\\").replace("\\\"", "\"");
+    final GlobalSearchScope dependenciesScope = module.getModuleWithDependenciesAndLibrariesScope(true);
+    final Set<PsiClass> allStepAnnotations = new HashSet<>(CucumberJavaUtil.getAllStepAnnotationClasses(module, dependenciesScope));
+    final PsiClass annotationClass = annotation.resolveAnnotationType();
+    if (annotationClass == null) {
+      return;
     }
-    return null;
+    if (allStepAnnotations.contains(annotationClass)) {
+      PsiElementFactory factory = JavaPsiFacade.getElementFactory(annotation.getProject());
+      String newValueEscaped = CucumberJavaUtil.unescapeCucumberRegex(newValue);
+      annotation.setDeclaredAttributeValue("value", factory.createExpressionFromText("\"" + newValueEscaped + "\"", null));
+    }
+  }
+
+  @Override
+  public @Nullable PsiAnnotation getElement() {
+    final PsiElement element = super.getElement();
+    if (element == null) return null;
+    return (PsiAnnotation)element;
+  }
+
+  @Override
+  public List<String> getVariableNames() {
+    PsiElement element = getElement();
+    if (element instanceof PsiAnnotation annotation) {
+      PsiMethod method = PsiTreeUtil.getParentOfType(annotation, PsiMethod.class);
+      if (method == null) {
+        return Collections.emptyList();
+      }
+      PsiParameter[] parameters = method.getParameterList().getParameters();
+      ArrayList<String> result = new ArrayList<>();
+      for (PsiParameter parameter : parameters) {
+        result.add(parameter.getName());
+      }
+      return result;
+    }
+    return Collections.emptyList();
+  }
+
+  @Override
+  public String toString() {
+    return "JavaAnnotatedStepDefinition{backed by element: " + getElement() + "}";
   }
 }

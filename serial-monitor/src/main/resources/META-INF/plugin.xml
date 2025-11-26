@@ -4,13 +4,16 @@
   <category>Embedded Development</category>
   <vendor>JetBrains</vendor>
   <description><![CDATA[
-      This plugin provides the Serial Monitor Tool Window,
-      which allows you to communicate to serial devices like Arduino via the CLion window.
+      This plugin allows you to communicate with external devices over a serial connection in the Serial Connections tool window.
       <br/>
       <b>Features:</b>
       <ul>
-       <li>Multiple serial port connections</li>
-       <li>Duplex Console View (Regular view + HEX)</li>
+        <li>Multiple simultaneous serial port connections</li>
+        <li>Fully customizable parameters with profiles</li>
+        <li>Regular and Hex view</li>
+        <li>Timestamps for every received line</li>
+        <li>Ability to save output to a file</li>
+        <li>Manual hardware flow control</li>
       </ul>
       <br/>
       <br/>
@@ -18,11 +21,24 @@
       Initial release by <a href="https://github.com/dmitry-cherkas">Dmitry Cherkas</a>
 
     ]]></description>
+  <change-notes><![CDATA[
+    <b>2025.3</b>
+    <ul>
+      <li>Migrated to the jSerialComm library</li>
+      <li>Added short descriptive name to ports</li>
+      <li>Updated the plugin’s logo and icon, together with other cosmetic updates</li>
+      <li>Added the ability to reconnect to an open port with a different profile</li>
+      <li>Custom baud rate support</li>
+      <li>Bug fixes (see the <a href="https://youtrack.jetbrains.com/articles/CPP-A-230654424/CLion-2025.3">YouTrack release notes</a> for the complete list)</li>
+    </ul>
+  ]]></change-notes>
 
-  <depends>com.intellij.modules.lang</depends>
+  <dependencies>
+    <plugin id="com.intellij.modules.lang"/>
+  </dependencies>
 
   <extensions defaultExtensionNs="com.intellij">
-    <toolWindow id="Serial Monitor" anchor="bottom" icon="SerialMonitorIcons.DisconnectedSerial"
+    <toolWindow id="Serial Monitor" anchor="bottom" icon="SerialMonitorIcons.Toolwindow"
                 doNotActivateOnStart="false"
                 factoryClass="com.intellij.plugins.serialmonitor.SerialMonitorToolWindowFactory"
                 canCloseContents="true" secondary="false"/>
@@ -32,6 +48,7 @@
 
     <statistics.counterUsagesCollector implementationClass="com.intellij.plugins.serialmonitor.SerialMonitorCollector"/>
     <statistics.applicationUsagesCollector implementation="com.intellij.plugins.serialmonitor.SerialMonitorUsagesCollector"/>
+    <applicationService serviceInterface="com.intellij.plugins.serialmonitor.service.SerialPortProvider" serviceImplementation="com.intellij.plugins.serialmonitor.service.JSerialCommPortProvider" />
   </extensions>
   <resource-bundle>messages.SerialMonitorBundle</resource-bundle>
 </idea-plugin>

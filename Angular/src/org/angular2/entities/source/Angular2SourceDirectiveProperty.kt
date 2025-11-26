@@ -1,10 +1,10 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.angular2.entities.source
 
-import com.intellij.javascript.webSymbols.apiStatus
 import com.intellij.lang.javascript.evaluation.JSTypeEvaluationLocationProvider.withTypeEvaluationLocation
 import com.intellij.lang.javascript.psi.*
 import com.intellij.lang.javascript.psi.ecma6.TypeScriptClass
+import com.intellij.lang.javascript.psi.ecma6.TypeScriptField
 import com.intellij.lang.javascript.psi.types.guard.JSTypeGuardUtil
 import com.intellij.lang.javascript.psi.types.primitives.JSPrimitiveType
 import com.intellij.lang.javascript.psi.util.JSStubBasedPsiTreeUtil.isStubBased
@@ -13,29 +13,30 @@ import com.intellij.navigation.SymbolNavigationService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.TextRange
 import com.intellij.platform.backend.navigation.NavigationTarget
+import com.intellij.polySymbols.PolySymbolApiStatus
+import com.intellij.polySymbols.PolySymbolQualifiedKind
+import com.intellij.polySymbols.js.apiStatus
+import com.intellij.polySymbols.search.PsiSourcedPolySymbol
+import com.intellij.polySymbols.utils.PolySymbolDeclaredInPsi
+import com.intellij.polySymbols.utils.coalesceApiStatus
+import com.intellij.polySymbols.utils.coalesceWith
 import com.intellij.psi.PsiElement
 import com.intellij.psi.createSmartPointer
 import com.intellij.util.applyIf
 import com.intellij.util.asSafely
-import com.intellij.webSymbols.PsiSourcedWebSymbol
-import com.intellij.webSymbols.WebSymbolApiStatus
-import com.intellij.webSymbols.WebSymbolQualifiedKind
-import com.intellij.webSymbols.utils.WebSymbolDeclaredInPsi
-import com.intellij.webSymbols.utils.coalesceApiStatus
-import com.intellij.webSymbols.utils.coalesceWith
-import org.angular2.Angular2DecoratorUtil
 import org.angular2.entities.Angular2ClassBasedDirectiveProperty
 import org.angular2.entities.Angular2EntityUtils
 import org.angular2.entities.source.Angular2SourceDirective.Companion.getPropertySources
 import org.angular2.lang.expr.service.tcb.R3Identifiers
 import org.angular2.lang.types.Angular2TypeUtils
+import org.angular2.signals.Angular2SignalUtils
+import org.angular2.signals.Angular2SignalUtils.isDirectiveSignalInputOrOutput
 import org.angular2.web.NG_DIRECTIVE_OUTPUTS
-import java.util.*
 
 abstract class Angular2SourceDirectiveProperty(
   override val owner: TypeScriptClass,
   protected val signature: JSRecordType.PropertySignature,
-  override val qualifiedKind: WebSymbolQualifiedKind,
+  override val qualifiedKind: PolySymbolQualifiedKind,
   override val name: String,
   override val required: Boolean,
   val declarationSource: PsiElement?,
@@ -45,7 +46,7 @@ abstract class Angular2SourceDirectiveProperty(
     fun create(
       owner: TypeScriptClass,
       signature: JSRecordType.PropertySignature,
-      qualifiedKind: WebSymbolQualifiedKind,
+      qualifiedKind: PolySymbolQualifiedKind,
       info: Angular2PropertyInfo,
     ): Angular2SourceDirectiveProperty =
       if (info.declarationRange == null || info.declaringElement == null)
@@ -62,21 +63,8 @@ abstract class Angular2SourceDirectiveProperty(
   override val fieldName: String
     get() = signature.memberName
 
-  val transformParameterType: JSType?
-    get() = objectInitializer?.findProperty(Angular2DecoratorUtil.TRANSFORM_PROP)
-      ?.jsType
-      ?.asRecordType(owner)
-      ?.callSignatures
-      ?.firstNotNullOfOrNull { signature -> signature.functionType.parameters.takeIf { it.size > 0 }?.get(0) }
-      ?.inferredType
-
-  override val isCoerced: Boolean
-    get() = super.isCoerced || objectInitializer?.findProperty(Angular2DecoratorUtil.TRANSFORM_PROP) != null
-
   override val isSignalProperty: Boolean
-    get() = signature.jsType
-      ?.asRecordType()
-      ?.findPropertySignature(R3Identifiers.InputSignalBrandWriteType.name) != null
+    get() = isDirectiveSignalInputOrOutput(signature.memberSource.singleElement)
 
   override val type: JSType?
     get() = if (qualifiedKind == NG_DIRECTIVE_OUTPUTS)
@@ -96,7 +84,7 @@ abstract class Angular2SourceDirectiveProperty(
   override val virtualProperty: Boolean
     get() = false
 
-  override val apiStatus: WebSymbolApiStatus
+  override val apiStatus: PolySymbolApiStatus
     get() = coalesceApiStatus(sources) { (it as? JSElementBase)?.apiStatus }.coalesceWith(owner.apiStatus)
 
   val sources: List<PsiElement>
@@ -121,40 +109,54 @@ abstract class Angular2SourceDirectiveProperty(
     return (owner == property!!.owner
             && signature.memberName == property.signature.memberName
             && name == property.name
-            && kind == property.kind
+            && qualifiedKind == property.qualifiedKind
             && required == property.required
            )
   }
 
   override fun hashCode(): Int {
-    return Objects.hash(owner, signature.memberName, name, kind, required)
+    var result = owner.hashCode()
+    result = 31 * result + signature.memberName.hashCode()
+    result = 31 * result + name.hashCode()
+    result = 31 * result + qualifiedKind.hashCode()
+    result = 31 * result + required.hashCode()
+    return result
   }
 
   abstract override fun createPointer(): Pointer<out Angular2SourceDirectiveProperty>
 
-  private val objectInitializer: JSObjectLiteralExpression?
+  override val objectInitializer: JSObjectLiteralExpression?
     get() = declarationSource as? JSObjectLiteralExpression
             ?: (declarationSource as? JSLiteralExpression)
               ?.context?.asSafely<JSProperty>()
               ?.context?.asSafely<JSObjectLiteralExpression>()
 
   val typeFromSignal: JSType?
-    get() = withTypeEvaluationLocation(owner) {
-      signature.jsType
-        ?.takeIf { it !is JSPrimitiveType }
-        ?.asRecordType()
-        ?.findPropertySignature(R3Identifiers.InputSignalBrandWriteType.name)
-        ?.jsTypeWithOptionality
-    }
+    get() = if (isSignalProperty)
+      signature.memberSource
+        .singleElement.asSafely<TypeScriptField>()
+        ?.initializerOrStub?.asSafely<JSCallExpression>()
+        ?.typeArguments
+        ?.takeIf { it.size == 1 }
+        ?.getOrNull(0)
+        ?.jsType
+      ?: withTypeEvaluationLocation(owner) {
+        signature.jsType
+          ?.takeIf { it !is JSPrimitiveType }
+          ?.asRecordType()
+          ?.findPropertySignature(R3Identifiers.InputSignalBrandWriteType.name)
+          ?.jsTypeWithOptionality
+      }
+    else null
 
   private class Angular2SourceFieldDirectiveProperty(
     owner: TypeScriptClass,
     signature: JSRecordType.PropertySignature,
-    qualifiedKind: WebSymbolQualifiedKind,
+    qualifiedKind: PolySymbolQualifiedKind,
     name: String,
     required: Boolean,
     declarationSource: PsiElement?,
-  ) : Angular2SourceDirectiveProperty(owner, signature, qualifiedKind, name, required, declarationSource), PsiSourcedWebSymbol {
+  ) : Angular2SourceDirectiveProperty(owner, signature, qualifiedKind, name, required, declarationSource), PsiSourcedPolySymbol {
     override val sourceElement: PsiElement
       get() = sources[0]
 
@@ -190,21 +192,18 @@ abstract class Angular2SourceDirectiveProperty(
       other is Angular2SourceFieldDirectiveProperty
       && super.equals(other)
 
-    override fun hashCode(): Int =
-      super.hashCode()
-
   }
 
   private class Angular2SourceMappedDirectiveProperty(
     owner: TypeScriptClass,
     signature: JSRecordType.PropertySignature,
-    qualifiedKind: WebSymbolQualifiedKind,
+    qualifiedKind: PolySymbolQualifiedKind,
     name: String,
     required: Boolean,
     declarationSource: PsiElement?,
     override val sourceElement: PsiElement,
     override val textRangeInSourceElement: TextRange,
-  ) : Angular2SourceDirectiveProperty(owner, signature, qualifiedKind, name, required, declarationSource), WebSymbolDeclaredInPsi {
+  ) : Angular2SourceDirectiveProperty(owner, signature, qualifiedKind, name, required, declarationSource), PolySymbolDeclaredInPsi {
 
     override fun createPointer(): Pointer<Angular2SourceMappedDirectiveProperty> {
       val ownerPtr = owner.createSmartPointer()
@@ -237,8 +236,13 @@ abstract class Angular2SourceDirectiveProperty(
       && other.sourceElement == sourceElement
       && other.textRangeInSourceElement == textRangeInSourceElement
 
-    override fun hashCode(): Int =
-      Objects.hash(super.hashCode(), sourceElement, textRangeInSourceElement)
+
+    override fun hashCode(): Int {
+      var result = super.hashCode()
+      result = 31 * result + sourceElement.hashCode()
+      result = 31 * result + textRangeInSourceElement.hashCode()
+      return result
+    }
 
   }
 

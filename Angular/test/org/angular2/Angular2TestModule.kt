@@ -10,6 +10,7 @@ enum class Angular2TestModule(myPackageName: String, myVersion: String) : WebFra
 
   ANGULAR_CDK_14_2_0("@angular/cdk", "14.2.0"),
   ANGULAR_CDK_17_1_0_RC_0("@angular/cdk", "17.1.0-rc.0"),
+  ANGULAR_CDK_19_2_11("@angular/cdk", "19.2.11"),
 
   ANGULAR_COMMON_4_0_0("@angular/common", "4.0.0"),
   ANGULAR_COMMON_8_2_14("@angular/common", "8.2.14"),
@@ -30,6 +31,8 @@ enum class Angular2TestModule(myPackageName: String, myVersion: String) : WebFra
   ANGULAR_CORE_18_2_1("@angular/core", "18.2.1"),
   ANGULAR_CORE_19_2_0("@angular/core", "19.2.0"),
   ANGULAR_CORE_20_0_0_NEXT_3("@angular/core", "20.0.0-next.3"),
+  ANGULAR_CORE_20_1_4("@angular/core", "20.1.4"),
+  ANGULAR_CORE_20_2_2("@angular/core", "20.2.2"),
 
   ANGULAR_FLEX_LAYOUT_13_0_0("@angular/flex-layout", "13.0.0-beta.36"),
 
@@ -55,13 +58,17 @@ enum class Angular2TestModule(myPackageName: String, myVersion: String) : WebFra
   IONIC_ANGULAR_4_1_1("@ionic/angular", "4.1.1"),
   IONIC_ANGULAR_4_11_4_IVY("@ionic/angular", "4.11.4-ivy"),
   IONIC_ANGULAR_7_7_3("@ionic/angular", "7.7.3"),
+  IONIC_ANGULAR_8_4_3("@ionic/angular", "8.4.3"),
+  IONIC_CORE_8_4_3("@ionic/core", "8.4.3"),
   NGNEAT_TRANSLOCO_2_6_0_IVY("@ngneat/transloco", "2.6.0-ivy"),
   NGXS_STORE_3_6_2("@ngxs/store", "3.6.2"),
   NGXS_STORE_3_6_2_MIXED("@ngxs/store", "3.6.2-mixed"),
+  NGRX_SIGNALS_20_1_0("@ngrx/signals", "20.1.0"),
   NG_ZORRO_ANTD_8_5_0_IVY("ng-zorro-antd", "8.5.0-ivy"),
   RXJS_6_4_0("rxjs", "6.4.0"),
   RXJS_7_8_1("rxjs", "7.8.1"),
   TS_LIB("tslib", "2.6.2"),
+  TAILWINDCSS_4_1_7("tailwindcss", "4.1.7"),
   ;
 
   override val packageNames: List<String> = listOf(myPackageName)

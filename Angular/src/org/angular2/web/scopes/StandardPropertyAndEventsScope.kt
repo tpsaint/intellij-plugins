@@ -3,26 +3,28 @@ package org.angular2.web.scopes
 
 import com.intellij.documentation.mdn.MdnSymbolDocumentation
 import com.intellij.documentation.mdn.getDomEventDocumentation
-import com.intellij.html.webSymbols.WebSymbolsHtmlQueryConfigurator
+import com.intellij.polySymbols.html.StandardHtmlSymbol
+import com.intellij.polySymbols.js.types.PROP_JS_TYPE
 import com.intellij.javascript.web.js.WebJSTypesUtil
 import com.intellij.lang.javascript.evaluation.JSTypeEvaluationLocationProvider.withTypeEvaluationLocation
 import com.intellij.lang.javascript.psi.JSFile
-import com.intellij.lang.javascript.psi.JSType
 import com.intellij.lang.javascript.psi.ecma6.TypeScriptPropertySignature
 import com.intellij.lang.javascript.psi.ecmal4.JSAttributeList
 import com.intellij.lang.javascript.psi.types.JSTypeSourceFactory
 import com.intellij.model.Pointer
 import com.intellij.openapi.project.Project
+import com.intellij.polySymbols.*
+import com.intellij.polySymbols.html.HTML_ELEMENTS
+import com.intellij.polySymbols.js.JS_EVENTS
+import com.intellij.polySymbols.js.JS_PROPERTIES
+import com.intellij.polySymbols.query.PolySymbolNameMatchQueryParams
+import com.intellij.polySymbols.query.PolySymbolQueryStack
+import com.intellij.polySymbols.query.PolySymbolScope
+import com.intellij.polySymbols.utils.PolySymbolScopeWithCache
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.createSmartPointer
 import com.intellij.psi.util.PsiModificationTracker
-import com.intellij.util.containers.Stack
-import com.intellij.webSymbols.*
-import com.intellij.webSymbols.WebSymbol.Companion.JS_EVENTS
-import com.intellij.webSymbols.WebSymbol.Companion.JS_PROPERTIES
-import com.intellij.webSymbols.WebSymbol.Companion.NAMESPACE_HTML
-import com.intellij.webSymbols.query.WebSymbolsNameMatchQueryParams
 import org.angular2.Angular2Framework
 import org.angular2.codeInsight.attributes.DomElementSchemaRegistry
 import org.angular2.lang.html.parser.Angular2AttributeNameParser
@@ -30,19 +32,18 @@ import org.angular2.lang.types.Angular2TypeUtils
 import org.angular2.web.Angular2PsiSourcedSymbol
 import org.angular2.web.Angular2SymbolOrigin
 import org.angular2.web.EVENT_ATTR_PREFIX
-import java.util.*
 
-class StandardPropertyAndEventsScope(private val templateFile: PsiFile) : WebSymbolsScope {
+class StandardPropertyAndEventsScope(private val templateFile: PsiFile) : PolySymbolScope {
 
   override fun getModificationCount(): Long =
     PsiModificationTracker.getInstance(templateFile.project).modificationCount
 
   override fun getMatchingSymbols(
-    qualifiedName: WebSymbolQualifiedName,
-    params: WebSymbolsNameMatchQueryParams,
-    scope: Stack<WebSymbolsScope>,
-  ): List<WebSymbol> =
-    if (qualifiedName.matches(WebSymbol.HTML_ELEMENTS)) {
+    qualifiedName: PolySymbolQualifiedName,
+    params: PolySymbolNameMatchQueryParams,
+    stack: PolySymbolQueryStack,
+  ): List<PolySymbol> =
+    if (qualifiedName.matches(HTML_ELEMENTS)) {
       listOf(HtmlElementStandardPropertyAndEventsExtension(templateFile, "", qualifiedName.name))
     }
     else emptyList()
@@ -63,10 +64,10 @@ class StandardPropertyAndEventsScope(private val templateFile: PsiFile) : WebSym
 
   private class HtmlElementStandardPropertyAndEventsExtension(
     templateFile: PsiFile, tagNamespace: String, tagName: String,
-  ) : WebSymbolsScopeWithCache<PsiFile, Pair<String, String>>(Angular2Framework.ID, templateFile.project,
-                                                              templateFile, Pair(tagNamespace, tagName)), WebSymbol {
+  ) : PolySymbolScopeWithCache<PsiFile, Pair<String, String>>(Angular2Framework.ID, templateFile.project,
+                                                              templateFile, Pair(tagNamespace, tagName)), PolySymbol {
 
-    override fun provides(qualifiedKind: WebSymbolQualifiedKind): Boolean =
+    override fun provides(qualifiedKind: PolySymbolQualifiedKind): Boolean =
       qualifiedKind == JS_PROPERTIES
       || qualifiedKind == JS_EVENTS
 
@@ -76,14 +77,11 @@ class StandardPropertyAndEventsScope(private val templateFile: PsiFile) : WebSym
     override val extension: Boolean
       get() = true
 
-    override val origin: WebSymbolOrigin
+    override val origin: PolySymbolOrigin
       get() = Angular2SymbolOrigin.empty
 
-    override val namespace: SymbolNamespace
-      get() = NAMESPACE_HTML
-
-    override val kind: SymbolKind
-      get() = WebSymbol.KIND_HTML_ELEMENTS
+    override val qualifiedKind: PolySymbolQualifiedKind
+      get() = HTML_ELEMENTS
 
     override fun getModificationCount(): Long =
       PsiModificationTracker.getInstance(project).modificationCount
@@ -97,7 +95,7 @@ class StandardPropertyAndEventsScope(private val templateFile: PsiFile) : WebSym
       }
     }
 
-    override fun initialize(consumer: (WebSymbol) -> Unit, cacheDependencies: MutableSet<Any>) {
+    override fun initialize(consumer: (PolySymbol) -> Unit, cacheDependencies: MutableSet<Any>) {
       val templateFile = dataHolder
       val tagNamespace = key.first
       val tagName = key.second
@@ -192,10 +190,13 @@ class StandardPropertyAndEventsScope(private val templateFile: PsiFile) : WebSym
       }
     }
 
-    override val type: JSType?
-      get() = source?.getJSType(templateFile)
+    override fun <T : Any> get(property: PolySymbolProperty<T>): T? =
+      when (property) {
+        PROP_JS_TYPE -> property.tryCast(source?.getJSType(templateFile))
+        else -> super.get(property)
+      }
 
-    override val qualifiedKind: WebSymbolQualifiedKind
+    override val qualifiedKind: PolySymbolQualifiedKind
       get() = JS_PROPERTIES
 
     override fun equals(other: Any?): Boolean =
@@ -206,8 +207,13 @@ class StandardPropertyAndEventsScope(private val templateFile: PsiFile) : WebSym
       && other.source == source
       && other.templateFile == templateFile
 
-    override fun hashCode(): Int =
-      Objects.hash(name, project, source, templateFile)
+    override fun hashCode(): Int {
+      var result = name.hashCode()
+      result = 31 * result + project.hashCode()
+      result = 31 * result + source.hashCode()
+      result = 31 * result + templateFile.hashCode()
+      return result
+    }
 
   }
 
@@ -217,7 +223,7 @@ class StandardPropertyAndEventsScope(private val templateFile: PsiFile) : WebSym
     private val mainSource: TypeScriptPropertySignature?,
     private val mapSource: TypeScriptPropertySignature?,
     private val templateFile: PsiFile,
-  ) : WebSymbolsHtmlQueryConfigurator.StandardHtmlSymbol(), Angular2PsiSourcedSymbol {
+  ) : StandardHtmlSymbol(), Angular2PsiSourcedSymbol {
 
     override val source: PsiElement?
       get() = mainSource ?: mapSource
@@ -243,14 +249,19 @@ class StandardPropertyAndEventsScope(private val templateFile: PsiFile) : WebSym
       }
     }
 
-    override val type: JSType?
-      get() = Angular2TypeUtils.extractEventVariableType(mainSource?.getJSType(templateFile))
-              ?: mapSource?.getJSType(templateFile)
+    override fun <T : Any> get(property: PolySymbolProperty<T>): T? =
+      when (property) {
+        PROP_JS_TYPE -> property.tryCast(
+          Angular2TypeUtils.extractEventVariableType(mainSource?.getJSType(templateFile))
+          ?: mapSource?.getJSType(templateFile)
+        )
+        else -> super<StandardHtmlSymbol>.get(property)
+      }
 
-    override val priority: WebSymbol.Priority
-      get() = WebSymbol.Priority.NORMAL
+    override val priority: PolySymbol.Priority
+      get() = PolySymbol.Priority.NORMAL
 
-    override val qualifiedKind: WebSymbolQualifiedKind
+    override val qualifiedKind: PolySymbolQualifiedKind
       get() = JS_EVENTS
 
     override fun equals(other: Any?): Boolean =
@@ -262,8 +273,14 @@ class StandardPropertyAndEventsScope(private val templateFile: PsiFile) : WebSym
       && other.mapSource == mapSource
       && other.templateFile == templateFile
 
-    override fun hashCode(): Int =
-      Objects.hash(name, project, mainSource, mapSource, templateFile)
+    override fun hashCode(): Int {
+      var result = name.hashCode()
+      result = 31 * result + project.hashCode()
+      result = 31 * result + mainSource.hashCode()
+      result = 31 * result + mapSource.hashCode()
+      result = 31 * result + templateFile.hashCode()
+      return result
+    }
 
   }
 

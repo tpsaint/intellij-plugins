@@ -5,24 +5,29 @@ import com.intellij.openapi.util.TextRange;
 import com.intellij.pom.PomRenameableTarget;
 import com.intellij.pom.PsiDeclaredTarget;
 import com.intellij.psi.*;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
-public class CucumberJavaParameterPomTarget extends DelegatePsiTarget implements PomRenameableTarget, PsiDeclaredTarget {
-  private final @NotNull String myName;
+/// Represents a navigation target from a Cucumber `ParameterType` declaration.
+///
+/// @see org.jetbrains.plugins.cucumber.java.steps.search.CucumberJavaPomDeclarationSearcher CucumberJavaPomDeclarationSearcher
+@NotNullByDefault
+public final class CucumberJavaParameterPomTarget extends DelegatePsiTarget
+  implements PomRenameableTarget<PsiElement>, PsiDeclaredTarget {
+  private final String name;
 
-  public CucumberJavaParameterPomTarget(@NotNull PsiElement element, @NotNull String name) {
+  public CucumberJavaParameterPomTarget(PsiElement element, String name) {
     super(element);
-    myName = name;
+    this.name = name;
   }
 
   @Override
-  public @NotNull String getName() {
-    return myName;
+  public String getName() {
+    return name;
   }
 
   @Override
-  public @Nullable TextRange getNameIdentifierRange() {
+  public TextRange getNameIdentifierRange() {
     PsiElement element = getNavigationElement();
     if (element instanceof PsiIdentifier) {
       // method name
@@ -38,13 +43,19 @@ public class CucumberJavaParameterPomTarget extends DelegatePsiTarget implements
   }
 
   @Override
-  public Object setName(@NotNull String newName) {
+  public @Nullable PsiElement setName(String newName) {
     PsiElement element = getNavigationElement();
     if (element instanceof PsiLiteralExpression) {
       PsiManager manager = element.getManager();
       PsiElementFactory factory = JavaPsiFacade.getInstance(manager.getProject()).getElementFactory();
       PsiElement newLiteral = factory.createExpressionFromText("\"" + newName + "\"", element);
       return element.replace(newLiteral);
+    }
+    if (element instanceof PsiIdentifier) {
+      if (element.getParent() instanceof PsiMethod method) {
+        method.setName(newName);
+        return method.getNameIdentifier();
+      }
     }
     return null;
   }

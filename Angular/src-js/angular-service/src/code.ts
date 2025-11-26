@@ -48,12 +48,15 @@ export class AngularVirtualCode implements VirtualCode {
       this.mappings = []
       transpiledTemplate.mappings.forEach(mappingSet => {
         let mappingsWithData: CodeMapping[]
-        if (ts.server.toNormalizedPath(mappingSet.fileName) === ts.server.toNormalizedPath(this.fileName)) {
+        let normalizedMappingFileName = ts.server.toNormalizedPath(mappingSet.fileName)
+        if (normalizedMappingFileName === ts.server.toNormalizedPath(this.fileName)) {
           mappingsWithData = this.mappings
         }
         else {
-          const associatedScript = ctx.getAssociatedScript(mappingSet.fileName)
-          const scriptId = associatedScript?.id
+          // Do not register source -> generated mappings for external files
+          const scriptId = mappingSet.externalFile
+            ? normalizedMappingFileName
+            : ctx.getAssociatedScript(mappingSet.fileName)?.id
           if (scriptId) {
             if (!this.associatedScriptMappings.has(scriptId)) {
               this.associatedScriptMappings.set(scriptId, [])
@@ -146,7 +149,8 @@ export class AngularVirtualCode implements VirtualCode {
       return false
     }
     else if (transpiledTemplate.mappings.find(mapping => {
-      return getNormalizedSnapshotText(ctx.getAssociatedScript(mapping.fileName)?.snapshot)
+      return !mapping.externalFile
+        && getNormalizedSnapshotText(ctx.getAssociatedScript(mapping.fileName)?.snapshot)
         !== transpiledTemplate.sourceCode[ts.server.toNormalizedPath(mapping.fileName)]
     })) {
       return false
@@ -197,7 +201,7 @@ function getNormalizedSnapshotText(snapshot: IScriptSnapshot | undefined): strin
   if (!snapshot) return ""
   if ((snapshot as any).__normalizedSnapshotText)
     return (snapshot as any).__normalizedSnapshotText
-  const result = snapshot.getText(0, snapshot.getLength()).replaceAll(/\r\n|\n\r/g, "\n");
+  const result = snapshot.getText(0, snapshot.getLength()).replace(/\r\n|\n\r/g, "\n");
   (snapshot as any).__normalizedSnapshotText = result
   return result;
 }

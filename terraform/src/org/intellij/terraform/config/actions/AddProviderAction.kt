@@ -1,4 +1,4 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.config.actions
 
 import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
@@ -9,7 +9,7 @@ import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.readAction
-import com.intellij.openapi.application.readAndWriteAction
+import com.intellij.openapi.application.readAndEdtWriteAction
 import com.intellij.openapi.command.writeCommandAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
@@ -33,7 +33,7 @@ import org.intellij.terraform.config.codeinsight.TfCompletionUtil
 import org.intellij.terraform.config.codeinsight.TfInsertHandlerService
 import org.intellij.terraform.config.codeinsight.TfModelHelper.getAllTypesForBlockByIdentifier
 import org.intellij.terraform.config.model.BlockType
-import org.intellij.terraform.config.model.TypeModel
+import org.intellij.terraform.config.model.TfTypeModel
 import org.intellij.terraform.config.model.getProviderForBlockType
 import org.intellij.terraform.hcl.HCLBundle
 import org.intellij.terraform.hcl.psi.HCLBlock
@@ -47,9 +47,9 @@ internal const val FADEOUT_TIME_MILLIS: Long = 10_000L
 
 internal class AddProviderAction(element: PsiElement) : LocalQuickFixAndIntentionActionOnPsiElement(element) {
 
-  override fun generatePreview(project: Project, editor: Editor, file: PsiFile): IntentionPreviewInfo {
+  override fun generatePreview(project: Project, editor: Editor, psiFile: PsiFile): IntentionPreviewInfo {
     val possibleTypes = (startElement as? HCLBlock)?.createSmartPointer()?.let { getAllTypesForBlockByIdentifier(it) } ?: emptyList()
-    if (possibleTypes.size == 1) return super.generatePreview(project, editor, file)
+    if (possibleTypes.size == 1) return super.generatePreview(project, editor, psiFile)
     return IntentionPreviewInfo.EMPTY
   }
 
@@ -61,14 +61,14 @@ internal class AddProviderAction(element: PsiElement) : LocalQuickFixAndIntentio
     return HCLBundle.message("action.AddProviderAction.text")
   }
 
-  override fun invoke(project: Project, file: PsiFile, editor: Editor?, startElement: PsiElement, endElement: PsiElement) {
+  override fun invoke(project: Project, psiFile: PsiFile, editor: Editor?, startElement: PsiElement, endElement: PsiElement) {
     if (editor != null && startElement is HCLBlock) {
       project.service<ImportProviderService>().scheduleAddProvider(editor, startElement.createSmartPointer())
     }
   }
 
-  override fun isAvailable(project: Project, file: PsiFile, editor: Editor?, startElement: PsiElement, endElement: PsiElement): Boolean {
-    return editor != null && isTerraformCompatiblePsiFile(file)
+  override fun isAvailable(project: Project, psiFile: PsiFile, editor: Editor?, startElement: PsiElement, endElement: PsiElement): Boolean {
+    return editor != null && isTerraformCompatiblePsiFile(psiFile)
            && startElement is HCLBlock
            && startElement.nameElements.size >= 2
   }
@@ -110,7 +110,7 @@ private class ImportProviderService(val coroutineScope: CoroutineScope) {
             HCLBundle.message("popup.content.could.not.find.bundled.provider.for",
                                                 block.getNameElementUnquoted(0) ?: "",
                                                 block.getNameElementUnquoted(1) ?: "",
-                                                TypeModel.getResourcePrefix(block.getNameElementUnquoted(1) ?: ""))
+                              TfTypeModel.getResourcePrefix(block.getNameElementUnquoted(1) ?: ""))
           }
         } ?: return@launch
         withContext(Dispatchers.EDT) {
@@ -134,8 +134,8 @@ private class ImportProviderService(val coroutineScope: CoroutineScope) {
 }
 
 internal suspend fun addRequiredProvider(commandName: @Nls String, blockType: BlockType, filePointer: SmartPsiElementPointer<PsiFile>) {
-  readAndWriteAction {
-    val file = filePointer.element ?: return@readAndWriteAction value(Unit)
+  readAndEdtWriteAction {
+    val file = filePointer.element ?: return@readAndEdtWriteAction value(Unit)
     val project = file.project
     writeCommandAction(project, commandName) {
       getProviderForBlockType(blockType)?.let { TfInsertHandlerService.getInstance(project).addRequiredProvidersBlockToConfig(it, file) }

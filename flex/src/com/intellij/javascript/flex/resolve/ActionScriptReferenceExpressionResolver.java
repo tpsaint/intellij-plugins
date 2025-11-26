@@ -1,8 +1,8 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package com.intellij.javascript.flex.resolve;
 
 import com.intellij.lang.javascript.JSConditionalCompilationDefinitionsProvider;
-import com.intellij.lang.javascript.JSStubElementTypes;
+import com.intellij.lang.javascript.JSElementTypes;
 import com.intellij.lang.javascript.JSTokenTypes;
 import com.intellij.lang.javascript.flex.XmlBackedJSClassImpl;
 import com.intellij.lang.javascript.psi.*;
@@ -68,7 +68,7 @@ public class ActionScriptReferenceExpressionResolver
 
     // nonqualified items in implements list in mxml
     if (myParent instanceof JSReferenceListMember &&
-        myParent.getParent().getNode().getElementType() == JSStubElementTypes.IMPLEMENTS_LIST &&
+        myParent.getParent().getNode().getElementType() == JSElementTypes.IMPLEMENTS_LIST &&
         myRef.getQualifier() == null &&
         myContainingFile instanceof JSFile &&
         XmlBackedJSClassImpl.isImplementsAttribute((JSFile)myContainingFile)) {
@@ -78,10 +78,11 @@ public class ActionScriptReferenceExpressionResolver
       return ResolveResult.EMPTY_ARRAY;
     }
 
-    SinkResolveProcessor<ResolveResultSink> localProcessor;
+    ResolveResultSink resultSink = new ResolveResultSink(myRef, myReferencedName);
+    ActionScriptSinkResolveProcessor<ResolveResultSink> localProcessor;
     if (myUnqualifiedOrLocalResolve) {
       final PsiElement topParent = JSResolveUtil.getTopReferenceParent(myParent);
-      localProcessor = new SinkResolveProcessor<>(myReferencedName, myRef, new ResolveResultSink(myRef, myReferencedName)) {
+      localProcessor = new ActionScriptSinkResolveProcessor<>(myReferencedName, myRef, resultSink) {
         @Override
         public boolean needPackages() {
           if (myParent instanceof JSReferenceExpression && topParent instanceof JSImportStatement) {
@@ -129,11 +130,12 @@ public class ActionScriptReferenceExpressionResolver
         ) {
         return localProcessor.getResultsAsResolveResults();
       }
-    } else {
-      final QualifiedItemProcessor<ResolveResultSink> processor =
-        new ActionScriptQualifiedItemProcessor<>(new ResolveResultSink(myRef, myReferencedName), myContainingFile);
+    }
+    else {
+      ActionScriptQualifiedItemProcessor<ResolveResultSink> processor =
+        new ActionScriptQualifiedItemProcessor<>(resultSink);
       processor.setTypeContext(JSResolveUtil.isExprInTypeContext(myRef));
-      processor.evaluateExpressionOrElementType(myQualifier, myContainingFile);
+      JSResolveUtil.evaluateQualifierType(myQualifier, myContainingFile, processor);
 
       if (processor.resolved == QualifiedItemProcessor.TypeResolveState.PrefixUnknown) {
         return dummyResult(myRef);
@@ -148,7 +150,7 @@ public class ActionScriptReferenceExpressionResolver
       }
     }
 
-    ResolveResult[] results = resolveFromIndices(localProcessor);
+    ResolveResult[] results = resolveFromIndices(localProcessor, resultSink, false, true);
 
     if (results.length == 0 && localProcessor.isEncounteredXmlLiteral()) {
       return dummyResult(myRef);
@@ -158,7 +160,7 @@ public class ActionScriptReferenceExpressionResolver
   }
 
   @Override
-  protected boolean prepareProcessor(WalkUpResolveProcessor processor, @NotNull SinkResolveProcessor<ResolveResultSink> localProcessor) {
+  protected boolean prepareProcessor(WalkUpResolveProcessor processor, @NotNull JSSinkResolveProcessor localProcessor) {
     boolean allowOnlyCompleteMatches = false;
 
     PsiElement context = processor.getContext();

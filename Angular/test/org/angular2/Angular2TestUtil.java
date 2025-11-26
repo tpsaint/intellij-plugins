@@ -3,6 +3,7 @@ package org.angular2;
 
 import com.intellij.lang.javascript.psi.JSElement;
 import com.intellij.lang.javascript.psi.ecma6.ES6Decorator;
+import com.intellij.polySymbols.testFramework.WebTestUtil;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.util.PsiTreeUtil;
@@ -11,7 +12,6 @@ import com.intellij.testFramework.fixtures.CodeInsightTestFixture;
 import com.intellij.testFramework.fixtures.IdeaTestExecutionPolicy;
 import com.intellij.util.ObjectUtils;
 import com.intellij.util.containers.ContainerUtil;
-import com.intellij.webSymbols.testFramework.WebTestUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -20,7 +20,7 @@ import java.util.List;
 import static com.intellij.lang.javascript.completion.JSLookupPriority.*;
 import static com.intellij.testFramework.UsefulTestCase.assertInstanceOf;
 import static junit.framework.TestCase.assertEquals;
-import static org.angular2.web.Angular2WebSymbolsQueryConfiguratorKt.PROP_ERROR_SYMBOL;
+import static org.angular2.web.Angular2SymbolQueryConfiguratorKt.PROP_ERROR_SYMBOL;
 
 public final class Angular2TestUtil {
 
@@ -35,10 +35,17 @@ public final class Angular2TestUtil {
   }
 
   public static String getLexerTestDirPath() {
-    return getBaseTestDataPath().substring(IdeaTestExecutionPolicy.getHomePathWithPolicy().length());
+    return getBaseTestDataPath();
   }
 
   private static String getContribPath() {
+    File f = new File("testData");
+    if (f.exists()) {
+      File parent = f.getAbsoluteFile().getParentFile();
+      if (parent.getName().equals("Angular")) {
+        return parent.getParent();
+      }
+    }
     final String homePath = IdeaTestExecutionPolicy.getHomePathWithPolicy();
     if (new File(homePath, "contrib/.gitignore").isFile()) {
       return homePath + File.separatorChar + "contrib";
@@ -84,8 +91,8 @@ public final class Angular2TestUtil {
 
   public static void assertUnresolvedReference(@NotNull String signature, @NotNull CodeInsightTestFixture fixture,
                                                Boolean okWithNoRef, Boolean allowSelfReference) {
-    var symbols = WebTestUtil.multiResolveWebSymbolReference(fixture, signature);
-    if (!symbols.isEmpty() && ContainerUtil.and(symbols, s -> s.getProperties().get(PROP_ERROR_SYMBOL) == Boolean.TRUE)) {
+    var symbols = WebTestUtil.multiResolvePolySymbolReference(fixture, signature);
+    if (!symbols.isEmpty() && ContainerUtil.and(symbols, s -> s.get(PROP_ERROR_SYMBOL) == Boolean.TRUE)) {
       return;
     }
     WebTestUtil.assertUnresolvedReference(fixture, signature, okWithNoRef, allowSelfReference);

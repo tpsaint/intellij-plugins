@@ -18,7 +18,7 @@ import junit.framework.TestCase
 import org.intellij.lang.annotations.Language
 import org.jetbrains.vuejs.lang.VueTestModule
 import org.jetbrains.vuejs.lang.configureVueDependencies
-import org.jetbrains.vuejs.lang.typescript.service.VueServiceSetActivationRule
+import org.jetbrains.vuejs.lang.typescript.service.VueLspServerActivationRule
 import org.jetbrains.vuejs.lang.typescript.service.lsp.VueLspTypeScriptService
 import org.jetbrains.vuejs.types.VueUnwrapRefType
 import org.junit.Assume
@@ -37,15 +37,13 @@ class VolarTypeScriptServiceGetElementTypeTest : TypeScriptServiceGetElementType
   )
 
   override fun setUpTypeScriptService() {
-    VueServiceSetActivationRule.markForceEnabled(true)
+    VueLspServerActivationRule.markForceEnabled(true)
     TypeScriptServiceTestMixin.setUpTypeScriptService(myFixture) {
       it is VueLspTypeScriptService
     }
   }
 
   override fun calculateType(element: PsiElement, typeRequestKind: TypeScriptTypeRequestKind): JSType? {
-    waitUntilFileOpenedByLspServer(project, file.virtualFile)
-
     return super.calculateType(element, typeRequestKind).also {
       assertInstanceOf(TypeScriptServiceHolder.getForFile(project, file.virtualFile), VueLspTypeScriptService::class.java)
     }

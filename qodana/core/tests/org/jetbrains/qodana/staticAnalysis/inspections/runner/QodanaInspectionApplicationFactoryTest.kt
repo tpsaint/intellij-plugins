@@ -43,7 +43,7 @@ class QodanaInspectionApplicationFactoryTest : HeavyPlatformTestCase() {
       "--profile-name", "NAMENAMENAME",
       "--changes",
       "--profile-path", "PATH/profile.xml",
-      "--source-directory", "PROJECT_PATH/src",
+      "--only-directory", "PROJECT_PATH/src",
       "--baseline", "/home/user/baseline/qodana.sarif.json",
       "--baseline-include-absent",
       "--disable-sanity",
@@ -60,13 +60,40 @@ class QodanaInspectionApplicationFactoryTest : HeavyPlatformTestCase() {
     assertEquals("command line", app.config.profileSource)
     assertEquals(Path.of("PROJECT_PATH/").toAbsolutePath().pathString, app.config.projectPath.toString())
     assertEquals("/OUT_PATH", app.config.outPath.invariantSeparatorsPathString)
-    assertEquals("PROJECT_PATH/src", app.config.sourceDirectory)
+    assertEquals(Path.of("PROJECT_PATH/src"), app.config.onlyDirectory)
     assertEquals(CHANGES_SCRIPT_NAME, app.config.script.name) // from --changes
     assertEquals("/home/user/baseline/qodana.sarif.json", app.config.baseline)
     assertEquals(true, app.config.includeAbsent)
     assertTrue(app.config.disableSanityInspections)
     assertEquals(1000, app.config.failureConditions.severityThresholds.any)
     assertEquals(false, app.config.runPromoInspections)
+  }
+
+  @Test
+  fun `long options - backwards compatibility`(): Unit = runBlocking {
+    val args = listOf(
+      "--source-directory", "PROJECT_PATH/src",
+      "PROJECT_PATH/",
+      "/OUT_PATH",
+    )
+
+    val app = QodanaInspectionApplicationFactory().buildApplication(args)!!
+
+    assertEquals(Path.of("PROJECT_PATH/src"), app.config.onlyDirectory)
+  }
+
+  @Test
+  fun `long options - backwards compatibility overwrite`(): Unit = runBlocking {
+    val args = listOf(
+      "--source-directory", "PROJECT_PATH/src",
+      "--only-directory", "PROJECT_PATH/src2",
+      "PROJECT_PATH/",
+      "/OUT_PATH",
+    )
+
+    val app = QodanaInspectionApplicationFactory().buildApplication(args)!!
+
+    assertEquals(Path.of("PROJECT_PATH/src2"), app.config.onlyDirectory)
   }
 
   @Test
@@ -88,7 +115,7 @@ class QodanaInspectionApplicationFactoryTest : HeavyPlatformTestCase() {
     assertEquals("command line", app.config.profileSource)
     assertEquals(Path.of("PROJECT_PATH/").toAbsolutePath().pathString, app.config.projectPath.toString())
     assertEquals("/OUT_PATH", app.config.outPath.invariantSeparatorsPathString)
-    assertEquals("PROJECT_PATH/src", app.config.sourceDirectory)
+    assertEquals(Path.of("PROJECT_PATH/src"), app.config.onlyDirectory)
     assertEquals(CHANGES_SCRIPT_NAME, app.config.script.name) // from -c
     assertEquals("/home/user/baseline/qodana.sarif.json", app.config.baseline)
   }
@@ -107,7 +134,7 @@ class QodanaInspectionApplicationFactoryTest : HeavyPlatformTestCase() {
     assertEquals(QODANA_YAML_CONFIG_FILENAME, app.config.profileSource)
     assertEquals(Path.of("PROJECT_PATH/").toAbsolutePath().pathString, app.config.projectPath.toString())
     assertEquals("/OUT_PATH", app.config.outPath.invariantSeparatorsPathString)
-    assertEquals(null, app.config.sourceDirectory)
+    assertEquals(null, app.config.onlyDirectory)
 
     assertNull(app.config.yamlFiles.effectiveQodanaYaml)
     assertNull(app.config.yamlFiles.localQodanaYaml)
@@ -252,6 +279,31 @@ class QodanaInspectionApplicationFactoryTest : HeavyPlatformTestCase() {
     val app = QodanaInspectionApplicationFactory().buildApplication(args)
     assertEquals(testProjectPath, app?.config?.yamlFiles?.effectiveQodanaYaml)
     assertEquals("empty", app?.config?.profile?.base?.name)
+  }
+
+  @Test
+  fun `deprecated failThreshold should propagate to severityThresholds any`(): Unit = runBlocking {
+    val testProjectPath = Paths.get(project.basePath!!).resolve("ftfc.qodana.yaml")
+    Paths.get(project.basePath!!).createDirectories()
+
+    testProjectPath.writeText("""
+      profile:
+        name: empty
+      failThreshold: 2
+      failureConditions:
+        testCoverageThresholds:
+          fresh: 80
+          total: 80
+    """.trimIndent(), Charsets.UTF_8, StandardOpenOption.CREATE)
+
+    val args = listOf(
+      "--config", "ftfc.qodana.yaml",
+      "${project.basePath}",
+      "/OUT_PATH",
+    )
+
+    val app = QodanaInspectionApplicationFactory().buildApplication(args)
+    assertEquals(2, app?.config?.failureConditions?.severityThresholds?.any)
   }
 
   @Test

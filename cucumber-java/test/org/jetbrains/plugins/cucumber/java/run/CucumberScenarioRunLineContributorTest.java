@@ -7,17 +7,19 @@ import com.intellij.execution.testframework.sm.runner.states.TestStateInfo;
 import com.intellij.icons.AllIcons;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
-import org.jetbrains.plugins.cucumber.java.CucumberJavaCodeInsightTestCase;
+import com.intellij.testFramework.LightProjectDescriptor;
+import com.intellij.testFramework.fixtures.BasePlatformTestCase;
+import org.jetbrains.plugins.cucumber.java.CucumberJavaTestUtil;
 import org.jetbrains.plugins.cucumber.psi.GherkinFile;
 import org.jetbrains.plugins.cucumber.run.CucumberRunLineMarkerContributor;
 
 import javax.swing.*;
 import java.util.Date;
 
-public class CucumberScenarioRunLineContributorTest extends CucumberJavaCodeInsightTestCase {
+public class CucumberScenarioRunLineContributorTest extends BasePlatformTestCase {
   private static final String myTestFeature = """
     Feature: My feature
-
+    
       Scenario: test
         Given a cat""";
 
@@ -46,10 +48,15 @@ public class CucumberScenarioRunLineContributorTest extends CucumberJavaCodeInsi
     PsiElement element = ((GherkinFile)file).getFeatures()[0].getScenarios()[0].findElementAt(0);
     checkInfo(element, AllIcons.RunConfigurations.TestState.Green2);
   }
-  
+
   private static void checkInfo(PsiElement element, Icon run) {
     RunLineMarkerContributor.Info info = new CucumberRunLineMarkerContributor().getInfo(element);
     assertNotNull(info);
     assertEquals(run, info.icon);
+  }
+
+  @Override
+  protected LightProjectDescriptor getProjectDescriptor() {
+    return CucumberJavaTestUtil.createCucumber2ProjectDescriptor();
   }
 }

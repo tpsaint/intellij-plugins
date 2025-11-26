@@ -1,4 +1,4 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.config.codeinsight
 
 import com.intellij.codeInsight.completion.CodeCompletionHandlerBase
@@ -7,7 +7,7 @@ import com.intellij.codeInsight.completion.InsertionContext
 import com.intellij.codeInspection.InspectionManager
 import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.codeInspection.ProblemsHolder
-import com.intellij.openapi.application.readAndWriteAction
+import com.intellij.openapi.application.readAndEdtWriteAction
 import com.intellij.openapi.command.writeCommandAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
@@ -33,7 +33,7 @@ import org.intellij.terraform.config.Constants.HCL_TERRAFORM_REQUIRED_PROVIDERS
 import org.intellij.terraform.config.inspection.AddResourcePropertiesFix
 import org.intellij.terraform.config.inspection.MissingPropertyVisitor
 import org.intellij.terraform.config.model.ProviderType
-import org.intellij.terraform.config.model.TypeModel
+import org.intellij.terraform.config.model.TfTypeModel
 import org.intellij.terraform.config.patterns.TfPsiPatterns.RequiredProvidersBlock
 import org.intellij.terraform.config.psi.TfElementGenerator
 import org.intellij.terraform.hcl.HCLBundle
@@ -94,10 +94,10 @@ class TfInsertHandlerService(val project: Project, val coroutineScope: Coroutine
   }
 
   private suspend fun addHCLBlockRequiredProperties(project: Project, pointer: SmartPsiElementPointer<HCLBlock>) {
-    var hasChanges: Boolean = false
+    var hasChanges = false
     withBackgroundProgress(project, HCLBundle.message("progress.title.adding.required.properties"), true) {
       do {
-        readAndWriteAction {
+        readAndEdtWriteAction {
           val fixes = processBlockInspections(pointer)
           writeCommandAction(project, HCLBundle.message("terraform.add.required.properties.command.name")) {
             hasChanges = applyFixes(fixes, project)
@@ -131,19 +131,15 @@ class TfInsertHandlerService(val project: Project, val coroutineScope: Coroutine
   @RequiresWriteLock
   internal fun addRequiredProvidersBlockToConfig(provider: ProviderType, file: PsiFile) {
     val elementGenerator = TfElementGenerator(project)
-    val terraformBlock = (TypeModel.getTerraformBlock(file)
+    val terraformBlock = (TfTypeModel.getTerraformBlock(file)
                           ?: file.addBefore(elementGenerator.createBlock(HCL_TERRAFORM_IDENTIFIER), file.firstChild)) as HCLBlock
     val requiredProvidersBlock = (PsiTreeUtil.findChildrenOfType<HCLBlock>(terraformBlock, HCLBlock::class.java).firstOrNull {
       RequiredProvidersBlock.accepts(it)
     }?: terraformBlock.`object`
       ?.addBefore(elementGenerator.createBlock(HCL_TERRAFORM_REQUIRED_PROVIDERS), terraformBlock.`object`?.lastChild)) as HCLBlock
 
-    val providerObject = elementGenerator.createObject(mapOf("source" to "\"${provider.fullName}\"", "version" to "\"${provider.version}\""))
-    val providerProperty = elementGenerator.createObjectProperty(provider.type, providerObject.text)
-
+    val providerProperty = elementGenerator.createRequiredProviderProperty(provider)
     requiredProvidersBlock.`object`?.addBefore(providerProperty, requiredProvidersBlock.`object`?.lastChild)
     CodeStyleManager.getInstance(project).reformatText(file, listOf(terraformBlock.textRange), true)
   }
-
-
 }

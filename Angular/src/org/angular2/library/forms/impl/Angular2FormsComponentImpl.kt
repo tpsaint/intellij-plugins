@@ -4,13 +4,14 @@ import com.intellij.lang.javascript.psi.JSReferenceExpression
 import com.intellij.lang.javascript.psi.JSThisExpression
 import com.intellij.lang.javascript.psi.ecma6.TypeScriptClass
 import com.intellij.lang.javascript.psi.ecma6.TypeScriptField
+import com.intellij.lang.javascript.psi.types.typescript.TSSymbolDeclaration
+import com.intellij.psi.PsiElement
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.util.AstLoadingFilter
-import com.intellij.util.asSafely
 import org.angular2.index.Angular2IndexUtil
-import org.angular2.lang.expr.Angular2Language
+import org.angular2.lang.expr.Angular2ExprDialect
 import org.angular2.library.forms.Angular2FormGroup
 import org.angular2.library.forms.Angular2FormsComponent
 
@@ -20,13 +21,16 @@ class Angular2FormsComponentImpl(private val componentClass: TypeScriptClass) : 
     reference
       .takeIf { it.qualifier == null || it.qualifier is JSThisExpression }
       ?.let {
-        if (it.language == Angular2Language || it.qualifier is JSThisExpression)
+        if (it.language is Angular2ExprDialect || it.qualifier is JSThisExpression)
           it.resolve()
         else
-          Angular2IndexUtil.resolveLocally(it)
+          Angular2IndexUtil.resolveLocally(it).singleOrNull()
       }
-      ?.asSafely<TypeScriptField>()
+      ?.getFieldFromResolveResult()
       ?.let { return getInfo().fields2Symbols[it] }
+
+  private fun PsiElement.getFieldFromResolveResult(): TypeScriptField? =
+    ((this as? TSSymbolDeclaration)?.explicitElement ?: this) as? TypeScriptField
 
   private fun getInfo(): FormsInfo {
     val componentClass = this.componentClass

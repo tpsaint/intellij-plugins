@@ -7,11 +7,10 @@ import com.intellij.codeInspection.InspectionApplicationException
 import com.intellij.ide.plugins.DisabledPluginsState
 import com.intellij.ide.plugins.PluginManager
 import com.intellij.internal.statistic.eventLog.EventLogConfiguration
-import com.intellij.internal.statistic.eventLog.StatisticsEventLogProviderUtil
-import com.intellij.internal.statistic.eventLog.validator.storage.persistence.EventLogMetadataSettingsPersistence
 import com.intellij.internal.statistic.updater.StatisticsValidationUpdatedService
 import com.intellij.internal.statistic.updater.updateValidationRules
 import com.intellij.openapi.application.ApplicationInfo
+import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.application.ex.ApplicationManagerEx
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.logger
@@ -19,6 +18,7 @@ import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.util.application
 import com.intellij.util.io.createParentDirectories
+import com.jetbrains.qodana.sarif.model.SarifReport
 import kotlinx.coroutines.*
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.qodana.QodanaBundle
@@ -32,15 +32,17 @@ import org.jetbrains.qodana.runActivityWithTiming
 import org.jetbrains.qodana.staticAnalysis.StaticAnalysisDispatchers
 import org.jetbrains.qodana.staticAnalysis.inspections.config.QodanaConfig
 import org.jetbrains.qodana.staticAnalysis.inspections.config.addQodanaAnalysisConfig
-import org.jetbrains.qodana.staticAnalysis.inspections.config.copyConfigToLog
+import org.jetbrains.qodana.staticAnalysis.inspections.config.copyConfigToDir
 import org.jetbrains.qodana.staticAnalysis.inspections.config.removeQodanaAnalysisConfig
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.startup.DefaultRunContextFactory
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.startup.QodanaRunContextFactory
+import org.jetbrains.qodana.staticAnalysis.sarif.getOrCreateRun
 import org.jetbrains.qodana.staticAnalysis.script.QodanaScriptFactory
 import org.jetbrains.qodana.staticAnalysis.stat.InspectionEventsCollector.QodanaActivityKind
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.io.path.absolute
 import kotlin.system.exitProcess
 import kotlin.time.Duration.Companion.minutes
 
@@ -71,10 +73,10 @@ class QodanaInspectionApplication(
     }
     catch (e: QodanaException) {
       LOG.error(e)
-      reporter.reportError(e)
+      reporter.reportError("Qodana exited abnormally because: ${e.message}")
       exitProcess(1)
     }
-    catch (e: ProcessCanceledException) {
+    catch (@Suppress("IncorrectCancellationExceptionHandling") e: ProcessCanceledException) {
       reporter.reportError((e.cause as? QodanaCancellationException) ?: e)
       exitProcess(1)
     }
@@ -110,9 +112,9 @@ class QodanaInspectionApplication(
       supervisorScope {
         val contextFactory = DefaultRunContextFactory(reporter, config, this)
         val runner = constructQodanaRunner(contextFactory)
-        launchRunner(runner)
+        val sarif = launchRunner(runner)
         this.coroutineContext.job.cancelChildren()
-        runner.sarifRun.firstExitStatus
+        sarif.runs.first().firstExitStatus
       }
     }
     if (status.code != 0) {
@@ -125,9 +127,6 @@ class QodanaInspectionApplication(
       withTimeout(1.minutes) {
         // wait for scheduled updated to not accidentally trigger some race condition
         service<StatisticsValidationUpdatedService>().updatedDeferred.join()
-        StatisticsEventLogProviderUtil.getEventLogProviders().forEach {
-          EventLogMetadataSettingsPersistence.getInstance().setLastModified(it.recorderId, 0)
-        }
         updateValidationRules()
       }
     }
@@ -137,9 +136,9 @@ class QodanaInspectionApplication(
   }
 
   @VisibleForTesting
-  suspend fun launchRunner(runner: QodanaRunner) {
-    copyConfigToLog(config)
-    try {
+  suspend fun launchRunner(runner: QodanaRunner): SarifReport {
+    copyConfigToDir(config)
+    val sarif = try {
       try {
         application.addQodanaAnalysisConfig(config)
         runner.run()
@@ -155,29 +154,27 @@ class QodanaInspectionApplication(
       throw e
     }
     finally {
-      withContext(NonCancellable) {
-        runner.writeFullSarifReport()
-        runner.writeShortSarifReport()
-      }
       LOG.info("sessionId: " + EventLogConfiguration.getInstance().getOrCreate("FUS").sessionId)
     }
 
-    if (!config.skipResultOutput) {
+    if (!config.skipResultStrategy.shouldSkip(sarif.getOrCreateRun())) {
       val openInIdeCloudMetadata = publishResultsToCloudIfNeeded()
       if (openInIdeCloudMetadata != null) {
         val openInIdeMetadata = OpenInIdeMetadata(
           openInIdeCloudMetadata,
-          OpenInIdeMetadata.Vcs(runner.sarif.runs?.firstOrNull()?.versionControlProvenance?.firstOrNull()?.repositoryUri?.toString())
+          OpenInIdeMetadata.Vcs(sarif.runs?.firstOrNull()?.versionControlProvenance?.firstOrNull()?.repositoryUri?.toString())
         )
         writeOpenInIdeMetadata(openInIdeMetadata, config.outPath)
       }
     }
+    return sarif
   }
 
   private suspend fun publishResultsToCloudIfNeeded(): OpenInIdeMetadata.Cloud? {
     if (projectApi == null) return null
 
     return coroutineScope {
+      copyConfigToOutputIfNeeded(config)
       val uploadedReportDeferred: Deferred<UploadedReport?> = async {
         when (val result = publishToCloud(projectApi.api, config.outPath)) {
           is PublishResult.Success -> return@async result.uploadedReport
@@ -208,6 +205,12 @@ class QodanaInspectionApplication(
         host = projectApi.frontendUrl
       )
     }
+  }
+
+  // handle case when log dir is outside results, but we still need to upload configuration to cloud
+  private suspend fun copyConfigToOutputIfNeeded(config: QodanaConfig) {
+    if (PathManager.getLogDir().startsWith(config.outPath.absolute())) return
+    copyConfigToDir(config, config.outPath)
   }
 
   private suspend fun writeOpenInIdeMetadata(openInIdeMetadata: OpenInIdeMetadata, path: Path) {

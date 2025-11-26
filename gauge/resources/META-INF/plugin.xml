@@ -4,9 +4,17 @@
   <vendor>JetBrains</vendor>
   <category>Test Tools</category>
 
-  <depends>com.intellij.java</depends>
-  <depends>com.intellij.properties</depends>
-  <depends>com.intellij.modules.json</depends>
+  <dependencies>
+    <plugin id="com.intellij.java"/>
+    <plugin id="com.intellij.modules.json"/>
+    <module name="intellij.properties.backend"/>
+    <module name="intellij.libraries.grpc.netty.shaded"/>
+  </dependencies>
+  <!--suppress PluginXmlValidity -->
+  <content namespace="jetbrains">
+    <!-- The implicit main module of the plugin depends on internal modules (intellij.libraries.grpc.netty.shaded), so it's required to set the namespace for it
+         todo: extract elements and dependencies to an explicit content module (see IJPL-212351) -->
+  </content>
 
   <depends optional="true" config-file="with-gradle.xml">org.jetbrains.plugins.gradle</depends>
   <depends optional="true" config-file="with-maven.xml">org.jetbrains.idea.maven</depends>

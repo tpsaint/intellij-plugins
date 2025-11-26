@@ -1,9 +1,9 @@
 ### auto-generated section `build intellij.clion.diagnostics` start
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_resources")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
 
-jvm_resources(
+resourcegroup(
   name = "clion-diagnostics_resources",
-  files = glob(["resources/**/*"]),
+  srcs = glob(["resources/**/*"]),
   strip_prefix = "resources"
 )
 
@@ -11,18 +11,28 @@ jvm_library(
   name = "clion-diagnostics",
   module_name = "intellij.clion.diagnostics",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java"], allow_empty = True),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form"], allow_empty = True),
+  resources = [":clion-diagnostics_resources"],
   deps = [
-    "@community//platform/core-api:core",
-    "//CIDR/clion",
-    "@community//platform/platform-util-io:ide-util-io",
-    "//platform/ssh-ui",
-    "@community//platform/core-impl",
-    "@community//platform/util-ex",
-    "@community//platform/analysis-api:analysis",
+    "//CIDR/cidr-projectModel",
+    "//CIDR/cidr-psi-base",
     "//CIDR/cidr-util",
+    "//CIDR/cidr-util/execution",
+    "//CIDR/cidr-workspaceModel",
+    "//CIDR/clion-toolchains",
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/core-api:core",
+    "@community//platform/core-impl",
+    "@community//platform/editor-ui-api:editor-ui",
     "@community//platform/platform-impl:ide-impl",
-  ],
-  runtime_deps = [":clion-diagnostics_resources"]
+    "@community//platform/platform-util-io:ide-util-io",
+    "@community//platform/projectModel-api:projectModel",
+    "@community//platform/remote-core",
+    "//platform/ssh-ui",
+    "@community//platform/util-ex",
+    "@community//platform/util/jdom",
+    "@community//libraries/kotlinx/serialization/core",
+    "@community//libraries/kotlinx/serialization/json",
+  ]
 )
 ### auto-generated section `build intellij.clion.diagnostics` end

@@ -1,29 +1,30 @@
 // Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.config.inspection
 
+import com.intellij.codeInsight.intention.LowPriorityAction
 import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.find.findUsages.PsiElement2UsageTargetAdapter
-import com.intellij.openapi.actionSystem.CommonDataKeys
-import com.intellij.openapi.actionSystem.impl.SimpleDataContext
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.editor.ex.util.EditorUtil
-import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.modcommand.ModPsiUpdater
+import com.intellij.modcommand.PsiUpdateModCommandQuickFix
+import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.pom.Navigatable
 import com.intellij.psi.*
-import com.intellij.psi.impl.source.tree.injected.InjectedLanguageUtil
-import com.intellij.refactoring.rename.RenameHandlerRegistry
 import com.intellij.usageView.UsageInfo
-import com.intellij.usages.*
-import com.intellij.util.NullableFunction
+import com.intellij.usages.UsageInfo2UsageAdapter
+import com.intellij.usages.UsageSearcher
+import com.intellij.usages.UsageViewManager
+import com.intellij.usages.UsageViewPresentation
+import com.intellij.util.text.UniqueNameGenerator
 import org.intellij.terraform.config.model.getTerraformSearchScope
 import org.intellij.terraform.config.patterns.TfPsiPatterns
 import org.intellij.terraform.hcl.HCLBundle
+import org.intellij.terraform.hcl.psi.HCLBlock
+import org.intellij.terraform.hcl.psi.HCLElement
 import org.intellij.terraform.isTerraformCompatiblePsiFile
 
 abstract class TfDuplicatedInspectionBase : LocalInspectionTool() {
@@ -41,92 +42,95 @@ abstract class TfDuplicatedInspectionBase : LocalInspectionTool() {
     return createVisitor(holder)
   }
 
-  companion object {
-    abstract class RenameQuickFix : LocalQuickFix {
-      override fun startInWriteAction(): Boolean = false
-
-      protected fun invokeRenameRefactoring(project: Project, element: PsiElement) {
-        val editor = getEditor(element, project) ?: return
-
-        val dataContext = SimpleDataContext.builder()
-          .add(CommonDataKeys.PSI_ELEMENT, element)
-          .add(CommonDataKeys.EDITOR, editor)
-          .setParent(EditorUtil.getEditorDataContext(editor))
-          .build()
-
-        val renameHandler = RenameHandlerRegistry.getInstance().getRenameHandler(dataContext)
-        renameHandler?.invoke(project, editor, element.containingFile, dataContext)
-      }
-
-      fun getEditor(element: PsiElement, project: Project): Editor? {
-        return if (InjectedLanguageUtil.findInjectionHost(element) != null)
-          InjectedLanguageUtil.openEditorFor(element.containingFile, project)
-        else
-          FileEditorManager.getInstance(project).selectedTextEditor
-      }
-    }
-  }
-
   abstract fun createVisitor(holder: ProblemsHolder): PsiElementVisitor
 
-  protected fun createNavigateToDupeFix(psiElement: PsiElement, single: Boolean): LocalQuickFix {
-    val psiPointer = psiElement.createSmartPointer()
-    return object : LocalQuickFix {
-      override fun startInWriteAction(): Boolean = false
+  fun getDefaultFixes(current: HCLElement, duplicates: List<HCLElement>): Array<LocalQuickFix> {
+    val fixes = arrayListOf<LocalQuickFix>()
 
-      override fun getFamilyName(): String {
-        val first = if (!single) HCLBundle.message("duplicated.inspection.base.navigate.to.duplicate.quick.fix.name.first") else ""
-        return HCLBundle.message("duplicated.inspection.base.navigate.to.duplicate.quick.fix.name", first)
-      }
-
-      override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
-        val element = psiPointer.element ?: return
-        if (element is Navigatable && (element as Navigatable).canNavigate()) {
-          (element as Navigatable).navigate(true)
-        }
-        else {
-          OpenFileDescriptor(project, element.containingFile.originalFile.virtualFile, element.textOffset).navigate(true)
-        }
-      }
+    val first = duplicates.firstOrNull { it != current }
+    first?.containingFile?.virtualFile?.let {
+      fixes.add(NavigateToDuplicatesQuickFix(first))
     }
+    current.containingFile?.virtualFile?.let {
+      fixes.add(ShowDuplicatesQuickFix(current, duplicates))
+    }
+
+    return fixes.toTypedArray()
   }
+}
 
-  protected fun createShowOtherDupesFix(element: PsiNamedElement, duplicates: NullableFunction<PsiElement, List<PsiElement>?>): LocalQuickFix {
+internal class NavigateToDuplicatesQuickFix(psiElement: PsiElement) : LocalQuickFix {
+  private val psiPointer = psiElement.createSmartPointer()
 
-    return object : LocalQuickFix {
-      var myTitle: String? = null
+  override fun startInWriteAction(): Boolean = false
 
-      override fun startInWriteAction(): Boolean = false
-      override fun getFamilyName(): String = HCLBundle.message("duplicated.inspection.base.show.other.duplicates.quick.fix.name")
+  override fun getFamilyName(): String = HCLBundle.message("navigate.to.duplicate.quick.fix.name")
 
-      override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
-        @Suppress("NAME_SHADOWING")
-        val duplicates = ApplicationManager.getApplication().runReadAction<List<PsiElement>?> {
-          duplicates.`fun`(descriptor.psiElement)
-        } ?: return
-
-        val presentation = UsageViewPresentation()
-        val target = PsiElement2UsageTargetAdapter(element, true)
-        if (myTitle == null) myTitle = "Duplicate of " + target.presentableText
-        val title = myTitle!!
-        presentation.searchString = title
-        presentation.tabName = title
-        presentation.tabText = title
-        val scope = descriptor.psiElement.getTerraformSearchScope()
-        presentation.scopeText = scope.displayName
-
-        UsageViewManager.getInstance(project).searchAndShowUsages(arrayOf<UsageTarget>(target), {
-          UsageSearcher { processor ->
-            val infos = ApplicationManager.getApplication().runReadAction<List<UsageInfo>> {
-              duplicates.map { dup -> UsageInfo(dup) }
-            }
-            for (info in infos) {
-              processor.process(UsageInfo2UsageAdapter(info))
-            }
-          }
-        }, false, false, presentation, null)
-      }
+  override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
+    val element = psiPointer.element ?: return
+    if ((element as? Navigatable)?.canNavigate() == true) {
+      element.navigate(true)
+    }
+    else {
+      OpenFileDescriptor(project, element.containingFile.originalFile.virtualFile, element.textOffset).navigate(true)
     }
   }
 }
 
+internal class ShowDuplicatesQuickFix(psiElement: PsiElement, duplicates: Collection<PsiElement>) : LocalQuickFix {
+  private val psiPointer: SmartPsiElementPointer<PsiElement> = psiElement.createSmartPointer()
+  private val duplicatePointers: List<SmartPsiElementPointer<PsiElement>> = duplicates.map { it.createSmartPointer() }
+
+  override fun startInWriteAction(): Boolean = false
+
+  override fun getFamilyName(): String = HCLBundle.message("show.all.duplicates.quick.fix.name")
+
+  override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
+    val element = psiPointer.element ?: return
+
+    val target = PsiElement2UsageTargetAdapter(element, true)
+    val presentation = UsageViewPresentation().apply {
+      val title = HCLBundle.message("show.duplicates.usage.view.title", target.presentableText)
+      tabName = title
+      tabText = title
+      searchString = title
+      scopeText = descriptor.psiElement.getTerraformSearchScope().displayName
+    }
+
+    val usageInfos = runReadAction {
+      duplicatePointers.mapNotNull { pointer ->
+        pointer.element?.let { UsageInfo(it) }
+      }
+    }
+    if (usageInfos.isEmpty()) return
+
+    UsageViewManager.getInstance(project).searchAndShowUsages(arrayOf(target), {
+      UsageSearcher { processor ->
+        usageInfos.forEach { processor.process(UsageInfo2UsageAdapter(it)) }
+      }
+    }, false, false, presentation, null)
+  }
+}
+
+internal class RenameBlockQuickFix : PsiUpdateModCommandQuickFix() {
+  override fun getFamilyName(): String {
+    return HCLBundle.message("rename.hcl.block.quick.fix.name")
+  }
+
+  override fun applyFix(project: Project, element: PsiElement, updater: ModPsiUpdater) {
+    val block = element as? HCLBlock ?: return
+    val currentName = block.name
+    val uniqueName = UniqueNameGenerator.generateUniqueNameOneBased(currentName) { it != currentName }
+    updater.rename(block, listOf(currentName, uniqueName))
+  }
+}
+
+internal class DeleteBlockQuickFix : PsiUpdateModCommandQuickFix(), LowPriorityAction {
+  override fun getFamilyName(): String {
+    return HCLBundle.message("delete.hcl.block.quick.fix.name")
+  }
+
+  override fun applyFix(project: Project, element: PsiElement, updater: ModPsiUpdater) {
+    (element as? HCLBlock)?.delete()
+  }
+}

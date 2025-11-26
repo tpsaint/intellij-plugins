@@ -1,20 +1,20 @@
 ### auto-generated section `build intellij.qodana.sarif` start
-load("@rules_java//java:defs.bzl", "java_library")
-load("@rules_jvm//:jvm.bzl", "jvm_resources")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
 
-jvm_resources(
+resourcegroup(
   name = "sarif_resources",
-  files = glob(["resources/**/*"]),
+  srcs = glob(["resources/**/*"]),
   strip_prefix = "resources"
 )
 
-java_library(
+jvm_library(
   name = "sarif",
   visibility = ["//visibility:public"],
-  exports = ["@ultimate_lib//:qodana-sarif"],
+  srcs = glob([], allow_empty = True),
+  resources = [":sarif_resources"],
+  exports = ["@lib//:qodana-sarif"],
   runtime_deps = [
-    ":sarif_resources",
-    "@ultimate_lib//:qodana-sarif",
+    "@lib//:qodana-sarif",
     "@community//platform/backend",
   ]
 )

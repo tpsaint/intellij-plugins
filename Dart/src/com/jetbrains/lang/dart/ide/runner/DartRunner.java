@@ -143,8 +143,7 @@ public final class DartRunner extends GenericProgramRunner {
 
     FileDocumentManager.getInstance().saveAllDocuments();
 
-    final XDebuggerManager debuggerManager = XDebuggerManager.getInstance(project);
-    final XDebugSession debugSession = debuggerManager.startSession(env, new XDebugProcessStarter() {
+    XDebugProcessStarter starter = new XDebugProcessStarter() {
       @Override
       public @NotNull XDebugProcess start(final @NotNull XDebugSession session) throws ExecutionException {
         final DartUrlResolver dartUrlResolver = getDartUrlResolver(project, contextFileOrDir);
@@ -158,9 +157,10 @@ public final class DartRunner extends GenericProgramRunner {
         debugProcess.start();
         return debugProcess;
       }
-    });
-
-    return debugSession.getRunContentDescriptor();
+    };
+    return XDebuggerManager.getInstance(project).newSessionBuilder(starter)
+      .environment(env)
+      .startSession().getRunContentDescriptor();
   }
 
   private DartUrlResolver getDartUrlResolver(final @NotNull Project project, final @NotNull VirtualFile contextFileOrDir) {

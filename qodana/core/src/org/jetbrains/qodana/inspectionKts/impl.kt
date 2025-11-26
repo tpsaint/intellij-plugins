@@ -8,13 +8,16 @@ import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.psi.PsiElementVisitor
 import com.intellij.psi.PsiFile
+import org.jetbrains.annotations.ApiStatus
 import org.jetbrains.qodana.inspectionKts.api.InspectionKts
 import org.jetbrains.qodana.inspectionKts.api.LocalInspectionImpl
 import org.jetbrains.qodana.inspectionKts.api.LocalKtsInspectionTool
 
 internal const val INSPECTIONS_KTS_GROUP_NAME = "FlexInspect"
 
-internal fun InspectionKts.asTool(exceptionReporter: (Exception) -> Unit): InspectionProfileEntry {
+@Suppress("FunctionName") // named in such way to not expose to .inspection.kts clients
+@ApiStatus.Internal
+fun InspectionKts.__asTool__(exceptionReporter: (Exception) -> Unit): InspectionProfileEntry {
   fun loggingExceptions(action: () -> Unit) {
     try {
       action.invoke()
@@ -33,13 +36,13 @@ internal fun InspectionKts.asTool(exceptionReporter: (Exception) -> Unit): Inspe
       object : LocalInspectionTool() {
         override fun isEnabledByDefault(): Boolean = true
 
-        override fun getLanguage(): String = this@asTool.language
+        override fun getLanguage(): String = this@__asTool__.language
 
         override fun getGroupDisplayName(): String = INSPECTIONS_KTS_GROUP_NAME
 
         override fun getDefaultLevel(): HighlightDisplayLevel = level
 
-        override fun getShortName(): String = this@asTool.id
+        override fun getShortName(): String = this@__asTool__.id
 
         override fun getDisplayName(): String = name
 
@@ -58,9 +61,9 @@ internal fun InspectionKts.asTool(exceptionReporter: (Exception) -> Unit): Inspe
 
           val inspection = LocalInspectionImpl(holder)
           return object : PsiElementVisitor() {
-            override fun visitFile(file: PsiFile) {
+            override fun visitFile(psiFile: PsiFile) {
               loggingExceptions {
-                tool.checker.invoke(file, inspection)
+                tool.checker.invoke(psiFile, inspection)
               }
             }
           }
@@ -73,7 +76,7 @@ internal fun InspectionKts.asTool(exceptionReporter: (Exception) -> Unit): Inspe
 
         override fun isEnabledByDefault(): Boolean = true
 
-        override fun getLanguage(): String = this@asTool.language
+        override fun getLanguage(): String = this@__asTool__.language
 
         override fun getGroupDisplayName(): String = INSPECTIONS_KTS_GROUP_NAME
 

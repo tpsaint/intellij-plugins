@@ -15,10 +15,10 @@ import java.util.function.Consumer
 
 class Angular2TypeScriptServiceProtocol(project: Project,
                                         settings: TypeScriptCompilerSettings,
-                                        readyConsumer: Consumer<*>,
                                         eventConsumer: Consumer<in JSLanguageServiceAnswer>,
+                                        serviceName: String,
                                         tsServicePath: String) :
-  TypeScriptServiceStandardOutputProtocol(project, settings, readyConsumer, eventConsumer, "AngularService", tsServicePath) {
+  TypeScriptServiceStandardOutputProtocol(project, settings, eventConsumer, serviceName, tsServicePath) {
 
   override fun createState(): TypeScriptServiceInitialStateObject {
     val state = super.createState()
@@ -44,7 +44,7 @@ class Angular2TypeScriptServiceProtocol(project: Project,
       return getPluginResource(
         this::class.java,
         "angular-service/node_modules/ws-typescript-angular-plugin",
-        if (AppMode.isDevServer()) "angular-plugin" else "Angular/gen-resources")
+        if (AppMode.isRunningFromDevBuild()) "angular-plugin" else "Angular/gen-resources")
     }
     catch (e: IOException) {
       throw RuntimeException(e)

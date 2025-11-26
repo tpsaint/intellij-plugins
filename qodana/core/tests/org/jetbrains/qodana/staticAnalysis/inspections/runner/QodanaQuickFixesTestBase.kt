@@ -7,6 +7,7 @@ import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.readText
 import org.jetbrains.qodana.staticAnalysis.inspections.config.FixesStrategy
 import org.jetbrains.qodana.staticAnalysis.inspections.config.QodanaProfileConfig
+import org.jetbrains.qodana.staticAnalysis.testFramework.QodanaRunnerTestCase
 
 
 /**
@@ -64,7 +65,7 @@ abstract class QodanaQuickFixesTestBase(private val strategy: FixesStrategy) : Q
   }
 
   private fun assertFixes() {
-    val run = manager.qodanaRunner.sarifRun
+    val run = manager.sarifRun
     val afterFixesPath = getTestDataPath("afterFixes")
 
     val projectDir = VfsUtil.findFile(qodanaConfig.projectPath, false)

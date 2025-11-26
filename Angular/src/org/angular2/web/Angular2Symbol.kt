@@ -3,21 +3,17 @@ package org.angular2.web
 
 import com.intellij.model.Pointer
 import com.intellij.openapi.project.Project
-import com.intellij.webSymbols.*
+import com.intellij.platform.backend.documentation.DocumentationTarget
+import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.PolySymbolOrigin
+import com.intellij.polySymbols.documentation.PolySymbolDocumentationTarget
+import com.intellij.psi.PsiElement
 
-interface Angular2Symbol : WebSymbol {
+interface Angular2Symbol : PolySymbol {
 
   val project: Project
 
-  val qualifiedKind: WebSymbolQualifiedKind
-
-  override val kind: SymbolKind
-    get() = qualifiedKind.kind
-
-  override val namespace: SymbolNamespace
-    get() = qualifiedKind.namespace
-
-  override val origin: WebSymbolOrigin
+  override val origin: PolySymbolOrigin
     get() = Angular2SymbolOrigin(this)
 
   override fun createPointer(): Pointer<out Angular2Symbol>

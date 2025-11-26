@@ -2,76 +2,73 @@
 package org.jetbrains.plugins.cucumber.java;
 
 import com.intellij.ide.highlighter.JavaFileType;
+import com.intellij.lang.java.JavaLanguage;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
-import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.searches.AnnotatedElementsSearch;
+import com.intellij.psi.util.CachedValueProvider;
+import com.intellij.psi.util.CachedValuesManager;
+import com.intellij.psi.util.PsiModificationTracker;
 import com.intellij.util.Query;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.cucumber.BDDFrameworkType;
 import org.jetbrains.plugins.cucumber.StepDefinitionCreator;
+import org.jetbrains.plugins.cucumber.java.steps.JavaAnnotatedStepDefinition;
 import org.jetbrains.plugins.cucumber.java.steps.JavaStepDefinitionCreator;
-import org.jetbrains.plugins.cucumber.java.steps.factory.JavaStepDefinitionFactory;
 import org.jetbrains.plugins.cucumber.steps.AbstractStepDefinition;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.List;
 
+@NotNullByDefault
 public class CucumberJavaExtension extends AbstractCucumberJavaExtension {
-  private static final String CUCUMBER_JAVA_5_STEP_DEFINITION_ANNOTATION_CLASS_NAME = "io.cucumber.java.StepDefinitionAnnotation";
-  public static final @NonNls String CUCUMBER_RUNTIME_JAVA_STEP_DEF_ANNOTATION = "cucumber.runtime.java.StepDefAnnotation";
-  public static final @NonNls String ZUCHINI_RUNTIME_JAVA_STEP_DEF_ANNOTATION = "org.zuchini.annotations.StepAnnotation";
-  private static final String[] CUCUMBER_JAVA_STEP_DEFINITION_ANNOTATION_CLASSES =
-    new String[]{CUCUMBER_JAVA_5_STEP_DEFINITION_ANNOTATION_CLASS_NAME, CUCUMBER_RUNTIME_JAVA_STEP_DEF_ANNOTATION,
-      ZUCHINI_RUNTIME_JAVA_STEP_DEF_ANNOTATION};
+  private static final Logger LOG = Logger.getInstance(CucumberJavaExtension.class);
 
   @Override
-  public @NotNull BDDFrameworkType getStepFileType() {
+  public BDDFrameworkType getStepFileType() {
     return new BDDFrameworkType(JavaFileType.INSTANCE);
   }
 
   @Override
-  public @NotNull StepDefinitionCreator getStepDefinitionCreator() {
+  public StepDefinitionCreator getStepDefinitionCreator() {
     return new JavaStepDefinitionCreator();
   }
 
   @Override
-  public List<AbstractStepDefinition> loadStepsFor(@Nullable PsiFile featureFile, @NotNull Module module) {
+  public List<AbstractStepDefinition> loadStepsFor(@Nullable PsiFile featureFile, Module module) {
     final GlobalSearchScope dependenciesScope = module.getModuleWithDependenciesAndLibrariesScope(true);
 
-    PsiClass stepDefAnnotationClass = null;
-    for (String className : CUCUMBER_JAVA_STEP_DEFINITION_ANNOTATION_CLASSES) {
-      stepDefAnnotationClass = JavaPsiFacade.getInstance(module.getProject()).findClass(className, dependenciesScope);
-      if (stepDefAnnotationClass != null) {
-        break;
-      }
-    }
-
-    if (stepDefAnnotationClass == null) {
-      return Collections.emptyList();
-    }
-
-    JavaStepDefinitionFactory stepDefinitionFactory = JavaStepDefinitionFactory.getInstance(module);
-    final List<AbstractStepDefinition> result = new ArrayList<>();
-    final Query<PsiClass> stepDefAnnotations = AnnotatedElementsSearch.searchPsiClasses(stepDefAnnotationClass, dependenciesScope);
-    for (PsiClass annotationClass : stepDefAnnotations.asIterable()) {
-      String annotationClassName = annotationClass.getQualifiedName();
-      if (annotationClass.isAnnotationType() && annotationClassName != null) {
-        final Query<PsiMethod> javaStepDefinitions = AnnotatedElementsSearch.searchPsiMethods(annotationClass, dependenciesScope);
-        for (PsiMethod stepDefMethod : javaStepDefinitions.asIterable()) {
-          List<String> annotationValues = CucumberJavaUtil.getStepAnnotationValues(stepDefMethod, annotationClassName);
-          for (String annotationValue : annotationValues) {
-            result.add(stepDefinitionFactory.buildStepDefinition(stepDefMethod, module, annotationValue));
-          }
+    final long stepLoadingStart = System.currentTimeMillis();
+    final List<AbstractStepDefinition> stepDefinitions = CachedValuesManager.getManager(module.getProject()).getCachedValue(module, () -> {
+      final var javaPsiModificationTracker = PsiModificationTracker.getInstance(module.getProject()).forLanguage(JavaLanguage.INSTANCE);
+      final Collection<PsiClass> allStepAnnotationClasses = CucumberJavaUtil.getAllStepAnnotationClasses(module, dependenciesScope);
+      final List<AbstractStepDefinition> result = new ArrayList<>();
+      for (PsiClass annotationClass : allStepAnnotationClasses) {
+        String annotationClassName = annotationClass.getQualifiedName();
+        if (annotationClass.isAnnotationType() && annotationClassName != null) {
+          final Query<PsiMethod> javaStepDefinitions = AnnotatedElementsSearch.searchPsiMethods(annotationClass, dependenciesScope);
+          result.addAll(javaStepDefinitions
+                          .allowParallelProcessing()
+                          .transforming(stepDefMethod -> CucumberJavaUtil.getCucumberStepAnnotations(stepDefMethod, annotationClassName))
+                          .mapping(annotation -> JavaAnnotatedStepDefinition.create(annotation, module))
+                          .findAll());
         }
       }
-    }
-    return result;
+      return CachedValueProvider.Result.create(result, javaPsiModificationTracker);
+    });
+    final long stepLoadingEnd = System.currentTimeMillis();
+    LOG.trace("loaded " + stepDefinitions.size() + " step definitions in " + (stepLoadingEnd - stepLoadingStart) + "ms");
+    return stepDefinitions;
+  }
+
+  @Override
+  public boolean isGherkin6Supported(Module module) {
+    return CucumberJavaVersionUtil.isCucumber60orMore(module);
   }
 }

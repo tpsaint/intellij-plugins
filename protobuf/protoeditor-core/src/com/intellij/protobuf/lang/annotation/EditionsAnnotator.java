@@ -23,7 +23,7 @@ import com.intellij.protobuf.lang.psi.*;
 import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 
-/** Annotations specific to editions >= 2023. */
+/** Annotations specific to editions files, effectively editions >= 2023 (the first edition). */
 public class EditionsAnnotator implements Annotator {
   @Override
   public void annotate(@NotNull PsiElement element, final @NotNull AnnotationHolder holder) {
@@ -34,22 +34,22 @@ public class EditionsAnnotator implements Annotator {
     }
 
     element.accept(
-        new PbVisitor() {
-          @Override
-          public void visitSyntaxStatement(@NotNull PbSyntaxStatement syntax) {
-            annotateEdition(syntax, holder);
-          }
+      new PbVisitor() {
+        @Override
+        public void visitSyntaxStatement(@NotNull PbSyntaxStatement syntax) {
+          annotateEdition(syntax, holder);
+        }
 
-          @Override
-          public void visitField(@NotNull PbField field) {
-            annotateField(field, holder);
-          }
+        @Override
+        public void visitField(@NotNull PbField field) {
+          annotateField(field, holder);
+        }
 
-          @Override
-          public void visitGroupDefinition(@NotNull PbGroupDefinition group) {
-            annotateGroupDefinition(group, holder);
-          }
-        });
+        @Override
+        public void visitGroupDefinition(@NotNull PbGroupDefinition group) {
+          annotateGroupDefinition(group, holder);
+        }
+      });
   }
 
   /*
@@ -58,13 +58,12 @@ public class EditionsAnnotator implements Annotator {
   private static void annotateEdition(PbSyntaxStatement syntax, AnnotationHolder holder) {
     SyntaxLevel syntaxLevel = syntax.getSyntaxLevel();
     var effectiveSyntaxVersion = syntaxLevel == null ? "" : syntaxLevel.getVersion();
-    if (!"2023".equals(effectiveSyntaxVersion)) {
-      holder
-          .newAnnotation(
-              HighlightSeverity.ERROR,
-              PbLangBundle.message("editions.unsupported", effectiveSyntaxVersion))
-          .range(syntax)
-          .create();
+    if (!effectiveSyntaxVersion.equals("2023") && !effectiveSyntaxVersion.equals("2024")) {
+      holder.newAnnotation(
+          HighlightSeverity.ERROR,
+          PbLangBundle.message("editions.unsupported", effectiveSyntaxVersion))
+        .range(syntax)
+        .create();
     }
   }
 
@@ -77,12 +76,11 @@ public class EditionsAnnotator implements Annotator {
     }
     PbFieldLabel label = field.getDeclaredLabel();
     if (label != null && !label.getText().equals("repeated")) {
-      holder
-          .newAnnotation(
-              HighlightSeverity.ERROR,
-              PbLangBundle.message("editions.field.label." + label.getText()))
-          .range(label)
-          .create();
+      holder.newAnnotation(
+          HighlightSeverity.ERROR,
+          PbLangBundle.message("editions.field.label." + label.getText()))
+        .range(label)
+        .create();
     }
   }
 
@@ -90,9 +88,8 @@ public class EditionsAnnotator implements Annotator {
    * Group syntax is not allowed
    */
   private static void annotateGroupDefinition(PbGroupDefinition group, AnnotationHolder holder) {
-    holder
-        .newAnnotation(HighlightSeverity.ERROR, PbLangBundle.message("editions.group.invalid"))
-        .range(group)
-        .create();
+    holder.newAnnotation(HighlightSeverity.ERROR, PbLangBundle.message("editions.group.invalid"))
+      .range(group)
+      .create();
   }
 }

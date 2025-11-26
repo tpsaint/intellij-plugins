@@ -10,15 +10,14 @@ import com.intellij.util.Processor
 import org.angular2.lang.expr.Angular2Language
 import org.angular2.lang.html.Angular2HtmlLanguage
 
-object Angular2TemplateScopesResolver {
-
+internal object Angular2TemplateScopesResolver {
   @JvmStatic
   fun getScopes(element: PsiElement, providers: List<Angular2TemplateScopesProvider>? = null): List<Angular2TemplateScope> {
     val original = CompletionUtil.getOriginalOrSelf(element)
     if (!checkLanguage(original)) {
       return emptyList()
     }
-    val expressionIsInjected = original.containingFile.language.`is`(Angular2Language)
+    val expressionIsInjected = original.containingFile.language.isKindOf(Angular2Language)
     val hostElement: PsiElement?
     if (expressionIsInjected) {
       //we are working within injection
@@ -44,8 +43,10 @@ object Angular2TemplateScopesResolver {
   }
 
   private fun checkLanguage(element: PsiElement): Boolean {
-    return (element.language.`is`(Angular2Language)
-            || element.language.isKindOf(Angular2HtmlLanguage) || element.parent != null && (element.parent.language.`is`(
-      Angular2Language) || element.parent.language.isKindOf(Angular2HtmlLanguage)))
+    return (element.language.isKindOf(Angular2Language)
+            || element.language.isKindOf(Angular2HtmlLanguage
+    ) || element.parent != null && (
+              element.parent.language.isKindOf(Angular2Language)
+              || element.parent.language.isKindOf(Angular2HtmlLanguage)))
   }
 }

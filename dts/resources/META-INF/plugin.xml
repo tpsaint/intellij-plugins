@@ -1,20 +1,24 @@
-<idea-plugin>
+<idea-plugin allow-bundled-update="true">
   <id>com.intellij.dts</id>
   <name>Devicetree</name>
   <vendor>JetBrains</vendor>
 
   <description>Provides support for Devicetree (*.dts) files and Devicetree Include (*.dtsi) files</description>
 
-  <depends>com.intellij.modules.platform</depends>
+  <dependencies>
+    <plugin id="com.intellij.modules.platform"/>
+  </dependencies>
 
-  <depends optional="true" config-file="dts-withCLion.xml">com.intellij.modules.clion</depends>
+  <content namespace="jetbrains">
+    <module name="intellij.dts.cmake"/>
+  </content>
 
   <resource-bundle>messages.DtsBundle</resource-bundle>
 
   <extensionPoints>
     <extensionPoint
       qualifiedName="com.intellij.clion.dtsUtil"
-      interface="com.intellij.dts.clion.DtsCLionUtil"
+      interface="com.intellij.dts.cmake.DtsCMakeUtil"
       dynamic="true"/>
     <extensionPoint interface="com.intellij.dts.settings.DtsSettingsDisabler" dynamic="true" name="settings.disabler"/>
   </extensionPoints>

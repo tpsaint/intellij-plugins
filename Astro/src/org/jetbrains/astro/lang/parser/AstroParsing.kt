@@ -4,7 +4,10 @@ package org.jetbrains.astro.lang.parser
 import com.intellij.lang.PsiBuilder
 import com.intellij.lang.PsiBuilder.Marker
 import com.intellij.lang.html.HtmlParsing
-import com.intellij.lang.javascript.*
+import com.intellij.lang.javascript.JSElementTypes
+import com.intellij.lang.javascript.JSTokenTypes
+import com.intellij.lang.javascript.JavaScriptParserBundle
+import com.intellij.lang.javascript.JavascriptLanguage
 import com.intellij.lang.javascript.ecmascript6.parsing.TypeScriptExpressionParser
 import com.intellij.lang.javascript.ecmascript6.parsing.TypeScriptParser
 import com.intellij.lang.javascript.ecmascript6.parsing.TypeScriptStatementParser
@@ -17,10 +20,12 @@ import com.intellij.psi.xml.XmlElementType
 import com.intellij.psi.xml.XmlTokenType
 import com.intellij.util.containers.Stack
 import com.intellij.xml.parsing.XmlParserBundle
+import com.intellij.xml.parsing.XmlParserBundle.message
 import org.jetbrains.astro.AstroBundle
 import org.jetbrains.astro.lang.AstroLanguage
 import org.jetbrains.astro.lang.lexer.AstroLexer
 import org.jetbrains.astro.lang.lexer.AstroTokenTypes
+import org.jetbrains.astro.lang.parser.AstroElementTypes.ASTRO_RAW_TEXT
 
 
 class AstroParsing(builder: PsiBuilder) : HtmlParsing(builder), JSXmlParser {
@@ -33,7 +38,7 @@ class AstroParsing(builder: PsiBuilder) : HtmlParsing(builder), JSXmlParser {
     currentToken === XmlTokenType.XML_START_TAG_START
 
   override fun parseDocument() {
-    builder.enforceCommentTokens(JSTokenTypes.COMMENTS)
+    builder.enforceCommentTokens(JSElementTypes.COMMENTS)
     val embeddedContent = builder.mark()
 
     while (token().let { it === XmlTokenType.XML_REAL_WHITE_SPACE || it === XmlTokenType.XML_COMMENT_CHARACTERS })
@@ -123,7 +128,7 @@ class AstroParsing(builder: PsiBuilder) : HtmlParsing(builder), JSXmlParser {
 
   override fun shouldContinueParsingTag(): Boolean {
     val token = token()
-    if (token === JSTokenTypes.XML_LBRACE || token is JSEmbeddedContentElementType) return true
+    if (token === JSTokenTypes.XML_LBRACE || token is JSEmbeddedContentElementType || token === ASTRO_RAW_TEXT) return true
     if (builder.hasJSToken()) return false
     if (token === XmlTokenType.XML_START_TAG_START) return true
     return stackSize() == 0 || hasTags()
@@ -216,10 +221,10 @@ class AstroParsing(builder: PsiBuilder) : HtmlParsing(builder), JSXmlParser {
           attributeName.collapse(XmlTokenType.XML_NAME)
           advance()
           parseAttributeValue()
-          attributeName.precede().done(JSStubElementTypes.XML_ATTRIBUTE)
+          attributeName.precede().done(JSElementTypes.XML_ATTRIBUTE)
         }
         else {
-          attributeName.done(JSStubElementTypes.XML_ATTRIBUTE)
+          attributeName.done(JSElementTypes.XML_ATTRIBUTE)
         }
       }
     }
@@ -241,6 +246,11 @@ class AstroParsing(builder: PsiBuilder) : HtmlParsing(builder), JSXmlParser {
 
   override fun isSingleTag(tagInfo: HtmlTagInfo): Boolean {
     return !AstroLexer.isPossiblyComponentTag(tagInfo.originalName) && super.isSingleTag(tagInfo)
+  }
+
+  fun parseEmbeddedExpression() {
+    (tsxParser.expressionParser as AstroTypeScriptExpressionParser)
+      .parseExpression(true, false)
   }
 
   private fun parseJsxExpression(supportsNestedTemplateLiterals: Boolean, supportsEmptyExpression: Boolean) {
@@ -270,10 +280,10 @@ class AstroParsing(builder: PsiBuilder) : HtmlParsing(builder), JSXmlParser {
       incomplete: Boolean,
     ) {
       if (beforeMarker == null) {
-        expressionStart.done(JSStubElementTypes.EMBEDDED_EXPRESSION)
+        expressionStart.done(JSElementTypes.EMBEDDED_EXPRESSION)
       }
       else {
-        expressionStart.doneBefore(JSStubElementTypes.EMBEDDED_EXPRESSION, beforeMarker)
+        expressionStart.doneBefore(JSElementTypes.EMBEDDED_EXPRESSION, beforeMarker)
       }
     }
   }
@@ -318,9 +328,20 @@ class AstroParsing(builder: PsiBuilder) : HtmlParsing(builder), JSXmlParser {
             if (builder.tokenType === JSTokenTypes.XML_END_TAG_START) {
               val footer = builder.mark()
               builder.advanceLexer()
-              parseEndTagName()
-              if (token() === XmlTokenType.XML_TAG_END) builder.advanceLexer()
-              footer.error(XmlParserBundle.message("xml.parsing.closing.tag.matches.nothing"))
+              val name = parseEndTagName()
+              if (name != null) {
+                val endTagName = normalizeTagName(name)
+                if (!isTagFurtherInStack(endTagName)) {
+                  if (token() === XmlTokenType.XML_TAG_END) builder.advanceLexer()
+                  footer.error(message("xml.parsing.closing.tag.matches.nothing"))
+                } else {
+                  footer.rollbackTo()
+                  break
+                }
+              } else {
+                error(message("xml.parsing.closing.tag.name.missing"))
+                footer.drop()
+              }
             }
             else if (!parseArgument()) {
               builder.advanceLexer()
@@ -337,6 +358,18 @@ class AstroParsing(builder: PsiBuilder) : HtmlParsing(builder), JSXmlParser {
       withNestedTemplateLiteralsSupport(false) {
         parseStringTemplate()
       }
+    }
+
+    private fun isTagFurtherInStack(endTagName: String): Boolean {
+      var result = false
+      processStackItems { item ->
+        when (item) {
+          is HtmlTagInfo -> (item.normalizedName == endTagName).also { result = it }
+          is AstroExpressionItem -> true
+          else -> false
+        }
+      }
+      return result
     }
 
     private fun withNestedTemplateLiteralsSupport(enabled: Boolean, action: () -> Unit) {

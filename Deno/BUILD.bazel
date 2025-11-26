@@ -1,15 +1,15 @@
 ### auto-generated section `build intellij.deno` start
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_resources", "jvm_test")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
 
-jvm_resources(
+resourcegroup(
   name = "deno_resources",
-  files = glob(["resources/**/*"]),
+  srcs = glob(["resources/**/*"]),
   strip_prefix = "resources"
 )
 
-jvm_resources(
+resourcegroup(
   name = "deno_resources_1",
-  files = glob(["gen-resources/**/*"]),
+  srcs = glob(["gen-resources/**/*"]),
   strip_prefix = "gen-resources"
 )
 
@@ -17,76 +17,85 @@ jvm_library(
   name = "deno",
   module_name = "intellij.deno",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java", "gen/**/*.kt", "gen/**/*.java"], allow_empty = True),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form", "gen/**/*.kt", "gen/**/*.java"], allow_empty = True),
+  resources = [
+    ":deno_resources",
+    ":deno_resources_1",
+  ],
   deps = [
-    "@lib//:guava",
-    "@lib//:gson",
+    "@community//libraries/guava",
+    "@community//libraries/gson",
     "@ultimate_lib//:eclipse-lsp4j",
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/core-api:core",
+    "@community//platform/editor-ui-api:editor-ui",
+    "@community//platform/execution-impl",
     "@community//platform/platform-impl:ide-impl",
     "@community//platform/ide-core-impl",
-    "//plugins/JavaScriptLanguage:javascript",
-    "//plugins/JavaScriptLanguage:javascript-impl",
+    "//plugins/JavaScriptLanguage:javascript-backend",
     "//plugins/JavaScriptLanguage/javascript-parser",
+    "@community//platform/indexing-api:indexing",
+    "@community//platform/lang-core",
     "@community//platform/lang-impl",
     "@community//platform/lang-api:lang",
+    "@community//platform/projectModel-api:projectModel",
     "@community//platform/xdebugger-api:debugger",
-    "//plugins/JavaScriptDebugger:javascript-debugger",
-    "//plugins/JavaScriptDebugger/backend:javascript-debugger-backend",
-    "//plugins/JavaScriptDebugger/ChromeConnector:javascript-chrome-connector",
+    "//plugins/JavaScriptDebugger/backend",
     "@community//platform/core-ui",
     "@community//platform/platform-util-io:ide-util-io",
     "//platform/lsp-impl",
     "@community//platform/workspace/jps",
     "@community//platform/backend/workspace",
-  ],
-  runtime_deps = [
-    ":deno_resources",
-    ":deno_resources_1",
+    "@community//platform/workspace/storage",
   ]
 )
 
 jvm_library(
   name = "deno_test_lib",
   visibility = ["//visibility:public"],
-  srcs = glob(["test/src/**/*.kt", "test/src/**/*.java"], allow_empty = True),
+  srcs = glob(["test/src/**/*.kt", "test/src/**/*.java", "test/src/**/*.form"], allow_empty = True),
   associates = [":deno"],
   deps = [
-    "@lib//:guava",
-    "@lib//:gson",
+    "@community//libraries/guava",
+    "@community//libraries/gson",
     "@ultimate_lib//:eclipse-lsp4j",
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/core-api:core",
+    "@community//platform/editor-ui-api:editor-ui",
+    "@community//platform/execution-impl",
     "@community//platform/platform-impl:ide-impl",
-    "@community//platform/platform-impl:ide-impl_test_lib",
     "@community//platform/ide-core-impl",
-    "//plugins/JavaScriptLanguage:javascript",
-    "//plugins/JavaScriptLanguage:javascript-impl",
+    "//plugins/JavaScriptLanguage:javascript-backend",
     "//plugins/JavaScriptLanguage/javascript-parser",
+    "@community//platform/indexing-api:indexing",
+    "@community//platform/lang-core",
     "@community//platform/lang-impl",
     "@community//platform/lang-api:lang",
+    "@community//platform/projectModel-api:projectModel",
     "@community//platform/testFramework",
     "@community//platform/testFramework:testFramework_test_lib",
     "//plugins/JavaScriptLanguage:javascript-testFramework",
     "//platform/lsp/testFramework",
     "//plugins/JavaScriptLanguage:javascript-tests_test_lib",
     "@community//platform/xdebugger-api:debugger",
-    "//plugins/JavaScriptDebugger:javascript-debugger",
-    "//plugins/JavaScriptDebugger/backend:javascript-debugger-backend",
-    "//plugins/JavaScriptDebugger/ChromeConnector:javascript-chrome-connector",
+    "//plugins/JavaScriptDebugger/backend",
     "@community//platform/core-ui",
     "@community//platform/platform-util-io:ide-util-io",
     "//platform/lsp-impl",
     "//platform/lsp-impl:lsp-impl_test_lib",
     "@community//platform/workspace/jps",
     "@community//platform/backend/workspace",
+    "@community//platform/workspace/storage",
     "@community//platform/core-impl",
-  ],
-  runtime_deps = [
-    ":deno_resources",
-    ":deno_resources_1",
   ]
 )
+### auto-generated section `build intellij.deno` end
 
-jvm_test(
+### auto-generated section `test intellij.deno` start
+load("@community//build:tests-options.bzl", "jps_test")
+
+jps_test(
   name = "deno_test",
   runtime_deps = [":deno_test_lib"]
 )
-### auto-generated section `build intellij.deno` end
+### auto-generated section `test intellij.deno` end

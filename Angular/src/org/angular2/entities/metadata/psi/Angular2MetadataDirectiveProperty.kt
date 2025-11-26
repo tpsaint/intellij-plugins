@@ -1,8 +1,8 @@
 // Copyright 2000-2022 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.angular2.entities.metadata.psi
 
+import com.intellij.polySymbols.js.apiStatus
 import com.intellij.javascript.web.js.WebJSTypesUtil.wrapWithUndefinedIfOptional
-import com.intellij.javascript.webSymbols.apiStatus
 import com.intellij.lang.javascript.evaluation.JSTypeEvaluationLocationProvider.withTypeEvaluationLocation
 import com.intellij.lang.javascript.psi.JSElementBase
 import com.intellij.lang.javascript.psi.JSRecordType
@@ -11,25 +11,24 @@ import com.intellij.lang.javascript.psi.ecma6.TypeScriptClass
 import com.intellij.model.Pointer
 import com.intellij.openapi.util.NullableLazyValue
 import com.intellij.openapi.util.NullableLazyValue.lazyNullable
+import com.intellij.polySymbols.PolySymbolApiStatus
+import com.intellij.polySymbols.PolySymbolQualifiedKind
+import com.intellij.polySymbols.search.PsiSourcedPolySymbol
+import com.intellij.polySymbols.utils.coalesceApiStatus
+import com.intellij.polySymbols.utils.coalesceWith
 import com.intellij.psi.PsiElement
 import com.intellij.psi.createSmartPointer
 import com.intellij.util.asSafely
-import com.intellij.webSymbols.PsiSourcedWebSymbol
-import com.intellij.webSymbols.WebSymbolApiStatus
-import com.intellij.webSymbols.WebSymbolQualifiedKind
-import com.intellij.webSymbols.utils.coalesceApiStatus
-import com.intellij.webSymbols.utils.coalesceWith
 import org.angular2.codeInsight.Angular2LibrariesHacks
 import org.angular2.entities.Angular2ClassBasedDirectiveProperty
 import org.angular2.entities.Angular2EntityUtils
-import java.util.*
 
 class Angular2MetadataDirectiveProperty internal constructor(
   private val myOwner: Angular2MetadataClassBase<*>,
   private val myFieldName: String,
   override val name: String,
-  override val qualifiedKind: WebSymbolQualifiedKind,
-) : Angular2ClassBasedDirectiveProperty, PsiSourcedWebSymbol {
+  override val qualifiedKind: PolySymbolQualifiedKind,
+) : Angular2ClassBasedDirectiveProperty, PsiSourcedPolySymbol {
 
   private val mySignature: NullableLazyValue<JSRecordType.PropertySignature> =
     lazyNullable { myOwner.getPropertySignature(myFieldName) }
@@ -47,7 +46,7 @@ class Angular2MetadataDirectiveProperty internal constructor(
   override val isSignalProperty: Boolean
     get() = false
 
-  override val apiStatus: WebSymbolApiStatus
+  override val apiStatus: PolySymbolApiStatus
     get() = coalesceApiStatus(mySignature.value?.memberSource?.allSourceElements) { (it as? JSElementBase)?.apiStatus }
       .coalesceWith(myOwner.sourceElement.asSafely<JSElementBase>()?.apiStatus)
 
@@ -87,11 +86,15 @@ class Angular2MetadataDirectiveProperty internal constructor(
     val property = other as Angular2MetadataDirectiveProperty?
     return myFieldName == property!!.myFieldName &&
            name == property.name &&
-           kind == property.kind &&
+           qualifiedKind == property.qualifiedKind &&
            myOwner == property.myOwner
   }
 
   override fun hashCode(): Int {
-    return Objects.hash(myFieldName, name, kind, myOwner)
+    var result = myFieldName.hashCode()
+    result = 31 * result + name.hashCode()
+    result = 31 * result + qualifiedKind.hashCode()
+    result = 31 * result + myOwner.hashCode()
+    return result
   }
 }

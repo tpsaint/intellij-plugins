@@ -8,11 +8,11 @@ import com.intellij.openapi.module.ModuleUtilCore;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiFile;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.cucumber.BDDFrameworkType;
 import org.jetbrains.plugins.cucumber.CucumberJvmExtensionPoint;
-import org.jetbrains.plugins.cucumber.CucumberUtil;
 import org.jetbrains.plugins.cucumber.OptionalStepDefinitionExtensionPoint;
 import org.jetbrains.plugins.cucumber.inspections.CucumberStepDefinitionCreationContext;
 import org.jetbrains.plugins.cucumber.psi.GherkinFile;
@@ -21,62 +21,70 @@ import org.jetbrains.plugins.cucumber.psi.GherkinStep;
 import java.util.*;
 import java.util.regex.Pattern;
 
-
+@NotNullByDefault
 public final class CucumberStepHelper {
-  private static final Logger LOG = Logger.getInstance(CucumberStepHelper.class.getName());
+  private static final Logger LOG = Logger.getInstance(CucumberStepHelper.class);
 
-  /**
-   * Creates a file that will contain step definitions
-   *
-   * @param dir                      container for created file
-   * @param fileNameWithoutExtension name of the file with out "." and extension
-   * @param frameworkType            type of file to create
-   */
-  public static PsiFile createStepDefinitionFile(final @NotNull PsiDirectory dir,
-                                                 final @NotNull String fileNameWithoutExtension,
-                                                 final @NotNull BDDFrameworkType frameworkType) {
+  /// Creates a file that will contain step definitions.
+  ///
+  /// @param dir                      container for a created file
+  /// @param fileNameWithoutExtension name of the file without "." and extension
+  /// @param frameworkType            type of file to create
+  public static @Nullable PsiFile createStepDefinitionFile(PsiDirectory dir,
+                                                           String fileNameWithoutExtension,
+                                                           BDDFrameworkType frameworkType) {
     final CucumberJvmExtensionPoint ep = getExtensionMap().get(frameworkType);
     if (ep == null) {
-      LOG.error(String.format("Unsupported step definition file type %s", frameworkType.toString()));
+      LOG.error(String.format("Unsupported step definition file type %s", frameworkType));
       return null;
     }
 
     return ep.getStepDefinitionCreator().createStepDefinitionContainer(dir, fileNameWithoutExtension);
   }
 
-  public static boolean validateNewStepDefinitionFileName(@NotNull Project project,
-                                                          final @NotNull String fileName,
-                                                          final @NotNull BDDFrameworkType frameworkType) {
+  public static boolean validateNewStepDefinitionFileName(Project project, String fileName, BDDFrameworkType frameworkType) {
     final CucumberJvmExtensionPoint ep = getExtensionMap().get(frameworkType);
-    assert ep != null;
+    if (ep == null) {
+      LOG.error(String.format("No extension point registered for framework type %s", frameworkType));
+      return false;
+    }
     return ep.getStepDefinitionCreator().validateNewStepDefinitionFileName(project, fileName);
   }
 
-
-  /**
-   * Searches for ALL step definitions, groups it by step definition class and sorts by pattern size.
-   * For each step definition class it finds the largest pattern.
-   *
-   * @param featureFile file with steps
-   * @param step        step itself
-   * @return definitions
-   */
-  public static @NotNull Collection<AbstractStepDefinition> findStepDefinitions(final @NotNull PsiFile featureFile, final @NotNull GherkinStep step) {
+  /// Searches for all step definitions that are available from `featureFile` and returns them.
+  ///
+  /// @see CucumberJvmExtensionPoint#loadStepsFor(PsiFile, Module)
+  public static Collection<AbstractStepDefinition> findAllStepDefinitions(PsiFile featureFile) {
     final Module module = ModuleUtilCore.findModuleForPsiElement(featureFile);
     if (module == null) {
       return Collections.emptyList();
     }
-    String substitutedName = step.getSubstitutedName();
+    return loadStepsFor(featureFile, module);
+  }
+
+  /// Searches for all step definitions that [match][AbstractStepDefinition#matches] `step`,
+  /// groups them by step definition class, and sorts them by pattern size.
+  /// For each step definition class it finds the largest pattern.
+  ///
+  /// @param featureFile file with steps
+  /// @param step        step itself
+  public static Collection<AbstractStepDefinition> findStepDefinitions(PsiFile featureFile, GherkinStep step) {
+    final Module module = ModuleUtilCore.findModuleForPsiElement(featureFile);
+    if (module == null) {
+      return Collections.emptyList();
+    }
+
+    final String substitutedName = step.getSubstitutedName();
     if (substitutedName == null) {
       return Collections.emptyList();
     }
 
-    Map<Class<? extends AbstractStepDefinition>, AbstractStepDefinition> definitionsByClass =
-      new HashMap<>();
-    List<AbstractStepDefinition> allSteps = loadStepsFor(featureFile, module);
+    final Map<Class<? extends AbstractStepDefinition>, AbstractStepDefinition> definitionsByClass = new HashMap<>();
+    final List<AbstractStepDefinition> allSteps = loadStepsFor(featureFile, module);
 
-    for (AbstractStepDefinition stepDefinition : allSteps) {
-      if (stepDefinition != null && stepDefinition.matches(substitutedName) && stepDefinition.supportsStep(step)) {
+    for (final AbstractStepDefinition stepDefinition : allSteps) {
+      final boolean matches = stepDefinition.matches(substitutedName);
+      if (matches && stepDefinition.supportsStep(step)) {
         final Pattern currentLongestPattern = getPatternByDefinition(definitionsByClass.get(stepDefinition.getClass()));
         final Pattern newPattern = getPatternByDefinition(stepDefinition);
         final int newPatternLength = ((newPattern != null) ? newPattern.pattern().length() : -1);
@@ -85,27 +93,15 @@ public final class CucumberStepHelper {
         }
       }
     }
+
     return definitionsByClass.values();
   }
 
-  /**
-   * Returns pattern from step definition (if exists)
-   *
-   * @param definition step definition
-   * @return pattern or null if does not exist
-   */
-  private static @Nullable Pattern getPatternByDefinition(final @Nullable AbstractStepDefinition definition) {
-    if (definition == null) {
-      return null;
-    }
-    return definition.getPattern();
-  }
-
   // ToDo: use binary search here
-  public static List<AbstractStepDefinition> findStepDefinitionsByPattern(final @NotNull String pattern, final @NotNull Module module) {
+  public static List<AbstractStepDefinition> findStepDefinitionsByPattern(String pattern, Module module) {
     final List<AbstractStepDefinition> allSteps = loadStepsFor(null, module);
     final List<AbstractStepDefinition> result = new ArrayList<>();
-    for (AbstractStepDefinition stepDefinition : allSteps) {
+    for (final AbstractStepDefinition stepDefinition : allSteps) {
       final String elementText = stepDefinition.getCucumberRegex();
       if (elementText != null && elementText.equals(pattern)) {
         result.add(stepDefinition);
@@ -114,28 +110,11 @@ public final class CucumberStepHelper {
     return result;
   }
 
-  public static List<AbstractStepDefinition> getAllStepDefinitions(final @NotNull PsiFile featureFile) {
-    final Module module = ModuleUtilCore.findModuleForPsiElement(featureFile);
-    if (module == null) return Collections.emptyList();
-    return loadStepsFor(featureFile, module);
-  }
-
-
-  private static List<AbstractStepDefinition> loadStepsFor(final @Nullable PsiFile featureFile, final @NotNull Module module) {
-    ArrayList<AbstractStepDefinition> result = new ArrayList<>();
-
-    for (CucumberJvmExtensionPoint extension : getCucumberExtensions()) {
-      result.addAll(CucumberUtil.loadFrameworkSteps(extension, featureFile, module));
-    }
-    return result;
-  }
-
-  public static Set<CucumberStepDefinitionCreationContext> getStepDefinitionContainers(final @NotNull GherkinFile featureFile) {
-    Set<CucumberStepDefinitionCreationContext> result = new HashSet<>();
-    for (CucumberJvmExtensionPoint ep : getCucumberExtensions()) {
+  public static Set<CucumberStepDefinitionCreationContext> getStepDefinitionContainers(GherkinFile featureFile) {
+    final Set<CucumberStepDefinitionCreationContext> result = new HashSet<>();
+    for (final CucumberJvmExtensionPoint ep : CucumberJvmExtensionPoint.EP_NAME.getExtensionList()) {
       // Skip if framework file creation support is optional
-      if ((ep instanceof OptionalStepDefinitionExtensionPoint) &&
-          !((OptionalStepDefinitionExtensionPoint)ep).participateInStepDefinitionCreation(featureFile)) {
+      if ((ep instanceof OptionalStepDefinitionExtensionPoint point) && !point.participateInStepDefinitionCreation(featureFile)) {
         continue;
       }
       final Collection<? extends PsiFile> psiFiles = ep.getStepDefinitionContainers(featureFile);
@@ -148,30 +127,68 @@ public final class CucumberStepHelper {
   }
 
   public static Map<BDDFrameworkType, CucumberJvmExtensionPoint> getExtensionMap() {
-    HashMap<BDDFrameworkType, CucumberJvmExtensionPoint> result = new HashMap<>();
-    for (CucumberJvmExtensionPoint e : getCucumberExtensions()) {
-      result.put(e.getStepFileType(), e);
+    final HashMap<BDDFrameworkType, CucumberJvmExtensionPoint> result = new HashMap<>();
+    for (final CucumberJvmExtensionPoint ep : CucumberJvmExtensionPoint.EP_NAME.getExtensionList()) {
+      result.put(ep.getStepFileType(), ep);
     }
     return result;
   }
 
-  public static List<CucumberJvmExtensionPoint> getCucumberExtensions() {
-    return CucumberJvmExtensionPoint.EP_NAME.getExtensionList();
-  }
-
-  public static int getExtensionCount() {
-    return getCucumberExtensions().size();
-  }
-
-  public static boolean isGherkin6Supported(@NotNull Module module) {
+  public static boolean isGherkin6Supported(Module module) {
     if (ApplicationManager.getApplication().isUnitTestMode()) {
       return true;
     }
-    for (CucumberJvmExtensionPoint ep : getCucumberExtensions()) {
+    for (final CucumberJvmExtensionPoint ep : CucumberJvmExtensionPoint.EP_NAME.getExtensionList()) {
       if (ep.isGherkin6Supported(module)) {
         return true;
       }
     }
     return false;
   }
+
+  @Contract("null -> null")
+  private static @Nullable Pattern getPatternByDefinition(@Nullable AbstractStepDefinition definition) {
+    if (definition == null) {
+      return null;
+    }
+    return definition.getPattern();
+  }
+
+  /// Returns all step definitions available from `featureFile`.
+  ///
+  /// This is a helper method that calls [AbstractCucumberExtension#loadStepsFor] of all installed language-specific Cucumber plugins.
+  private static List<AbstractStepDefinition> loadStepsFor(@Nullable PsiFile featureFile, Module module) {
+    final ArrayList<AbstractStepDefinition> result = new ArrayList<>();
+    for (final CucumberJvmExtensionPoint ep : CucumberJvmExtensionPoint.EP_NAME.getExtensionList()) {
+      result.addAll(ep.loadStepsFor(featureFile, module));
+    }
+    return result;
+  }
+
+  //region Deprecated and to be removed
+
+  /// @deprecated Use [#findAllStepDefinitions(PsiFile)] instead.
+  @SuppressWarnings("JavaExistingMethodCanBeUsed")
+  @Deprecated(forRemoval = true)
+  public static List<AbstractStepDefinition> getAllStepDefinitions(PsiFile featureFile) {
+    final Module module = ModuleUtilCore.findModuleForPsiElement(featureFile);
+    if (module == null) {
+      return Collections.emptyList();
+    }
+    return loadStepsFor(featureFile, module);
+  }
+
+  /// @deprecated Use `CucumberJvmExtensionPoint.EP_NAME.getExtensionList()` directly.
+  @Deprecated(forRemoval = true)
+  public static List<CucumberJvmExtensionPoint> getCucumberExtensions() {
+    return CucumberJvmExtensionPoint.EP_NAME.getExtensionList();
+  }
+
+  /// @deprecated Use `CucumberJvmExtensionPoint.EP_NAME.getExtensionList().size()` directly.
+  @Deprecated(forRemoval = true)
+  public static int getExtensionCount() {
+    return getCucumberExtensions().size();
+  }
+
+  //endregion
 }

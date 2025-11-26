@@ -1,4 +1,4 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.hil.psi
 
 import com.intellij.codeInspection.LocalQuickFix
@@ -8,11 +8,17 @@ import com.intellij.psi.PsiReference
 import com.intellij.psi.PsiReferenceBase
 import com.intellij.psi.PsiReferenceProvider
 import com.intellij.util.ProcessingContext
+import org.intellij.terraform.config.Constants.HCL_LOCAL_IDENTIFIER
+import org.intellij.terraform.config.Constants.HCL_MODULE_IDENTIFIER
+import org.intellij.terraform.config.Constants.HCL_PATH_IDENTIFIER
+import org.intellij.terraform.config.Constants.HCL_SELF_IDENTIFIER
+import org.intellij.terraform.config.Constants.HCL_VAR_IDENTIFIER
 import org.intellij.terraform.config.codeinsight.TfModelHelper
 import org.intellij.terraform.config.model.getTerraformModule
 import org.intellij.terraform.hcl.psi.HCLElement
 import org.intellij.terraform.hcl.psi.common.Identifier
 import org.intellij.terraform.hcl.psi.common.SelectExpression
+import org.intellij.terraform.hcl.psi.getHclBlockForSelfContext
 import org.intellij.terraform.hil.codeinsight.AddVariableFix
 import org.intellij.terraform.hil.psi.impl.getHCLHost
 
@@ -29,29 +35,21 @@ object ILSelectFromScopeReferenceProvider : PsiReferenceProvider() {
     val from = parent.from as? Identifier ?: return PsiReference.EMPTY_ARRAY
 
     if (from === element) return PsiReference.EMPTY_ARRAY
-
-    when (from.name) {
-      "var" -> {
-        return arrayOf(VariableReference(element))
-      }
-      "self" -> {
-        return arrayOf(SelfResourceReference(element))
-      }
-      "path" -> {
+    return when (from.name) {
+      HCL_VAR_IDENTIFIER -> arrayOf(VariableReference(element))
+      HCL_SELF_IDENTIFIER -> arrayOf(SelfResourceReference(element))
+      HCL_PATH_IDENTIFIER -> {
         // TODO: Resolve 'cwd' and 'root' paths
-        if (element.name == "module") {
+        if (element.name == HCL_MODULE_IDENTIFIER) {
           val file = host.containingFile.originalFile
           return arrayOf(PsiReferenceBase.Immediate(element, true, file.containingDirectory ?: file))
         }
+        else PsiReference.EMPTY_ARRAY
       }
-      "module" -> {
-        return arrayOf(ModuleReference(element))
-      }
-      "local" -> {
-        return arrayOf(LocalVariableReference(element))
-      }
+      HCL_MODULE_IDENTIFIER -> arrayOf(ModuleReference(element))
+      HCL_LOCAL_IDENTIFIER -> arrayOf(LocalVariableReference(element))
+      else -> return PsiReference.EMPTY_ARRAY
     }
-    return PsiReference.EMPTY_ARRAY
   }
 
   class VariableReference(element: Identifier) : HCLElementLazyReference<Identifier>(element, false, doResolve = { _, _ ->
@@ -68,7 +66,7 @@ object ILSelectFromScopeReferenceProvider : PsiReferenceProvider() {
   class SelfResourceReference(element: Identifier) : HCLElementLazyReferenceBase<Identifier>(element, false) {
     override fun resolve(incompleteCode: Boolean, includeFake: Boolean): List<HCLElement> {
       val name = this.element.name ?: return emptyList()
-      val resource = getProvisionerOrConnectionResource(this.element) ?: return emptyList()
+      val resource = getHclBlockForSelfContext(this.element) ?: return emptyList()
 
       val prop = resource.`object`?.findProperty(name)
       if (prop != null) return listOf(prop)
@@ -86,8 +84,8 @@ object ILSelectFromScopeReferenceProvider : PsiReferenceProvider() {
   }
 
   class ModuleReference(element: Identifier) : HCLElementLazyReference<Identifier>(element, false, doResolve = { _, _ ->
-    this.element.name?.let { name -> this.element.getHCLHost()?.getTerraformModule()?.findModules(name) }
-        ?: emptyList()
+    this.element.name?.let { name -> this.element.getHCLHost()?.getTerraformModule()?.getDefinedModules(name) }
+    ?: emptyList()
   })
 
   class LocalVariableReference(element: Identifier) : HCLElementLazyReference<Identifier>(element, false, doResolve = { _, _ ->

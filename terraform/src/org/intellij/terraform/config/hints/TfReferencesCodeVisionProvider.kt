@@ -1,9 +1,10 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.config.hints
 
+import com.intellij.codeInsight.codeVision.CodeVisionAnchorKind
 import com.intellij.codeInsight.codeVision.CodeVisionRelativeOrdering
 import com.intellij.codeInsight.hints.codeVision.ReferencesCodeVisionProvider
-import com.intellij.openapi.options.advanced.AdvancedSettings.Companion.getInt
+import com.intellij.openapi.options.advanced.AdvancedSettings
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.search.GlobalSearchScope
@@ -44,7 +45,7 @@ internal class TfReferencesCodeVisionProvider : ReferencesCodeVisionProvider() {
       return HCLBundle.message("terraform.inlay.hints.indefinite.usages.text")
 
     val usagesCount = AtomicInteger()
-    val limit = getInt("org.intellij.terraform.code.vision.usages.limit")
+    val limit = AdvancedSettings.getInt(TF_USAGES_LIMIT_ID)
 
     ReferencesSearch.search(ReferencesSearch.SearchParameters(element, scope, false))
       .allowParallelProcessing()
@@ -60,6 +61,8 @@ internal class TfReferencesCodeVisionProvider : ReferencesCodeVisionProvider() {
 
   override val relativeOrderings: List<CodeVisionRelativeOrdering>
     get() = emptyList()
+  override val defaultAnchor: CodeVisionAnchorKind
+    get() = CodeVisionAnchorKind.Right
   override val id: String
     get() = ID
 
@@ -67,3 +70,5 @@ internal class TfReferencesCodeVisionProvider : ReferencesCodeVisionProvider() {
     const val ID: String = "tf.references"
   }
 }
+
+internal const val TF_USAGES_LIMIT_ID: String = "org.intellij.terraform.code.vision.usages.limit"

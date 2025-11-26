@@ -9,7 +9,7 @@ import com.intellij.psi.PsiManager;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.indexing.FileBasedIndex;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.cucumber.BDDFrameworkType;
 import org.jetbrains.plugins.cucumber.StepDefinitionCreator;
@@ -24,29 +24,30 @@ import org.jetbrains.plugins.groovy.lang.psi.api.statements.expressions.GrMethod
 import java.util.ArrayList;
 import java.util.List;
 
+@NotNullByDefault
 public final class GrCucumberExtension extends AbstractCucumberJavaExtension {
   @Override
-  public boolean isStepLikeFile(@NotNull PsiElement child, @NotNull PsiElement parent) {
-    return child instanceof GroovyFile && ((GroovyFile)child).getName().endsWith(".groovy");
+  public boolean isStepLikeFile(PsiElement child) {
+    return child instanceof GroovyFile file && file.getName().endsWith(".groovy");
   }
 
   @Override
-  public boolean isWritableStepLikeFile(@NotNull PsiElement child, @NotNull PsiElement parent) {
-    return isStepLikeFile(child, parent);
+  public boolean isWritableStepLikeFile(PsiElement child) {
+    return isStepLikeFile(child);
   }
 
   @Override
-  public @NotNull BDDFrameworkType getStepFileType() {
+  public BDDFrameworkType getStepFileType() {
     return new BDDFrameworkType(GroovyFileType.GROOVY_FILE_TYPE);
   }
 
   @Override
-  public @NotNull StepDefinitionCreator getStepDefinitionCreator() {
+  public StepDefinitionCreator getStepDefinitionCreator() {
     return new GrStepDefinitionCreator();
   }
 
   @Override
-  public List<AbstractStepDefinition> loadStepsFor(@Nullable PsiFile featureFile, @NotNull Module module) {
+  public List<AbstractStepDefinition> loadStepsFor(@Nullable PsiFile featureFile, Module module) {
     final List<AbstractStepDefinition> result = new ArrayList<>();
     final FileBasedIndex fileBasedIndex = FileBasedIndex.getInstance();
     GlobalSearchScope scope = featureFile != null ? featureFile.getResolveScope() : module.getModuleWithDependenciesAndLibrariesScope(true);

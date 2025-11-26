@@ -19,7 +19,6 @@ import com.intellij.openapi.util.NlsSafe
 import com.intellij.plugins.serialmonitor.SerialMonitorException
 import com.intellij.plugins.serialmonitor.SerialPortProfile
 import com.intellij.plugins.serialmonitor.service.PortStatus
-import com.intellij.plugins.serialmonitor.service.SerialPortService.HardwareLinesStatus
 import com.intellij.plugins.serialmonitor.service.SerialPortService.SerialConnection
 import com.intellij.plugins.serialmonitor.service.SerialPortsListener
 import com.intellij.plugins.serialmonitor.ui.actions.EditSettingsAction
@@ -29,6 +28,7 @@ import com.intellij.ui.JBColor
 import com.intellij.ui.TextFieldWithStoredHistory
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLoadingPanel
+import com.intellij.ui.components.JBPanel
 import com.intellij.ui.dsl.builder.Cell
 import com.intellij.ui.dsl.builder.RightGap
 import com.intellij.ui.dsl.builder.panel
@@ -37,17 +37,16 @@ import com.intellij.uiDesigner.core.GridConstraints
 import com.intellij.uiDesigner.core.GridConstraints.*
 import com.intellij.uiDesigner.core.GridLayoutManager
 import com.intellij.util.IconUtil
+import com.intellij.util.application
 import com.intellij.util.concurrency.annotations.RequiresEdt
 import com.intellij.util.ui.JBUI
-import jssc.SerialPort
-import jssc.SerialPortEvent
 import java.awt.Component
 import java.awt.event.ActionListener
 import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
-import javax.swing.BorderFactory
 import javax.swing.JButton
 import javax.swing.JComponent
+import javax.swing.border.Border
 import kotlin.reflect.KMutableProperty1
 
 private const val HISTORY_KEY = "serialMonitor.commands"
@@ -55,20 +54,24 @@ private const val HISTORY_KEY = "serialMonitor.commands"
 class SerialMonitor(private val project: Project,
                     name: @NlsSafe String,
                     val portProfile: SerialPortProfile) : Disposable, SerialPortsListener {
-  private val myPanel: JBLoadingPanel = JBLoadingPanel(GridLayoutManager(2, 5, JBUI.insets(5, 10), -1, -1), this, 300)
+  private val myPanel: JBLoadingPanel = JBLoadingPanel(GridLayoutManager(2, 2, JBUI.emptyInsets(), 0, 0), this, 300)
+  private val myTopPanel: JBPanel<JBPanel<*>> = JBPanel<JBPanel<*>>(GridLayoutManager(1, 4, JBUI.insets(5, 10), 5, 0))
   private val mySend: JButton
   private val myCommand: TextFieldWithStoredHistory
   private val myLineEnd: JBCheckBox
   private val myHardwareControls: DialogPanel
-  //private val myHardwareStatus: DialogPanel
   private val myHardwareStatusComponents = HardwareStatusComponents()
   private val duplexConsoleView: JeditermSerialMonitorDuplexConsoleView
 
   fun getStatus(): PortStatus = duplexConsoleView.status
 
   override fun portsStatusChanged() {
-    mySend.isEnabled = duplexConsoleView.status == PortStatus.CONNECTED
-    myHardwareStatusComponents.updateFromLinesStatus(duplexConsoleView.connection.hardwareLinesStatus)
+    // TODO: use coroutine and some usable disposable
+    application.invokeLater {
+      mySend.isEnabled = duplexConsoleView.status == PortStatus.CONNECTED
+      myHardwareStatusComponents.onCTSChanged(duplexConsoleView.connection.cts)
+      myHardwareStatusComponents.onDSRChanged(duplexConsoleView.connection.dsr)
+    }
     ActivityTracker.getInstance().inc()
   }
 
@@ -121,17 +124,15 @@ class SerialMonitor(private val project: Project,
     duplexConsoleView = JeditermSerialMonitorDuplexConsoleView.create(project, portProfile, myPanel)
     Disposer.register(this, duplexConsoleView)
     val consoleComponent = duplexConsoleView.component
-    duplexConsoleView.component.border = BorderFactory.createEtchedBorder()
     val toolbarActions = DefaultActionGroup()
     val toolbar = ActionManager.getInstance().createActionToolbar(ActionPlaces.TOOLBAR, toolbarActions, false)
     toolbarActions.addAll(*duplexConsoleView.createConsoleActions())
     val editProfileAction = EditSettingsAction(name, this)
     toolbarActions.add(editProfileAction)
     toolbar.targetComponent = consoleComponent
+    toolbar.component.border = toolbarBorder()
+
     myCommand = TextFieldWithStoredHistory(HISTORY_KEY)
-    myLineEnd = JBCheckBox(SerialMonitorBundle.message("checkbox.send.eol"), true)
-    mySend = JButton(SerialMonitorBundle.message("send.title"))
-    mySend.isEnabled = false
     myCommand.setHistorySize(10)
     myCommand.addKeyboardListener(object : KeyAdapter() {
       override fun keyPressed(e: KeyEvent) {
@@ -142,6 +143,11 @@ class SerialMonitor(private val project: Project,
         }
       }
     })
+
+    myLineEnd = JBCheckBox(SerialMonitorBundle.message("checkbox.send.eol"), true)
+
+    mySend = JButton(SerialMonitorBundle.message("send.title"))
+    mySend.isEnabled = false
     mySend.addActionListener(ActionListener {
       send(myCommand.text)
       myCommand.addCurrentTextToHistory()
@@ -204,56 +210,67 @@ class SerialMonitor(private val project: Project,
         }
       }
     }
+    myHardwareControls.border = JBUI.Borders.emptyRight(10)
 
-    connection.eventListener = myHardwareStatusComponents::updateFromEvent
+    connection.dsrListener = myHardwareStatusComponents::onDSRChanged
+    connection.ctsListener = myHardwareStatusComponents::onCTSChanged
+    ApplicationManager.getApplication().messageBus.connect(this).subscribe(SerialPortsListener.SERIAL_PORTS_TOPIC, this)
 
-    ApplicationManager.getApplication().messageBus.connect().subscribe(SerialPortsListener.SERIAL_PORTS_TOPIC, this)
+    myTopPanel.add(myCommand,
+                   GridConstraints(0, 0, 1, 1, ANCHOR_WEST, FILL_HORIZONTAL, SIZE_POLICY_RESIZEABLE, SIZEPOLICY_FIXED, null, null, null))
+    myTopPanel.add(myLineEnd,
+                   GridConstraints(0, 1, 1, 1, ANCHOR_EAST, FILL_NONE, SIZEPOLICY_FIXED, SIZEPOLICY_FIXED, null, null, null))
+    myTopPanel.add(mySend,
+                   GridConstraints(0, 2, 1, 1, ANCHOR_EAST, FILL_NONE, SIZEPOLICY_FIXED, SIZEPOLICY_FIXED, null, null, null))
+    myTopPanel.add(myHardwareControls,
+                   GridConstraints(0, 3, 1, 1, ANCHOR_EAST, FILL_NONE, SIZEPOLICY_FIXED, SIZEPOLICY_FIXED, null, null, null))
+
+    myTopPanel.border = JBUI.Borders.customLineBottom(JBColor.border())
+
     myPanel.add(toolbar.component,
-                GridConstraints(0, 0, 2, 1, ANCHOR_NORTH, FILL_VERTICAL, SIZEPOLICY_FIXED, SIZE_POLICY_RESIZEABLE, null, null, null))
-    myPanel.add(myCommand,
-                GridConstraints(0, 1, 1, 1, ANCHOR_WEST, FILL_HORIZONTAL, SIZE_POLICY_RESIZEABLE, SIZEPOLICY_FIXED, null, null, null))
-    myPanel.add(myLineEnd,
-                GridConstraints(0, 2, 1, 1, ANCHOR_EAST, FILL_NONE, SIZEPOLICY_FIXED, SIZEPOLICY_FIXED, null, null, null))
-    myPanel.add(mySend,
-                GridConstraints(0, 3, 1, 1, ANCHOR_EAST, FILL_NONE, SIZEPOLICY_FIXED, SIZEPOLICY_FIXED, null, null, null))
-    myPanel.add(myHardwareControls,
-                GridConstraints(0, 4, 1, 1, ANCHOR_EAST, FILL_NONE, SIZEPOLICY_CAN_GROW, SIZEPOLICY_FIXED, null, null, null))
+                GridConstraints(0, 0, 2, 1, ANCHOR_WEST, FILL_VERTICAL, SIZEPOLICY_FIXED, SIZE_POLICY_RESIZEABLE, null, null, null))
+
+    myPanel.add(myTopPanel,
+                GridConstraints(0, 1, 1, 1, ANCHOR_NORTH, FILL_HORIZONTAL, SIZE_POLICY_RESIZEABLE, SIZEPOLICY_FIXED, null, null, null))
     myPanel.add(consoleComponent,
-                GridConstraints(1, 1, 1, 4, ANCHOR_NORTHWEST, FILL_BOTH, SIZE_POLICY_RESIZEABLE, SIZE_POLICY_RESIZEABLE, null, null, null))
+                GridConstraints(1, 1, 1, 1, ANCHOR_CENTER, FILL_BOTH, SIZE_POLICY_RESIZEABLE, SIZE_POLICY_RESIZEABLE, null, null, null))
+
     duplexConsoleView.addSwitchListener(this::hideSendControls, this)
     hideSendControls(duplexConsoleView.isPrimaryConsoleEnabled)
     updateHardwareVisibility()
   }
 
+  private fun toolbarBorder(): Border? = JBUI.Borders.compound(JBUI.Borders.customLineRight(JBColor.border()), JBUI.Borders.empty(9))
+
   private fun updateHardwareVisibility() {
     myHardwareControls.isVisible = portProfile.showHardwareControls
+    updateTopPanelVisibility()
   }
 
   private fun hideSendControls(q: Boolean) {
     mySend.isVisible = !q
     myCommand.isVisible = !q
     myLineEnd.isVisible = !q
+    updateTopPanelVisibility()
   }
 
-  class HardwareStatusComponents() {
+  private fun updateTopPanelVisibility() {
+    myTopPanel.isVisible = mySend.isVisible || myCommand.isVisible || myLineEnd.isVisible || myHardwareControls.isVisible
+  }
+
+  class HardwareStatusComponents {
 
     lateinit var cts: JComponent
     lateinit var dsr: JComponent
 
     @RequiresEdt
-    fun updateFromLinesStatus(status: HardwareLinesStatus) {
-      this.cts.isEnabled = status.cts
-      this.dsr.isEnabled = status.dsr
+    fun onCTSChanged(state: Boolean) {
+      cts.isEnabled = state
     }
 
     @RequiresEdt
-    fun updateFromEvent(event: SerialPortEvent) {
-      val eventComponent = when (event.eventType) {
-        SerialPort.MASK_CTS -> cts
-        SerialPort.MASK_DSR -> dsr
-        else -> return
-      }
-     eventComponent.isEnabled = event.eventValue == 1
+    fun onDSRChanged(state: Boolean) {
+      dsr.isEnabled = state
     }
   }
 

@@ -6,6 +6,8 @@ import com.intellij.lang.javascript.JSTokenTypes
 import com.intellij.lang.javascript.psi.*
 import com.intellij.lang.javascript.psi.ecma6.TypeScriptClass
 import com.intellij.openapi.util.TextRange
+import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.utils.PolySymbolDelegate
 import com.intellij.psi.PsiElement
 import com.intellij.psi.ResolveResult
 import com.intellij.psi.util.childrenOfType
@@ -17,25 +19,27 @@ import com.intellij.util.applyIf
 import com.intellij.util.asSafely
 import com.intellij.util.containers.MultiMap
 import com.intellij.util.containers.addIfNotNull
-import com.intellij.webSymbols.WebSymbol
-import com.intellij.webSymbols.WebSymbolDelegate
 import com.intellij.xml.util.XmlTagUtil
 import org.angular2.Angular2DecoratorUtil
 import org.angular2.Angular2InjectionUtils
 import org.angular2.codeInsight.Angular2DeclarationsScope
 import org.angular2.codeInsight.attributes.Angular2ApplicableDirectivesProvider
+import org.angular2.codeInsight.attributes.Angular2AttributeDescriptor
 import org.angular2.codeInsight.blocks.*
 import org.angular2.codeInsight.template.Angular2TemplateScope
 import org.angular2.codeInsight.template.getTemplateElementsScopeFor
 import org.angular2.codeInsight.template.isTemplateTag
 import org.angular2.entities.*
+import org.angular2.lang.Angular2LangUtil.AngularVersion
 import org.angular2.lang.Angular2LangUtil.OUTPUT_CHANGE_SUFFIX
+import org.angular2.lang.Angular2LangUtil.isAtLeastAngularVersion
 import org.angular2.lang.expr.psi.*
 import org.angular2.lang.expr.psi.impl.Angular2BlockParameterVariableImpl
 import org.angular2.lang.html.Angular2HtmlFile
 import org.angular2.lang.html.parser.Angular2AttributeNameParser
 import org.angular2.lang.html.parser.Angular2AttributeType.*
 import org.angular2.lang.html.psi.*
+import org.angular2.lang.types.Angular2EventType
 import org.angular2.lang.types.Angular2TypeUtils.possiblyGenericJsType
 import java.util.*
 
@@ -99,7 +103,7 @@ internal class TmplAstElement(
 
 internal class TmplAstTemplate(
   val tagName: String?,
-  override val tag: XmlTag,
+  override val tag: XmlTag?,
   val templateAttrs: List<TmplAstAttribute>,
   override val directives: Set<TmplDirectiveMetadata>,
   override val inputs: Map<String, TmplAstBoundAttribute>,
@@ -153,7 +157,8 @@ internal class TmplAstBoundEvent(
   val target: String?,
   val phase: String?,
   override val sourceSpan: TextRange,
-  val fromHostBinding: Boolean = false,
+  val jsType: JSType?,
+  val fromHostBinding: Boolean,
 ) : TmplAstAttribute
 
 internal interface TmplAstBlockNode : TmplAstNode {
@@ -343,7 +348,7 @@ internal class BoundTarget(component: Angular2Component?) {
         }
 
 
-        override fun set(implicitSymbol: WebSymbol, source: PsiElement, localSymbol: TemplateEntity) {
+        override fun set(implicitSymbol: PolySymbol, source: PsiElement, localSymbol: TemplateEntity) {
           referenceMap[ImplicitSymbolWithSource(implicitSymbol, source)] = localSymbol
         }
 
@@ -417,7 +422,7 @@ internal class BoundTarget(component: Angular2Component?) {
       }
       for (symbol in scope.symbols) {
         if (result == null && symbol.name == referencedName) {
-          result = ImplicitSymbolWithSource((symbol as? WebSymbolDelegate<*>)?.delegate ?: symbol, scope.source)
+          result = ImplicitSymbolWithSource((symbol as? PolySymbolDelegate<*>)?.delegate ?: symbol, scope.source)
         }
       }
       scope = scope.parent
@@ -520,13 +525,13 @@ internal class BoundTarget(component: Angular2Component?) {
 }
 
 private data class ImplicitSymbolWithSource(
-  val symbol: WebSymbol,
+  val symbol: PolySymbol,
   val source: PsiElement?,
 )
 
 private interface ReferenceResolver {
   operator fun set(element: PsiElement, localSymbol: TemplateEntity)
-  operator fun set(implicitSymbol: WebSymbol, source: PsiElement, localSymbol: TemplateEntity)
+  operator fun set(implicitSymbol: PolySymbol, source: PsiElement, localSymbol: TemplateEntity)
 }
 
 internal fun buildHostBindingsAst(
@@ -562,7 +567,7 @@ internal fun buildHostBindingsAst(
           TmplAstBoundEvent(attributeName.name, property.nameIdentifier?.textRange,
                             (attributeName as Angular2AttributeNameParser.EventInfo).tmplParsedEventType,
                             Angular2InjectionUtils.findInjectedAngularExpression(quotedLiteral, Angular2Action::class.java)?.statements?.toList()
-                            ?: emptyList(), valueTextRange.startOffset, null, null, property.textRange, true)
+                            ?: emptyList(), valueTextRange.startOffset, null, null, property.textRange, null, true)
       }
       PROPERTY_BINDING -> {
         inlineCodeRanges.add(valueTextRange)
@@ -648,7 +653,9 @@ private fun XmlTag.toTmplAstDirectiveContainer(
           0,
           null,
           info.animationPhase?.name,
-          attr.textRange
+          attr.textRange,
+          Angular2EventType(attr),
+          false,
         )
       }) + (attributesByKind[BANANA_BOX_BINDING]?.asSequence() ?: emptySequence())
       .associateBy({ it.second.name }, { (attr, info) ->
@@ -660,7 +667,9 @@ private fun XmlTag.toTmplAstDirectiveContainer(
           0,
           null,
           null,
-          attr.textRange
+          attr.textRange,
+          null,
+          false,
         )
       })
 
@@ -709,10 +718,10 @@ private fun XmlTag.toTmplAstDirectiveContainer(
           ?: emptySequence())
     .toList()
 
-  return if (isTemplateTag) {
+  val element = if (isTemplateTag) {
     TmplAstTemplate(
       tagName = null,
-      tag = this,
+      tag = this.takeIf { templateBindings == null },
       templateAttrs = emptyList(),
       directives = directives,
       inputs = inputs,
@@ -726,7 +735,21 @@ private fun XmlTag.toTmplAstDirectiveContainer(
       references.forEach { it.value.parent = this }
     }
   }
-  else if (templateBindings != null) {
+  else TmplAstElement(
+    name = name,
+    tag = this.takeIf { templateBindings == null },
+    directives = directives,
+    inputs = inputs,
+    outputs = outputs,
+    attributes = attributes,
+    references = references,
+    startSourceSpan = startSourceSpan,
+    children = children
+  ).apply {
+    references.forEach { it.value.parent = this }
+  }
+
+  return if (templateBindings != null)
     TmplAstTemplate(
       tagName = name,
       tag = this,
@@ -738,38 +761,9 @@ private fun XmlTag.toTmplAstDirectiveContainer(
       references = emptyMap(),
       variables = templateBindings.variables,
       startSourceSpan = templateBindingAttribute?.nameElement?.textRange ?: startSourceSpan,
-      children = listOf(
-        TmplAstElement(
-          name = name,
-          tag = null,
-          directives = directives,
-          inputs = inputs,
-          outputs = outputs,
-          attributes = attributes,
-          references = references,
-          startSourceSpan = startSourceSpan,
-          children = children
-        ).apply {
-          references.forEach { it.value.parent = this }
-        }
-      )
+      children = listOf(element)
     )
-  }
-  else {
-    TmplAstElement(
-      name = name,
-      tag = this,
-      directives = directives,
-      inputs = inputs,
-      outputs = outputs,
-      attributes = attributes,
-      references = references,
-      startSourceSpan = startSourceSpan,
-      children = children
-    ).apply {
-      references.forEach { it.value.parent = this }
-    }
-  }
+  else element
 }
 
 internal fun buildMetadata(directive: Angular2Directive): List<TmplDirectiveMetadata> {
@@ -918,7 +912,8 @@ private fun Angular2HtmlBlock.toTmplAstBlock(referenceResolver: ReferenceResolve
     BLOCK_ELSE_IF -> TmplAstIfBlockBranch(
       nameSpan = nameElement.textRange,
       expression = parameters.firstOrNull()?.expression,
-      expressionAlias = null,
+      expressionAlias = parameters.takeIf { isAtLeastAngularVersion(this, AngularVersion.V_20_2) }
+        ?.getOrNull(1)?.variables?.firstOrNull()?.toTmplAstVariable(referenceResolver),
       children = contents.mapChildren(referenceResolver)
     )
     BLOCK_ELSE -> TmplAstIfBlockBranch(
@@ -1010,7 +1005,7 @@ private fun JSVariable.toTmplAstVariable(referenceResolver: ReferenceResolver): 
     referenceResolver.set(this@toTmplAstVariable, this)
   }
 
-private fun WebSymbol.toTmplAstVariable(block: Angular2HtmlBlock, referenceResolver: ReferenceResolver): TmplAstVariable =
+private fun PolySymbol.toTmplAstVariable(block: Angular2HtmlBlock, referenceResolver: ReferenceResolver): TmplAstVariable =
   TmplAstVariable(
     name = name,
     keySpan = null,

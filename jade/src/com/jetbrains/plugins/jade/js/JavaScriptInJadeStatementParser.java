@@ -5,7 +5,6 @@ import com.intellij.lang.PsiBuilder;
 import com.intellij.lang.WhitespacesBinders;
 import com.intellij.lang.ecmascript6.parsing.ES6StatementParser;
 import com.intellij.lang.javascript.JSElementTypes;
-import com.intellij.lang.javascript.JSStubElementTypes;
 import com.intellij.lang.javascript.JSTokenTypes;
 import com.intellij.lang.javascript.JavaScriptParserBundle;
 import com.intellij.psi.tree.IElementType;
@@ -56,7 +55,7 @@ public class JavaScriptInJadeStatementParser extends ES6StatementParser<JavaScri
     final PsiBuilder.Marker statement = builder.mark();
     builder.advanceLexer();
 
-    if (!markVariable()) {
+    if (!markVariable(false)) {
       builder.mark().error(JavaScriptParserBundle.message("javascript.parser.message.expected.variable.name"));
       statement.done(JadeTokenTypes.EACH_EXPR);
       return;
@@ -65,7 +64,7 @@ public class JavaScriptInJadeStatementParser extends ES6StatementParser<JavaScri
     if (builder.getTokenType() == JSTokenTypes.COMMA) {
       builder.advanceLexer();
 
-      if (!markVariable()) {
+      if (!markVariable(false)) {
         builder.mark().error(JavaScriptParserBundle.message("javascript.parser.message.expected.variable.name"));
         statement.done(JadeTokenTypes.EACH_EXPR);
         return;
@@ -119,9 +118,18 @@ public class JavaScriptInJadeStatementParser extends ES6StatementParser<JavaScri
 
       if (isDeclaration) {
         seenRest |= passRest();
-        boolean variableMarked = markVariable();
-        if (!variableMarked) {
-          break;
+        if (parser.getFunctionParser().willParseDestructuringAssignment()) {
+          var marker = builder.mark();
+          var elementType = parser.getExpressionParser().parseDestructuringElementNoMarker(
+            getVariableElementType(), true, true);
+          marker.done(elementType);
+          marker.precede().done(JSElementTypes.VAR_STATEMENT);
+        }
+        else {
+          boolean variableMarked = markVariable(true);
+          if (!variableMarked) {
+            break;
+          }
         }
       }
       else {
@@ -144,7 +152,7 @@ public class JavaScriptInJadeStatementParser extends ES6StatementParser<JavaScri
     return false;
   }
 
-  boolean markVariable() {
+  boolean markVariable(boolean allowInitializer) {
     PsiBuilder.Marker varStatement = builder.mark();
     PsiBuilder.Marker varMarker = builder.mark();
 
@@ -154,10 +162,14 @@ public class JavaScriptInJadeStatementParser extends ES6StatementParser<JavaScri
     }
 
     parser.getTypeParser().tryParseType();
+
+    if (builder.getTokenType() == JSTokenTypes.EQ && allowInitializer) {
+      parseVariableInitializer(false);
+    }
     varMarker.done(getVariableElementType());
     varMarker.setCustomEdgeTokenBinders(INCLUDE_DOC_COMMENT_AT_LEFT, WhitespacesBinders.DEFAULT_RIGHT_BINDER);
 
-    varStatement.done(JSStubElementTypes.VAR_STATEMENT);
+    varStatement.done(JSElementTypes.VAR_STATEMENT);
 
     return true;
   }

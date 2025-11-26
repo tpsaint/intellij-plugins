@@ -19,7 +19,7 @@ repositories {
 
 intellijPlatform {
   pluginConfiguration {
-    name = "Jade"
+    name = "Pug (ex-Jade)"
   }
 }
 
@@ -35,6 +35,11 @@ sourceSets {
   test {
     java {
       setSrcDirs(listOf("tests"))
+      setExcludes(listOf(
+        "com/jetbrains/plugins/jade/watcher/**",
+        "com/jetbrains/plugins/jade/parser/JadeParsingWithoutErrorsSuite.*",
+        "com/jetbrains/plugins/jade/JadeInjectionTest.*"
+      ))
     }
     resources {
       setSrcDirs(listOf("testData", "testResources"))
@@ -44,14 +49,17 @@ sourceSets {
 
 dependencies {
   intellijPlatform {
-    bundledPlugins("JavaScript", "JSIntentionPowerPack", "HtmlTools", "com.intellij.css")
-    plugins("com.intellij.plugins.watcher:251.20015.29",
-            "com.intellij.plugins.html.instantEditing:251.20015.29",
-            "org.coffeescript:251.20015.29")
+    bundledPlugins("JavaScript", "JSIntentionPowerPack", "HtmlTools", "com.intellij.css", "tanvd.grazi")
+    compatiblePlugins(
+      "com.intellij.plugins.watcher",
+      "com.intellij.plugins.html.instantEditing",
+      "org.coffeescript"
+    )
     jetbrainsRuntime()
     intellijIdeaUltimate(ext("platform.version"), useInstaller = false)
     testFramework(TestFrameworkType.Platform)
     testFramework(TestFrameworkType.Plugin.JavaScript)
+    testFramework(TestFrameworkType.Plugin.XML)
   }
   testImplementation("junit:junit:${ext("junit.version")}")
 }
@@ -76,4 +84,4 @@ tasks {
 
 fun ext(name: String): String =
   rootProject.extensions[name] as? String
-  ?: error("Property `$name` is not defined")
+    ?: error("Property `$name` is not defined")

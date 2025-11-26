@@ -5,13 +5,13 @@ package org.jetbrains.qodana.staticAnalysis.testFramework
 import com.intellij.codeInspection.ex.InspectionProfileImpl
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.extensions.LoadingOrder
+import com.intellij.openapi.observable.util.setSystemProperty
 import com.intellij.openapi.progress.EmptyProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.runBlockingCancellable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.util.Computable
-import com.intellij.openapi.util.Disposer
 import com.jetbrains.qodana.sarif.SarifUtil
 import com.jetbrains.qodana.sarif.model.PropertyBag
 import com.jetbrains.qodana.sarif.model.Result
@@ -29,7 +29,6 @@ import org.jetbrains.qodana.staticAnalysis.inspections.metrics.codeQualityMetric
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.QDCloudLinterProjectApi
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.QodanaInspectionApplication
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.QodanaMessageReporter
-import org.jetbrains.qodana.staticAnalysis.inspections.runner.QodanaRunner
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.startup.LoadedProfile
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.startup.PreconfiguredRunContextFactory
 import org.jetbrains.qodana.staticAnalysis.profile.QodanaInspectionProfileProvider
@@ -39,6 +38,7 @@ import java.io.StringWriter
 import java.nio.file.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
+import kotlin.io.path.readText
 
 class QodanaTestManager {
   private lateinit var testData: TestData
@@ -53,14 +53,14 @@ class QodanaTestManager {
 
   private var qodanaApp: QodanaInspectionApplication? = null
   private lateinit var qodanaConfig: QodanaConfig
-  lateinit var qodanaRunner: QodanaRunner
+  lateinit var sarifRun: Run
 
   @Suppress("RAW_RUN_BLOCKING")
   fun setUp(testData_: TestData): QodanaConfig {
     testData = testData_
     InspectionProfileImpl.INIT_INSPECTIONS = true
     val yamlPath = defaultConfigPath(testData.getTestDataPath(""))
-    val projectPath = testData_.project.guessProjectDir()?.toNioPath() ?: testData_.projectPath
+    val projectPath = guessProjectDir(testData_)
     val yamlConfig = runBlocking {
       yamlPath?.let { path ->
         QodanaYamlReader.load(path).getOrThrow().withAbsoluteProfilePath(projectPath, yamlPath)
@@ -93,11 +93,17 @@ class QodanaTestManager {
     return qodanaConfig
   }
 
-  private fun setSystemProperties() {
-    System.setProperty(SARIF_AUTOMATION_GUID_PROPERTY, "tests")
-    Disposer.register(testData.testRootDisposable) {
-      System.clearProperty(SARIF_AUTOMATION_GUID_PROPERTY)
+  private fun guessProjectDir(testData_: TestData): Path {
+    val default = testData_.projectPath
+    try {
+      return testData_.project.guessProjectDir()?.toNioPath() ?: default
+    } catch (_: UnsupportedOperationException) {
+      return default
     }
+  }
+
+  private fun setSystemProperties() {
+    setSystemProperty(SARIF_AUTOMATION_GUID_PROPERTY, "tests", testData.testRootDisposable)
   }
 
   private fun mockEnv() {
@@ -131,27 +137,40 @@ class QodanaTestManager {
     qodanaApp = QodanaInspectionApplication(qodanaConfig, api)
   }
 
-  fun runAnalysis(project: Project, messageReporter: QodanaMessageReporter = QodanaMessageReporter.DEFAULT): QodanaRunner {
+  fun runAnalysis(project: Project, messageReporter: QodanaMessageReporter = QodanaMessageReporter.DEFAULT): SarifReport {
     return ProgressManager.getInstance().runProcess(
       Computable { runBlockingCancellable { doRunAnalysis(project, messageReporter) } },
       EmptyProgressIndicator()
     )
   }
 
-  private suspend fun doRunAnalysis(project: Project, messageReporter: QodanaMessageReporter): QodanaRunner {
+  private suspend fun doRunAnalysis(project: Project, messageReporter: QodanaMessageReporter): SarifReport {
     return coroutineScope {
       QodanaWorkflowExtension.callAfterConfiguration(qodanaConfig, project)
-
+      val app = qodanaApp!!
       val loadedProfile = loadInspectionProfile(project)
-      val runner = qodanaApp!!.constructQodanaRunner(
+      val runner = app.constructQodanaRunner(
         PreconfiguredRunContextFactory(qodanaConfig, messageReporter, project, loadedProfile, this),
         messageReporter
       )
-      qodanaRunner = runner
-      qodanaApp!!.launchRunner(runner)
-      coroutineContext.cancelChildren()
-      runner
+      try {
+        app.launchRunner(runner)
+      } catch (e: Throwable) {
+        // if launcher throws error, we need to fetch generated report for checking in tests anyways
+        val path = qodanaConfig.outPath.resolve("qodana.sarif.json")
+        if (path.exists()) {
+          sarifRun = SarifUtil.readReport(path).runs.first()
+        }
+        throw e
+      }.also {
+        sarifRun = it.runs.first()
+        coroutineContext.cancelChildren()
+      }
     }
+  }
+
+  fun getProjectMetadataJson() : String {
+    return qodanaConfig.outPath.resolve("projectStructure/projectMetadata.json").readText()
   }
 
   suspend fun loadInspectionProfile(project: Project) = LoadedProfile.load(qodanaConfig, project, QodanaMessageReporter.DEFAULT)
@@ -162,7 +181,6 @@ class QodanaTestManager {
       .thenBy { it.locations.getOrNull(0)?.physicalLocation?.region?.startLine }
       .thenBy { it.locations.getOrNull(0)?.physicalLocation?.region?.charOffset }
 
-    val sarifRun = qodanaRunner.sarifRun
     val sortedMainResults = sarifRun.results.distinct().sortedWith(comparator)
 
     val sanityResultsKey = "qodana.sanity.results"

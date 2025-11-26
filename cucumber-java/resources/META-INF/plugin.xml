@@ -16,7 +16,7 @@
 
   <extensions defaultExtensionNs="com.intellij">
     <referencesSearch implementation="org.jetbrains.plugins.cucumber.java.steps.search.CucumberJavaStepDefinitionSearch"/>
-    <methodReferencesSearch implementation="org.jetbrains.plugins.cucumber.java.steps.search.CucumberJavaMethodUsageSearcher"/>
+    <findUsagesHandlerFactory implementation="org.jetbrains.plugins.cucumber.java.steps.search.CucumberJavaFindUsagesHandlerFactory"/>
     <runConfigurationProducer implementation="org.jetbrains.plugins.cucumber.java.run.CucumberJavaFeatureRunConfigurationProducer"/>
     <runConfigurationProducer implementation="org.jetbrains.plugins.cucumber.java.run.CucumberJavaScenarioRunConfigurationProducer"/>
     <runConfigurationProducer implementation="org.jetbrains.plugins.cucumber.java.run.CucumberJavaAllFeaturesInFolderRunConfigurationProducer"/>
@@ -34,11 +34,16 @@
     <multiHostInjector implementation="org.jetbrains.plugins.cucumber.java.CucumberJavaInjector"/>
     <psi.referenceContributor implementation="org.jetbrains.plugins.cucumber.java.steps.reference.CucumberJavaReferenceContributor" language="JAVA"/>
     <pom.declarationSearcher implementation="org.jetbrains.plugins.cucumber.java.steps.search.CucumberJavaPomDeclarationSearcher"/>
+    <elementDescriptionProvider implementation="org.jetbrains.plugins.cucumber.java.steps.reference.CucumberJavaParameterPomTargetDescriptionProvider"/>
     <fileBasedIndex implementation="org.jetbrains.plugins.cucumber.java.CucumberJava8StepIndex"/>
     <runConfigurationExtension implementation="org.jetbrains.plugins.cucumber.java.run.CucumberJUnitRunConfigurationExtension"/>
 
     <dependencySupport kind="java" coordinate="io.cucumber:cucumber-java8" displayName="Cucumber"/>
     <dependencySupport kind="java" coordinate="io.cucumber:cucumber-java" displayName="Cucumber"/>
+
+    <registryKey key="cucumber.java.run.configuration.glue.use.idea"
+                 description="Find glue using Cucumber for Java IntelliJ plugin instead of cucumber-jvm (applies only to cucumber-jvm v6 and newer)"
+                 defaultValue="false"/>
   </extensions>
 
   <extensions defaultExtensionNs="org.jetbrains.plugins.cucumber.steps">

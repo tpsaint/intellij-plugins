@@ -11,11 +11,10 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.impl.PsiManagerEx
-import com.intellij.psi.impl.PsiManagerImpl
 import com.intellij.psi.impl.source.PsiFileImpl
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
-import com.intellij.webSymbols.testFramework.DebugOutputPrinter
-import com.intellij.webSymbols.testFramework.checkTextByFile
+import com.intellij.polySymbols.testFramework.DebugOutputPrinter
+import com.intellij.polySymbols.testFramework.checkTextByFile
 import org.jetbrains.vuejs.codeInsight.documentation.VueDocumentedItem
 import org.jetbrains.vuejs.index.findModule
 import org.jetbrains.vuejs.model.*
@@ -99,6 +98,10 @@ class VueComponentTest : BasePlatformTestCase() {
   fun testDefineEmitsObjectLiteral() = doTest()
 
   fun testDefineEmitsExplicitType() = doTest()
+
+  fun testDefineEmitsPropertyContractTupleParameters() = doTest(true)
+
+  fun testDefineEmitsPropertyContractNonTupleParameters() = doTest(true)
 
   fun testDefineComponentWithEmits() = doTest()
 
@@ -196,7 +199,7 @@ class VueComponentTest : BasePlatformTestCase() {
    */
   private fun unloadAst(file: PsiFile): PsiFileImpl {
     val vFile = file.viewProvider.virtualFile
-    (psiManager as PsiManagerImpl).cleanupForNextTest()
+    (psiManager as PsiManagerEx).cleanupForNextTest()
     val newFile = psiManager.findFile(vFile) as PsiFileImpl
     assertNull(newFile.treeElement)
     assertFalse(file.isValid)
@@ -256,9 +259,6 @@ class VueComponentTest : BasePlatformTestCase() {
           printProperty(level, "pattern", sourceElement.pattern)
           printProperty(level, "required", sourceElement.required)
         }
-        if (sourceElement is VueDirectiveModifier) {
-          printProperty(level, "pattern", sourceElement.pattern)
-        }
         if (sourceElement is VueEntitiesContainer) {
           printProperty(level, "components", sourceElement.components.takeIf { it.isNotEmpty() }
             ?.filterOutLowercaseScriptSetupVariables()?.toSortedMap())
@@ -316,5 +316,3 @@ private fun Map<String, VueComponent>.filterOutLowercaseScriptSetupVariables(): 
       || it.name?.getOrNull(0)?.isUpperCase() == true
     }
   }
-
-

@@ -23,7 +23,7 @@ public final class GherkinSuppressionUtil {
   private GherkinSuppressionUtil() {
   }
 
-  public static SuppressQuickFix @NotNull [] getDefaultSuppressActions(final @NotNull String toolId) {
+  public static SuppressQuickFix @NotNull [] getDefaultSuppressActions(@NotNull String toolId) {
     return new SuppressQuickFix[]{
       new GherkinSuppressForStepCommentFix(toolId),
       new GherkinSuppressForScenarioCommentFix(toolId),
@@ -31,7 +31,7 @@ public final class GherkinSuppressionUtil {
     };
   }
 
-  public static boolean isSuppressedFor(final @NotNull PsiElement element, final @NotNull String toolId) {
+  public static boolean isSuppressedFor(@NotNull PsiElement element, @NotNull String toolId) {
     return ReadAction.compute(() -> getSuppressedIn(element, toolId) != null).booleanValue();
   }
 
@@ -51,11 +51,11 @@ public final class GherkinSuppressionUtil {
   private static @Nullable PsiComment getSuppressionComment(@NotNull String toolId,
                                                             @NotNull PsiElement element) {
     final PsiElement comment = PsiTreeUtil.skipWhitespacesBackward(element);
-    if (comment instanceof PsiComment) {
+    if (comment instanceof PsiComment psiComment) {
       String text = comment.getText();
       Matcher matcher = SUPPRESS_IN_LINE_COMMENT_PATTERN.matcher(text);
       if (matcher.matches() && SuppressionUtil.isInspectionToolIdMentioned(matcher.group(1), toolId)) {
-        return (PsiComment)comment;
+        return psiComment;
       }
     }
     return null;

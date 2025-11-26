@@ -3,7 +3,8 @@ package com.jetbrains.plugins.jade.psi;
 
 import com.intellij.lang.html.HtmlCompatibleFile;
 import com.intellij.lang.javascript.psi.JSEmbeddedContent;
-import com.intellij.lang.javascript.psi.resolve.ResolveProcessor;
+import com.intellij.lang.javascript.psi.JSExecutionScope;
+import com.intellij.lang.javascript.psi.resolve.JSResolveProcessorEx;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.psi.FileViewProvider;
@@ -15,7 +16,7 @@ import com.intellij.psi.scope.PsiScopeProcessor;
 import com.jetbrains.plugins.jade.psi.stubs.JadeStubElementTypes;
 import org.jetbrains.annotations.NotNull;
 
-public class JadeFileImpl extends XmlFileImpl implements HtmlCompatibleFile {
+public class JadeFileImpl extends XmlFileImpl implements HtmlCompatibleFile, JSExecutionScope {
 
   public JadeFileImpl(final @NotNull FileViewProvider viewProvider) {
     super(viewProvider, JadeStubElementTypes.JADE_FILE);
@@ -35,7 +36,7 @@ public class JadeFileImpl extends XmlFileImpl implements HtmlCompatibleFile {
       return false;
     }
 
-    if (!(processor instanceof ResolveProcessor)) {
+    if (!(processor instanceof JSResolveProcessorEx)) {
       return true;
     }
 

@@ -7,8 +7,8 @@ import com.intellij.openapi.fileTypes.LanguageFileType
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
-import com.intellij.webSymbols.context.WebSymbolsContext
-import com.intellij.webSymbols.context.WebSymbolsContext.Companion.KIND_FRAMEWORK
+import com.intellij.polySymbols.context.PolyContext
+import com.intellij.polySymbols.context.PolyContext.Companion.KIND_FRAMEWORK
 import org.angular2.Angular2Framework
 import org.angular2.angular2Framework
 import org.angular2.lang.html.Angular2HtmlDialect
@@ -16,6 +16,7 @@ import org.angular2.lang.html.Angular2TemplateSyntax
 
 object Angular2LangUtil {
   const val ANGULAR_CORE_PACKAGE: String = "@angular/core"
+  const val ANGULAR_CORE_RX_INTEROP_PACKAGE: String = "@angular/core/rxjs-interop"
   const val ANGULAR_COMMON_PACKAGE: String = "@angular/common"
   const val ANGULAR_FORMS_PACKAGE: String = "@angular/forms"
   const val ANGULAR_ROUTER_PACKAGE: String = "@angular/router"
@@ -25,12 +26,13 @@ object Angular2LangUtil {
   const val OUTPUT_CHANGE_SUFFIX: String = "Change"
 
   enum class AngularVersion {
-    V_2, V_10, V_16, V_17, V_18, V_19, V_19_2
+    V_2, V_10, V_14_2, V_16, V_17, V_18, V_19, V_19_2,
+    V_20, V_20_1, V_20_2,
   }
 
   @JvmStatic
   fun isAtLeastAngularVersion(context: PsiElement, version: AngularVersion): Boolean {
-    WebSymbolsContext.get("angular-version", context)
+    PolyContext.get("angular-version", context)
       ?.let { AngularVersion.valueOf(it) }
       ?.let { return it.ordinal >= version.ordinal }
     return version == AngularVersion.V_2
@@ -41,17 +43,17 @@ object Angular2LangUtil {
     if (JSStubElementImpl.isBuildingStubs())
       true
     else
-      WebSymbolsContext.get(KIND_FRAMEWORK, context) == Angular2Framework.ID
+      PolyContext.get(KIND_FRAMEWORK, context) == Angular2Framework.ID
 
   @JvmStatic
   fun getTemplateSyntax(context: PsiElement?): Angular2TemplateSyntax =
-    getTemplateSyntax { context?.let { WebSymbolsContext.get("angular-template-syntax", it) } }
+    getTemplateSyntax { context?.let { PolyContext.get("angular-template-syntax", it) } }
 
   @JvmStatic
   fun getTemplateSyntax(project: Project?, context: VirtualFile?): Angular2TemplateSyntax =
     getTemplateSyntax {
       if (project != null && context != null)
-        WebSymbolsContext.get("angular-template-syntax", context, project)
+        PolyContext.get("angular-template-syntax", context, project)
       else
         null
     }

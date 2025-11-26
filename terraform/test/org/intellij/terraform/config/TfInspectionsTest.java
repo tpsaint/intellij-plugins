@@ -1,10 +1,14 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.config;
 
-import com.intellij.spellchecker.inspections.SpellCheckingInspection;
+import com.intellij.grazie.spellcheck.GrazieSpellCheckingInspection;
+import com.intellij.ui.RenameDialogInterceptor;
+import com.intellij.ui.UiInterceptors;
 import org.intellij.terraform.TfTestUtils;
 import org.intellij.terraform.config.inspection.*;
 import org.intellij.terraform.hil.inspection.*;
+
+import java.util.List;
 
 public class TfInspectionsTest extends TfInspectionFixtureTestCase {
 
@@ -59,6 +63,10 @@ public class TfInspectionsTest extends TfInspectionFixtureTestCase {
     doTest("self_references", new HILUnresolvedReferenceInspection());
   }
 
+  public void testSelfReferenceInPostCondition() {
+    doTest("self_reference_in_post_condition", new HILUnresolvedReferenceInspection());
+  }
+
   public void testComplexPropertyKeys() {
     doTest("complex_property_keys", new HILUnresolvedReferenceInspection());
   }
@@ -89,10 +97,14 @@ public class TfInspectionsTest extends TfInspectionFixtureTestCase {
   }
 
   public void testDuplicatedOutput() {
+    UiInterceptors.register(new RenameDialogInterceptor("newOutput", List.of("a", "a1")));
+    UiInterceptors.register(new RenameDialogInterceptor("newOutput", List.of("a", "a1")));
     doTest("duplicated_output", new TfDuplicatedOutputInspection());
   }
 
   public void testDuplicatedVariable() {
+    UiInterceptors.register(new RenameDialogInterceptor("newVar", List.of("x", "x1")));
+    UiInterceptors.register(new RenameDialogInterceptor("newVar", List.of("x", "x1")));
     doTest("duplicated_variable", new TfDuplicatedVariableInspection());
   }
 
@@ -105,7 +117,7 @@ public class TfInspectionsTest extends TfInspectionFixtureTestCase {
   }
 
   public void testMissingBlockProperty() {
-    doTest("missing_properties", new HCLBlockMissingPropertyInspection());
+    doTest("missing_properties", new HclBlockMissingPropertyInspection());
   }
 
   // ignored, because no "Conflicts" medatada is provided in recent updates
@@ -130,19 +142,19 @@ public class TfInspectionsTest extends TfInspectionFixtureTestCase {
   }
 
   public void testSpellchecking() {
-    doTest("spellchecking", new SpellCheckingInspection());
+    doTest("spellchecking", new GrazieSpellCheckingInspection());
   }
 
   public void testSpellcheckingInDependsOn() {
-    doTest("spellchecking_depends_on", new SpellCheckingInspection());
+    doTest("spellchecking_depends_on", new GrazieSpellCheckingInspection());
   }
 
   public void testSpellcheckingInHashesProperty() {
-    doTest("spellchecking_hashes_property", new SpellCheckingInspection());
+    doTest("spellchecking_hashes_property", new GrazieSpellCheckingInspection());
   }
 
   public void testSpellcheckingForBlockIdentifiers() {
-    doTest("spellchecking_block_identifiers", new SpellCheckingInspection());
+    doTest("spellchecking_block_identifiers", new GrazieSpellCheckingInspection());
   }
 
   public void testUnknownResourceType() {
@@ -161,7 +173,16 @@ public class TfInspectionsTest extends TfInspectionFixtureTestCase {
     doTest("unknown_resource", new TfUnknownResourceInspection());
   }
 
+  public void testGoogleAndGoogleBetaResources() {
+    doTest("google_beta_resource", new TfUnknownResourceInspection());
+  }
+
   public void testUnusedVariableAndLocals() {
     doTest("unused_elements", new TfUnusedElementsInspection());
+  }
+
+  public void testHclBlockWithEmptyName() {
+    UiInterceptors.register(new RenameDialogInterceptor("new_name"));
+    doTest("hcl_block_with_empty_name", new TfBlockNameValidnessInspection());
   }
 }

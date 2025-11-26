@@ -1,34 +1,31 @@
 // Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.plugins.cucumber.inspections;
 
+import com.intellij.codeInspection.LocalQuickFix;
 import com.intellij.codeInspection.ProblemsHolder;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiElementVisitor;
-import org.jetbrains.annotations.NotNull;
+import com.intellij.psi.ResolveResult;
+import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.plugins.cucumber.CucumberBundle;
+import org.jetbrains.plugins.cucumber.CucumberJvmExtensionPoint;
 import org.jetbrains.plugins.cucumber.psi.GherkinElementVisitor;
 import org.jetbrains.plugins.cucumber.psi.GherkinStep;
 import org.jetbrains.plugins.cucumber.psi.GherkinStepsHolder;
-import org.jetbrains.plugins.cucumber.steps.AbstractStepDefinition;
-import org.jetbrains.plugins.cucumber.steps.CucumberStepHelper;
 import org.jetbrains.plugins.cucumber.steps.reference.CucumberStepReference;
 
 import static org.jetbrains.plugins.cucumber.CucumberUtil.getCucumberStepReference;
 
-
+@NotNullByDefault
 public final class CucumberStepInspection extends GherkinInspection {
-  @Override
-  public boolean isEnabledByDefault() {
-    return true;
-  }
 
   @Override
-  public @NotNull String getShortName() {
+  public String getShortName() {
     return "CucumberUndefinedStep";
   }
 
   @Override
-  public @NotNull PsiElementVisitor buildVisitor(final @NotNull ProblemsHolder holder, final boolean isOnTheFly) {
+  public PsiElementVisitor buildVisitor(ProblemsHolder holder, boolean isOnTheFly) {
     return new GherkinElementVisitor() {
       @Override
       public void visitStep(GherkinStep step) {
@@ -40,17 +37,19 @@ public final class CucumberStepInspection extends GherkinInspection {
           if (reference == null) {
             return;
           }
-          final AbstractStepDefinition definition = reference.resolveToDefinition();
-          if (definition == null) {
-            CucumberCreateStepFix createStepFix = null;
-            CucumberCreateAllStepsFix createAllStepsFix = null;
-            if (CucumberStepHelper.getExtensionCount() > 0) {
-              createStepFix = new CucumberCreateStepFix();
-              createAllStepsFix = new CucumberCreateAllStepsFix();
+          final ResolveResult[] resolveResults = reference.multiResolve(false);
+          if (resolveResults.length == 0) {
+            LocalQuickFix[] fixes = null;
+            if (!CucumberJvmExtensionPoint.EP_NAME.getExtensionList().isEmpty()) {
+              fixes = new LocalQuickFix[]{new CucumberCreateStepFix(), new CucumberCreateAllStepsFix()};
             }
             holder.registerProblem(reference.getElement(), reference.getRangeInElement(),
                                    CucumberBundle.message("cucumber.inspection.undefined.step.msg.name"),
-                                   createStepFix, createAllStepsFix);
+                                   fixes);
+          }
+          else if (resolveResults.length > 1) {
+            holder.registerProblem(reference.getElement(), reference.getRangeInElement(),
+                                   CucumberBundle.message("cucumber.inspection.ambiguous.step.msg.name", resolveResults.length));
           }
         }
       }

@@ -1,15 +1,15 @@
 ### auto-generated section `build intellij.tslint` start
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_resources", "jvm_test")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
 
-jvm_resources(
+resourcegroup(
   name = "tslint_resources",
-  files = glob(["resources/**/*"]),
+  srcs = glob(["resources/**/*"]),
   strip_prefix = "resources"
 )
 
-jvm_resources(
+resourcegroup(
   name = "tslint_resources_1",
-  files = glob(["gen/**/*"]),
+  srcs = glob(["gen/**/*"]),
   strip_prefix = "gen"
 )
 
@@ -17,69 +17,78 @@ jvm_library(
   name = "tslint",
   module_name = "intellij.tslint",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java"], allow_empty = True),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form"], allow_empty = True),
+  resources = [
+    ":tslint_resources",
+    ":tslint_resources_1",
+  ],
   deps = [
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/code-style-api:codeStyle",
+    "@community//platform/core-api:core",
+    "@community//platform/editor-ui-api:editor-ui",
     "@community//platform/ide-core-impl",
-    "//plugins/JavaScriptLanguage:javascript",
     "@community//platform/platform-impl:ide-impl",
     "@community//platform/lang-impl",
     "@community//platform/lang-api:lang",
-    "//plugins/JavaScriptLanguage/javascript-frontback-impl",
+    "@community//platform/lvcs-api:lvcs",
+    "@community//platform/projectModel-api:projectModel",
     "@community//xml/impl",
     "//plugins/JavaScriptLanguage/javascript-parser",
-    "//plugins/JavaScriptLanguage:javascript-impl",
-    "//webcore/impl:webide-impl",
-    "@lib//:gson",
-    "@lib//:snakeyaml",
+    "//plugins/JavaScriptLanguage:javascript-backend",
+    "//webcore/impl",
+    "@community//libraries/gson",
+    "@community//libraries/snakeyaml",
     "@community//platform/statistics",
     "@community//platform/core-ui",
     "@community//platform/platform-util-io:ide-util-io",
     "@community//platform/util/jdom",
     "@community//json/backend",
-  ],
-  runtime_deps = [
-    ":tslint_resources",
-    ":tslint_resources_1",
+    "//plugins/JavaScriptLanguage/javascript-common",
   ]
 )
 
 jvm_library(
   name = "tslint_test_lib",
   visibility = ["//visibility:public"],
-  srcs = glob(["test/src/**/*.kt", "test/src/**/*.java"], allow_empty = True),
+  srcs = glob(["test/src/**/*.kt", "test/src/**/*.java", "test/src/**/*.form"], allow_empty = True),
   associates = [":tslint"],
   deps = [
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/code-style-api:codeStyle",
+    "@community//platform/core-api:core",
+    "@community//platform/editor-ui-api:editor-ui",
     "@community//platform/ide-core-impl",
-    "//plugins/JavaScriptLanguage:javascript",
     "@community//platform/platform-impl:ide-impl",
-    "@community//platform/platform-impl:ide-impl_test_lib",
     "@community//platform/lang-impl",
     "@community//platform/lang-api:lang",
-    "//plugins/JavaScriptLanguage/javascript-frontback-impl",
+    "@community//platform/lvcs-api:lvcs",
+    "@community//platform/projectModel-api:projectModel",
     "@community//xml/impl",
     "//plugins/JavaScriptLanguage/javascript-parser",
-    "//plugins/JavaScriptLanguage:javascript-impl",
-    "//webcore/impl:webide-impl",
+    "//plugins/JavaScriptLanguage:javascript-backend",
+    "//webcore/impl",
     "@community//platform/testFramework",
     "@community//platform/testFramework:testFramework_test_lib",
     "//plugins/JavaScriptLanguage:javascript-testFramework",
-    "@lib//:gson",
-    "@lib//:snakeyaml",
+    "@community//libraries/gson",
+    "@community//libraries/snakeyaml",
     "@community//platform/statistics",
     "@community//platform/statistics:statistics_test_lib",
     "@community//platform/core-ui",
     "@community//platform/platform-util-io:ide-util-io",
     "@community//platform/util/jdom",
     "@community//json/backend",
-  ],
-  runtime_deps = [
-    ":tslint_resources",
-    ":tslint_resources_1",
+    "//plugins/JavaScriptLanguage/javascript-common",
   ]
 )
+### auto-generated section `build intellij.tslint` end
 
-jvm_test(
+### auto-generated section `test intellij.tslint` start
+load("@community//build:tests-options.bzl", "jps_test")
+
+jps_test(
   name = "tslint_test",
   runtime_deps = [":tslint_test_lib"]
 )
-### auto-generated section `build intellij.tslint` end
+### auto-generated section `test intellij.tslint` end

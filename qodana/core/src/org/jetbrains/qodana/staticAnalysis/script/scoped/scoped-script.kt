@@ -1,26 +1,26 @@
 package org.jetbrains.qodana.staticAnalysis.script.scoped
 
-import com.intellij.openapi.components.serviceAsync
 import com.jetbrains.qodana.sarif.SarifUtil
 import com.jetbrains.qodana.sarif.baseline.BaselineCalculation
 import com.jetbrains.qodana.sarif.baseline.BaselineCalculation.Options
-import com.jetbrains.qodana.sarif.model.Run
 import com.jetbrains.qodana.sarif.model.SarifReport
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.qodana.staticAnalysis.inspections.config.QodanaConfig
 import org.jetbrains.qodana.staticAnalysis.inspections.coverageData.QodanaCoverageComputationState
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.*
+import org.jetbrains.qodana.staticAnalysis.inspections.runner.QodanaRunIncrementalContext.Companion.asIncremental
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.startup.QodanaRunContextFactory
+import org.jetbrains.qodana.staticAnalysis.sarif.getOrCreateRun
 import org.jetbrains.qodana.staticAnalysis.script.*
 import java.nio.file.Path
 import kotlin.io.path.Path
 import kotlin.io.path.notExists
 
-private const val SCOPE_ARG = "scope-file"
+internal const val SCOPE_ARG = "scope-file"
 const val SCOPED_SCRIPT_NAME = "scoped"
 internal const val SCOPED_BASELINE_PROPERTY = "qodana.scoped.baseline.path"
 internal const val COVERAGE_SKIP_REPORTING_PROPERTY = "qodana.skip.coverage.issues.reporting"
-internal const val COVERAGE_SKIP_COMPUTATION_PROPERTY = "qodana.skip.coverage.computation"
+const val COVERAGE_SKIP_COMPUTATION_PROPERTY = "qodana.skip.coverage.computation"
 
 internal class ScopedScriptFactory : QodanaScriptFactory {
   override val scriptName get() = SCOPED_SCRIPT_NAME
@@ -52,7 +52,8 @@ internal class ScopedScriptFactory : QodanaScriptFactory {
 
 internal class ScopedScript(runContextFactory: ScopedRunContextFactory) :
   DefaultScript(runContextFactory, AnalysisKind.INCREMENTAL) {
-  override suspend fun execute(report: SarifReport, run: Run, runContext: QodanaRunContext, inspectionContext: QodanaGlobalInspectionContext) {
+  override suspend fun execute(report: SarifReport, runContext: QodanaRunContext, inspectionContext: QodanaGlobalInspectionContext) {
+    val run = report.getOrCreateRun()
     runContext.runAnalysis(context = inspectionContext)
     run.results = runContext.getResultsForInspectionGroup(inspectionContext)
 
@@ -93,17 +94,10 @@ internal class ScopedRunContextFactory(
 ) : QodanaRunContextFactory {
 
   override suspend fun openRunContext(): QodanaRunContext {
-    var sourceContext = delegate.openRunContext()
     val changedFiles = parseChangedFiles(scopeFile)
     val paths = changedFiles.files.map { Path.of(it.path) }
     val addedLines = collectAddedLines(changedFiles, config)
-
-    sourceContext = sourceContext.copy(changes = addedLines)
-
-    sourceContext.project.serviceAsync<LocalChangesService>()
-      .isIncrementalAnalysis
-      .set(true)
-
-    return sourceContext.applyExternalFileScope(paths)
+    return delegate.openRunContext()
+      .asIncremental(changes = addedLines, paths = paths)
   }
 }

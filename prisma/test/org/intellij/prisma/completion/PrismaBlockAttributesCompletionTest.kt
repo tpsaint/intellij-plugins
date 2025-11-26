@@ -22,7 +22,7 @@ class PrismaBlockAttributesCompletionTest : PrismaCompletionTestBase("completion
       """.trimIndent(),
       "@@id"
     )
-    assertSameElements(lookupElements.strings, BlockAttributes.ALL)
+    assertSameElements(lookupElements.strings, BlockAttributes.ALL - BlockAttributes.SCHEMA)
     checkLookupDocumentation(lookupElements, "@@id")
   }
 
@@ -253,5 +253,154 @@ class PrismaBlockAttributesCompletionTest : PrismaCompletionTestBase("completion
       """.trimIndent()
     )
     assertSameElements(lookupElements.strings, BlockAttributes.MAP)
+  }
+
+  fun testSchemaAttribute() {
+    val lookupElements = completeSelected(
+      """
+        generator client {
+          provider        = "prisma-client-js"
+          previewFeatures = ["multiSchema"]
+        }
+
+        datasource db {
+          provider = "postgresql"
+          url      = ""
+          schemas  = ["base-schema", "login"]
+        }
+
+        model User {
+          id Int @id
+
+          @@schema("<caret>")
+        }
+      """.trimIndent(),
+      """
+        generator client {
+          provider        = "prisma-client-js"
+          previewFeatures = ["multiSchema"]
+        }
+
+        datasource db {
+          provider = "postgresql"
+          url      = ""
+          schemas  = ["base-schema", "login"]
+        }
+
+        model User {
+          id Int @id
+
+          @@schema("base-schema")
+        }
+      """.trimIndent(),
+      "base-schema",
+    )
+    assertSameElements(lookupElements.strings, "base-schema", "login")
+  }
+
+  fun testSchemaAttributeQuoteHandler() {
+    val lookupElements = completeSelected(
+      """
+        generator client {
+          provider        = "prisma-client-js"
+          previewFeatures = ["multiSchema"]
+        }
+
+        datasource db {
+          provider = "postgresql"
+          url      = ""
+          schemas  = ["base-schema", "login"]
+        }
+
+        model User {
+          id Int @id
+
+          @@schema(<caret>)
+        }
+      """.trimIndent(),
+      """
+        generator client {
+          provider        = "prisma-client-js"
+          previewFeatures = ["multiSchema"]
+        }
+
+        datasource db {
+          provider = "postgresql"
+          url      = ""
+          schemas  = ["base-schema", "login"]
+        }
+
+        model User {
+          id Int @id
+
+          @@schema("base-schema")
+        }
+      """.trimIndent(),
+      "\"base-schema\"",
+    )
+    assertSameElements(lookupElements.strings, "\"base-schema\"", "\"login\"")
+  }
+
+  fun testBlockAttributesShardKey() {
+    completeSelected("""
+      generator client {
+        provider        = "prisma-client-js"
+        previewFeatures = ["shardKeys"]
+      }
+
+      datasource db {
+        provider = "mysql"
+        url      = "file:./dev.db"
+      }
+
+      model User {
+        id    Int     @id @default(autoincrement())
+        email String  @unique
+        name  String?
+        
+        @@<caret>
+      }
+    """.trimIndent(), """
+      generator client {
+        provider        = "prisma-client-js"
+        previewFeatures = ["shardKeys"]
+      }
+
+      datasource db {
+        provider = "mysql"
+        url      = "file:./dev.db"
+      }
+
+      model User {
+        id    Int     @id @default(autoincrement())
+        email String  @unique
+        name  String?
+        
+        @@shardKey([<caret>])
+      }
+    """.trimIndent(), "@@shardKey")
+  }
+
+  fun testBlockAttributeShardKeyOnlyMysql() {
+    val lookupElements = getLookupElements("""
+      generator client {
+        provider        = "prisma-client-js"
+        previewFeatures = ["shardKeys"]
+      }
+
+      datasource db {
+        provider = "postgresql"
+        url      = "file:./dev.db"
+      }
+
+      model User {
+        id    Int     @id @default(autoincrement())
+        email String  @unique
+        name  String?
+        
+        @@<caret>
+      }
+    """.trimIndent())
+    assertDoesntContain(lookupElements.strings, BlockAttributes.SHARD_KEY)
   }
 }

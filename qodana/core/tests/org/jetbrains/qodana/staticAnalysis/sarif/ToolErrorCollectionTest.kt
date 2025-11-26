@@ -11,7 +11,7 @@ import com.jetbrains.qodana.sarif.model.Notification
 import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.qodana.staticAnalysis.inspections.config.QodanaProfileConfig
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.FULL_SARIF_REPORT_NAME
-import org.jetbrains.qodana.staticAnalysis.inspections.runner.QodanaRunnerTestCase
+import org.jetbrains.qodana.staticAnalysis.testFramework.QodanaRunnerTestCase
 import org.jetbrains.qodana.staticAnalysis.profile.SanityInspectionGroup
 import org.jetbrains.qodana.staticAnalysis.testFramework.reinstantiateInspectionRelatedServices
 import org.junit.Test
@@ -20,7 +20,7 @@ import kotlin.io.path.bufferedReader
 import kotlin.io.path.div
 import kotlin.io.path.pathString
 
-@TestDataPath("\$CONTENT_ROOT/testData/QodanaRunnerTest")
+@TestDataPath($$"$CONTENT_ROOT/testData/QodanaRunnerTest")
 class ToolErrorCollectionTest : QodanaRunnerTestCase() {
   @Test
   fun localInspection() {
@@ -172,7 +172,7 @@ private class SimpleGlobalTool : GlobalSimpleInspectionTool() {
 
   override fun getShortName(): String = "SimpleGlobal"
 
-  override fun checkFile(file: PsiFile,
+  override fun checkFile(psiFile: PsiFile,
                          manager: InspectionManager,
                          problemsHolder: ProblemsHolder,
                          globalContext: GlobalInspectionContext,

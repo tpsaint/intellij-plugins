@@ -8,7 +8,8 @@ import com.intellij.psi.impl.source.tree.RecursiveLighterASTNodeWalkingVisitor;
 import com.intellij.util.indexing.DefaultFileTypeSpecificInputFilter;
 import com.intellij.util.indexing.FileBasedIndex;
 import com.intellij.util.indexing.ID;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.cucumber.CucumberStepIndex;
 import org.jetbrains.plugins.groovy.GroovyFileType;
 
@@ -17,15 +18,17 @@ import java.util.List;
 
 import static org.jetbrains.plugins.groovy.lang.psi.GroovyElementTypes.*;
 
+@NotNullByDefault
 public final class GrCucumberStepIndex extends CucumberStepIndex {
   public static final ID<Boolean, List<Integer>> INDEX_ID = ID.create("groovy.cucumber.step");
   private static final String CUCUMBER_GROOVY_PACKAGE = "cucumber.api.groovy.";
   private static final String CUCUMBER_GROOVY_1_0_PACKAGE = "cucumber.runtime.groovy.";
   private static final String CUCUMBER_GROOVY_4_5_PACKAGE = "io.cucumber.groovy.";
-  private static final String[] PACKAGES_TO_SCAN = new String[]{CUCUMBER_GROOVY_PACKAGE, CUCUMBER_GROOVY_1_0_PACKAGE, CUCUMBER_GROOVY_4_5_PACKAGE};
+  private static final String[] PACKAGES_TO_SCAN =
+    new String[]{CUCUMBER_GROOVY_PACKAGE, CUCUMBER_GROOVY_1_0_PACKAGE, CUCUMBER_GROOVY_4_5_PACKAGE};
 
   @Override
-  public @NotNull ID<Boolean, List<Integer>> getName() {
+  public ID<Boolean, List<Integer>> getName() {
     return INDEX_ID;
   }
 
@@ -40,19 +43,18 @@ public final class GrCucumberStepIndex extends CucumberStepIndex {
   }
 
   @Override
-  public @NotNull FileBasedIndex.InputFilter getInputFilter() {
+  public FileBasedIndex.InputFilter getInputFilter() {
     return new DefaultFileTypeSpecificInputFilter(GroovyFileType.GROOVY_FILE_TYPE);
   }
 
   @Override
-  protected List<Integer> getStepDefinitionOffsets(@NotNull LighterAST lighterAst, @NotNull CharSequence text) {
+  protected List<Integer> getStepDefinitionOffsets(LighterAST lighterAst, CharSequence text) {
     List<Integer> result = new ArrayList<>();
-
     RecursiveLighterASTNodeWalkingVisitor visitor = new RecursiveLighterASTNodeWalkingVisitor(lighterAst) {
       @Override
-      public void visitNode(@NotNull LighterASTNode element) {
+      public void visitNode(LighterASTNode element) {
         if (element.getTokenType() == METHOD_CALL_EXPRESSION) {
-          List<LighterASTNode> methodNameAndArgumentList = lighterAst.getChildren(element);
+          List<@Nullable LighterASTNode> methodNameAndArgumentList = lighterAst.getChildren(element);
           if (methodNameAndArgumentList.size() < 2) {
             super.visitNode(element);
             return;
@@ -63,7 +65,7 @@ public final class GrCucumberStepIndex extends CucumberStepIndex {
             if (expressionList.getTokenType() == ARGUMENT_LIST) {
               List<LighterASTNode> expressionListChildren = LightTreeUtil.getChildrenOfType(lighterAst, expressionList, UNARY_EXPRESSION);
               if (!expressionListChildren.isEmpty()) {
-                LighterASTNode expressionParameter = expressionListChildren.get(0);
+                LighterASTNode expressionParameter = expressionListChildren.getFirst();
                 result.add(expressionParameter.getStartOffset());
               }
             }

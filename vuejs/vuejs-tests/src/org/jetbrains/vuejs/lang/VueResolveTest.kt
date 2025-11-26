@@ -14,16 +14,17 @@ import com.intellij.psi.xml.XmlAttribute
 import com.intellij.testFramework.UsefulTestCase
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.util.asSafely
-import com.intellij.webSymbols.*
-import com.intellij.webSymbols.testFramework.assertUnresolvedReference
-import com.intellij.webSymbols.testFramework.checkGotoDeclaration
-import com.intellij.webSymbols.testFramework.moveToOffsetBySignature
-import com.intellij.webSymbols.testFramework.multiResolveWebSymbolReference
-import com.intellij.webSymbols.testFramework.renderLookupItems
-import com.intellij.webSymbols.testFramework.resolveReference
-import com.intellij.webSymbols.testFramework.resolveToWebSymbolSource
-import com.intellij.webSymbols.testFramework.webSymbolSourceAtCaret
-import com.intellij.webSymbols.utils.asSingleSymbol
+import com.intellij.polySymbols.*
+import com.intellij.polySymbols.search.PsiSourcedPolySymbol
+import com.intellij.polySymbols.testFramework.assertUnresolvedReference
+import com.intellij.polySymbols.testFramework.checkGotoDeclaration
+import com.intellij.polySymbols.testFramework.moveToOffsetBySignature
+import com.intellij.polySymbols.testFramework.multiResolvePolySymbolReference
+import com.intellij.polySymbols.testFramework.renderLookupItems
+import com.intellij.polySymbols.testFramework.resolveReference
+import com.intellij.polySymbols.testFramework.resolveToPolySymbolSource
+import com.intellij.polySymbols.testFramework.polySymbolSourceAtCaret
+import com.intellij.polySymbols.utils.asSingleSymbol
 import junit.framework.TestCase
 import org.jetbrains.vuejs.codeInsight.VueJSSpecificHandlersFactory
 import org.jetbrains.vuejs.lang.VueTestModule.VUE_2_6_10
@@ -98,7 +99,7 @@ class VueResolveTest : BasePlatformTestCase() {
   fun testResolveAttributeInPascalCaseUsageInPropsArray() {
     myFixture.configureByText("ResolveAttributeInPascalCaseUsageInPropsArray.vue", """
 <template>
-  <list25620 <caret>PascalCase">
+  <list25620 <caret>pascalCase">
   Text
   </list25620>
 </template>
@@ -112,7 +113,7 @@ class VueResolveTest : BasePlatformTestCase() {
 </script>""")
     val reference = myFixture.getReferenceAtCaretPosition()
     TestCase.assertNotNull(reference)
-    val literal = myFixture.webSymbolSourceAtCaret()!!.parent
+    val literal = myFixture.polySymbolSourceAtCaret()!!.parent
     assertInstanceOf(literal, JSLiteralExpression::class.java)
     assertInstanceOf(literal!!.parent, JSArrayLiteralExpression::class.java)
     TestCase.assertEquals("'pascalCase'", literal.text)
@@ -814,7 +815,7 @@ export default {
 </script>
 """)
 
-    val literal = myFixture.webSymbolSourceAtCaret()!!.parent
+    val literal = myFixture.polySymbolSourceAtCaret()!!.parent
     assertInstanceOf(literal, JSLiteralExpression::class.java)
     TestCase.assertEquals("'libComponentProp'", literal!!.text)
     assertInstanceOf(literal.parent, JSArrayLiteralExpression::class.java)
@@ -837,7 +838,7 @@ export default {
       </template>
     """.trimIndent())
 
-    val property = myFixture.webSymbolSourceAtCaret()!!.parent
+    val property = myFixture.polySymbolSourceAtCaret()!!.parent
     assertInstanceOf(property, JSProperty::class.java)
     TestCase.assertEquals("kuku", (property as JSProperty).name)
     assertInstanceOf(property.parent.parent, JSProperty::class.java)
@@ -852,7 +853,7 @@ export default {
       </template>
     """.trimIndent())
 
-    val property = myFixture.webSymbolSourceAtCaret()!!.parent
+    val property = myFixture.polySymbolSourceAtCaret()!!.parent
     assertInstanceOf(property, JSProperty::class.java)
     TestCase.assertEquals("to", (property as JSProperty).name)
     assertInstanceOf(property.parent.parent, JSProperty::class.java)
@@ -883,7 +884,7 @@ export default {
       </template>
 """)
 
-    val property = myFixture.webSymbolSourceAtCaret()!!.parent
+    val property = myFixture.polySymbolSourceAtCaret()!!.parent
     TestCase.assertNotNull(property)
     TestCase.assertTrue(property is JSProperty)
     TestCase.assertEquals("from", (property as JSProperty).name)
@@ -910,7 +911,7 @@ Vue.component(alias, WiseComp)
   }
 
   private fun doResolveAliasIntoLibraryComponent(compName: String, fileName: String) {
-    val target = myFixture.webSymbolSourceAtCaret()
+    val target = myFixture.polySymbolSourceAtCaret()
     TestCase.assertNotNull(target)
     TestCase.assertEquals(fileName, target!!.containingFile.name)
     assertInstanceOf(target.parent, JSProperty::class.java)
@@ -930,7 +931,7 @@ Vue.component('global-comp-literal', {
   <global-comp-literal <caret>inside-global-comp-literal=222></global-comp-literal>
 </template>
 """)
-    val element = myFixture.webSymbolSourceAtCaret()
+    val element = myFixture.polySymbolSourceAtCaret()
     val property = element!!.parent
     assertInstanceOf(property, JSProperty::class.java)
     TestCase.assertEquals("insideGlobalCompLiteral", (property as JSProperty).name)
@@ -955,7 +956,7 @@ Vue.component('global-comp-literal', {
 """)
     myFixture.checkHighlighting()
     myFixture.doHighlighting()
-    val literal = myFixture.webSymbolSourceAtCaret()!!.parent
+    val literal = myFixture.polySymbolSourceAtCaret()!!.parent
     assertInstanceOf(literal, JSLiteralExpression::class.java)
     TestCase.assertEquals("oneTwo", (literal as JSLiteralExpression).stringValue)
     TestCase.assertTrue(literal.parent is JSArrayLiteralExpression)
@@ -978,7 +979,7 @@ const props = ['oneTwo']
 </script>
 """)
     myFixture.doHighlighting()
-    val literal = myFixture.webSymbolSourceAtCaret()!!.parent
+    val literal = myFixture.polySymbolSourceAtCaret()!!.parent
     TestCase.assertNotNull(literal)
     TestCase.assertTrue(literal is JSLiteralExpression)
     TestCase.assertEquals("oneTwo", (literal as JSLiteralExpression).stringValue)
@@ -1010,7 +1011,7 @@ const props = ['oneTwo']
 """)
     myFixture.checkHighlighting()
     myFixture.doHighlighting()
-    val literal = myFixture.webSymbolSourceAtCaret()!!.parent
+    val literal = myFixture.polySymbolSourceAtCaret()!!.parent
     assertInstanceOf(literal, JSLiteralExpression::class.java)
     TestCase.assertEquals("seeMe", (literal as JSLiteralExpression).stringValue)
     TestCase.assertEquals("compUI.vue", literal.containingFile.name)
@@ -1041,7 +1042,7 @@ const props = {seeMe: {}}
 </script>
 """)
     myFixture.checkHighlighting()
-    val property = myFixture.webSymbolSourceAtCaret()!!.parent
+    val property = myFixture.polySymbolSourceAtCaret()!!.parent
     TestCase.assertNotNull(property)
     TestCase.assertTrue(property is JSProperty)
     TestCase.assertEquals("seeMe", (property as JSProperty).name)
@@ -1073,7 +1074,7 @@ const props = {seeMe: {}}
 </script>
 """)
     myFixture.checkHighlighting()
-    val property = myFixture.webSymbolSourceAtCaret()!!.parent
+    val property = myFixture.polySymbolSourceAtCaret()!!.parent
     TestCase.assertNotNull(property)
     TestCase.assertTrue(property is JSProperty)
     TestCase.assertTrue(property!!.parent.parent is JSProperty)
@@ -1125,7 +1126,7 @@ const props = {seeMe: {}}
 </script>
 """)
 
-    val property = myFixture.webSymbolSourceAtCaret()?.parent
+    val property = myFixture.polySymbolSourceAtCaret()?.parent
     assertInstanceOf(property, JSProperty::class.java)
     TestCase.assertEquals("mixinProp", (property as JSProperty).name)
     assertInstanceOf(property.parent.parent, JSProperty::class.java)
@@ -1138,14 +1139,14 @@ const props = {seeMe: {}}
     myFixture.configureByText("FirstMixin.vue", """
 <script>
   export default {
-    props: ['FirstMixinProp']
+    props: ['firstMixinProp']
   }
 </script>
 """)
     myFixture.configureByText("SecondMixin.vue", """
 <script>
   export default {
-    props: ['SecondMixinProp']
+    props: ['secondMixinProp']
   }
 </script>
 """)
@@ -1166,19 +1167,19 @@ const props = {seeMe: {}}
     myFixture.checkHighlighting(true, false, true)
 
     val checkResolve = { propName: String, file: String ->
-      val literal = myFixture.webSymbolSourceAtCaret()!!.parent
+      val literal = myFixture.polySymbolSourceAtCaret()!!.parent
       assertInstanceOf(literal, JSLiteralExpression::class.java)
       TestCase.assertEquals(propName, (literal as JSLiteralExpression).stringValue)
       assertInstanceOf(literal.parent.parent, JSProperty::class.java)
       TestCase.assertEquals("props", (literal.parent.parent as JSProperty).name)
       TestCase.assertEquals(file, literal.containingFile.name)
     }
-    checkResolve("FirstMixinProp", "FirstMixin.vue")
+    checkResolve("firstMixinProp", "FirstMixin.vue")
 
     val attribute = myFixture.findElementByText("second-mixin-prop", XmlAttribute::class.java)
     TestCase.assertNotNull(attribute)
     myFixture.editor.caretModel.moveToOffset(attribute.textOffset)
-    checkResolve("SecondMixinProp", "SecondMixin.vue")
+    checkResolve("secondMixinProp", "SecondMixin.vue")
   }
 
   fun testResolveIntoLocalMixin() {
@@ -1234,7 +1235,7 @@ const props = {seeMe: {}}
   }
 
   private fun doTestResolveIntoProperty(name: String) {
-    val property = myFixture.webSymbolSourceAtCaret()?.parent
+    val property = myFixture.polySymbolSourceAtCaret()?.parent
     assertInstanceOf(property, JSProperty::class.java)
     TestCase.assertEquals(name, (property as JSProperty).name)
     assertInstanceOf(property.parent.parent, JSProperty::class.java)
@@ -1321,7 +1322,7 @@ const props = {seeMe: {}}
     TestCase.assertNotNull(attribute)
     myFixture.editor.caretModel.moveToOffset(attribute.textOffset + 2)
 
-    val callExpression = myFixture.webSymbolSourceAtCaret()
+    val callExpression = myFixture.polySymbolSourceAtCaret()
     TestCase.assertNotNull(callExpression)
     // unstub for test
     TestCase.assertNotNull(callExpression!!.text)
@@ -1363,7 +1364,7 @@ const props = {seeMe: {}}
   }
 
   private fun doTestResolveIntoDirective(directive: String, fileName: String) {
-    val property = myFixture.webSymbolSourceAtCaret()
+    val property = myFixture.polySymbolSourceAtCaret()
     TestCase.assertNotNull(directive, property)
     when (property) {
       is JSProperty -> {
@@ -1521,7 +1522,7 @@ Object.keys(obj).forEach(key => {
     myFixture.configureByText("ResolveAliasedObjectMemberComponent.vue",
                               """<template><<caret>alias/></template>""")
 
-    val target = myFixture.webSymbolSourceAtCaret()
+    val target = myFixture.polySymbolSourceAtCaret()
     TestCase.assertNotNull(target)
     TestCase.assertEquals("lib-comp-for-alias.es6", target!!.containingFile.name)
     TestCase.assertTrue(target.parent is JSProperty)
@@ -1574,7 +1575,7 @@ Object.keys(other).forEach(key => {
 """)
     myFixture.configureByText("ResolveObjectWithSpreadComponentAliased.vue",
                               """<template><<caret>lib-spread-alias/></template>""")
-    val target = myFixture.webSymbolSourceAtCaret()
+    val target = myFixture.polySymbolSourceAtCaret()
     TestCase.assertNotNull(target)
     TestCase.assertEquals("lib-spread.es6", target!!.containingFile.name)
     TestCase.assertTrue(target.parent is JSProperty)
@@ -1712,7 +1713,7 @@ export default class UsageComponent extends Vue {
 }
 </script>
 """)
-    val target = myFixture.resolveToWebSymbolSource("<<caret>LongComponent/>")
+    val target = myFixture.resolveToPolySymbolSource("<<caret>LongComponent/>")
     TestCase.assertEquals("ResolveWithClassComponentTs.vue", target.containingFile.name)
     assertInstanceOf(target, JSProperty::class.java)
     myFixture.checkGotoDeclaration("<<caret>LongComponent/>", "export default class <caret>LongComponent", "LongComponent.vue")
@@ -1726,7 +1727,7 @@ export default class UsageComponent extends Vue {
   }
 
   private fun doResolveIntoLibraryComponent(compName: String, fileName: String) {
-    val target = myFixture.webSymbolSourceAtCaret()
+    val target = myFixture.polySymbolSourceAtCaret()
     TestCase.assertEquals(fileName, target!!.containingFile.name)
     TestCase.assertTrue(target.parent is JSProperty)
     TestCase.assertEquals(compName, StringUtil.unquoteString((target.parent as JSProperty).value!!.text))
@@ -1804,7 +1805,7 @@ export default class UsageComponent extends Vue {
       </script>
       <template><Foo></Foo></template>
     """.trimIndent())
-    myFixture.resolveToWebSymbolSource("<F<caret>oo>")
+    myFixture.resolveToPolySymbolSource("<F<caret>oo>")
       .parent.text
       .let { TestCase.assertEquals("{ Foo }", it) }
   }
@@ -1857,7 +1858,7 @@ export default class UsageComponent extends Vue {
       .forEach { testCase ->
         TestCase.assertEquals(
           testCase.value,
-          myFixture.resolveToWebSymbolSource(testCase.key)
+          myFixture.resolveToPolySymbolSource(testCase.key)
             .let {
               (it as? JSImplicitElement)?.context ?: it
             }.text)
@@ -1882,7 +1883,6 @@ export default class UsageComponent extends Vue {
   }
 
   fun testSlotName() {
-    myFixture.configureVueDependencies("some_lib" to "0.0.0")
     myFixture.copyDirectoryToProject("../completion/slotNames", ".")
     myFixture.copyFileToProject("slotNames/test2.vue", "test2.vue")
     myFixture.configureFromTempProjectFile("test2.vue")
@@ -1897,7 +1897,7 @@ export default class UsageComponent extends Vue {
       val slotWithCaret = slotName.replaceRange(1, 1, "<caret>")
       for (signature in listOf("<$tag><template v-slot:$slotWithCaret",
                                "<$tag><div slot=\"$slotWithCaret\"")) {
-        val element = myFixture.resolveToWebSymbolSource(signature)
+        val element = myFixture.resolveToPolySymbolSource(signature)
         assertEquals(signature, slotDeclText, element.text)
       }
     }
@@ -2037,7 +2037,7 @@ export default class UsageComponent extends Vue {
     ).forEach { (signature, offset, expectedFileName) ->
       myFixture.configureFromTempProjectFile("index.html")
       if (offset == null) {
-        assertEmpty("Expected empty for $signature", myFixture.multiResolveWebSymbolReference(signature))
+        assertEmpty("Expected empty for $signature", myFixture.multiResolvePolySymbolReference(signature))
       }
       else {
         myFixture.checkGotoDeclaration(signature, offset, expectedFileName)
@@ -2282,8 +2282,8 @@ export default class UsageComponent extends Vue {
 
     assertEquals(
       "default?: (props: { field: FieldSlotPropText }) => any",
-      myFixture.multiResolveWebSymbolReference("v-sl<caret>ot='{ field }'").asSingleSymbol()
-        ?.asSafely<PsiSourcedWebSymbol>()?.source?.text
+      myFixture.multiResolvePolySymbolReference("v-sl<caret>ot='{ field }'").asSingleSymbol()
+        ?.asSafely<PsiSourcedPolySymbol>()?.source?.text
     )
   }
 
@@ -2306,8 +2306,8 @@ export default class UsageComponent extends Vue {
 
     assertEquals(
       "default?: (props: { field: FieldSlotPropText }) => any",
-      myFixture.multiResolveWebSymbolReference("v-sl<caret>ot='{ field }'").asSingleSymbol()
-        ?.asSafely<PsiSourcedWebSymbol>()?.source?.text
+      myFixture.multiResolvePolySymbolReference("v-sl<caret>ot='{ field }'").asSingleSymbol()
+        ?.asSafely<PsiSourcedPolySymbol>()?.source?.text
     )
   }
 
@@ -2330,8 +2330,8 @@ export default class UsageComponent extends Vue {
 
     assertEquals(
       "default?: (props: { field: FieldSlotPropText }) => any",
-      myFixture.multiResolveWebSymbolReference("v-slot:def<caret>ault='{ field }'").asSingleSymbol()
-        ?.asSafely<PsiSourcedWebSymbol>()?.source?.text
+      myFixture.multiResolvePolySymbolReference("v-slot:def<caret>ault='{ field }'").asSingleSymbol()
+        ?.asSafely<PsiSourcedPolySymbol>()?.source?.text
     )
   }
 
@@ -2373,12 +2373,12 @@ export default class UsageComponent extends Vue {
     myFixture.copyDirectoryToProject(getTestName(true), "")
     myFixture.configureFromTempProjectFile("${getTestName(false)}.vue")
     val declarations = myFixture
-      .multiResolveWebSymbolReference("v-bind:input<caret>Prop")
+      .multiResolvePolySymbolReference("v-bind:input<caret>Prop")
       .asSequence()
       .filterIsInstance<VueBindingShorthandSymbol>()
       .flatMap { it.nameSegments }
       .flatMap { it.symbols }
-      .filterIsInstance<PsiSourcedWebSymbol>()
+      .filterIsInstance<PsiSourcedPolySymbol>()
       .mapNotNull { if (it.source is JSImplicitElement) it.source?.context else it.source }
       .map { it.text }
       .toList()

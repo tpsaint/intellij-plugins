@@ -2,6 +2,7 @@
 package com.intellij.lang.javascript.linter.tslint.service
 
 import com.google.gson.*
+import com.intellij.idea.AppMode
 import com.intellij.javascript.nodejs.execution.NodeTargetRun
 import com.intellij.javascript.nodejs.library.yarn.pnp.YarnPnpNodePackage
 import com.intellij.javascript.nodejs.util.NodePackage
@@ -12,7 +13,11 @@ import com.intellij.lang.javascript.linter.tslint.config.TsLintConfiguration
 import com.intellij.lang.javascript.linter.tslint.config.TsLintState
 import com.intellij.lang.javascript.linter.tslint.execution.TsLintOutputJsonParser
 import com.intellij.lang.javascript.linter.tslint.execution.TsLinterError
-import com.intellij.lang.javascript.service.*
+import com.intellij.lang.javascript.psi.util.JSPluginPathManager.getPluginResource
+import com.intellij.lang.javascript.service.JSLanguageServiceBase
+import com.intellij.lang.javascript.service.JSLanguageServiceQueue
+import com.intellij.lang.javascript.service.JSLanguageServiceQueueImpl
+import com.intellij.lang.javascript.service.JSLanguageServiceUtil
 import com.intellij.lang.javascript.service.protocol.*
 import com.intellij.lang.javascript.service.protocol.LocalFilePath.Companion.create
 import com.intellij.openapi.diagnostic.Logger
@@ -24,9 +29,10 @@ import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.text.SemVer
 import kotlinx.coroutines.async
 import kotlinx.coroutines.future.asCompletableFuture
+import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import java.util.function.BiFunction
-import java.util.function.Consumer
+import kotlin.io.path.absolutePathString
 
 class TsLintLanguageService(
   project: Project,
@@ -39,14 +45,13 @@ class TsLintLanguageService(
     config: VirtualFile?,
     content: String?,
     state: TsLintState
-  ): CompletableFuture<MutableList<TsLinterError?>?>? {
-    return createHighlightFuture(virtualFile, config, state,
-                                 BiFunction { filePath: LocalFilePath?, configPath: LocalFilePath? ->
-                                   GetErrorsCommand(filePath, configPath, content ?: "")
-                                 })
+  ): CompletableFuture<List<TsLinterError>>? {
+    return createHighlightFuture(virtualFile, config, state) { filePath: LocalFilePath?, configPath: LocalFilePath? ->
+      GetErrorsCommand(filePath, configPath, content ?: "")
+    }
   }
 
-  fun highlightAndFix(virtualFile: VirtualFile, state: TsLintState): CompletableFuture<MutableList<TsLinterError?>?>? {
+  fun highlightAndFix(virtualFile: VirtualFile, state: TsLintState): CompletableFuture<List<TsLinterError>>? {
     val config = TslintUtil.getConfig(state, myProject, virtualFile)
     //doesn't pass content (file should be saved before)
     return createHighlightFuture(virtualFile, config, state, BiFunction { filePath: LocalFilePath?, configPath: LocalFilePath? ->
@@ -59,13 +64,13 @@ class TsLintLanguageService(
     config: VirtualFile?,
     state: TsLintState,
     commandProvider: BiFunction<LocalFilePath?, LocalFilePath?, BaseCommand>
-  ): CompletableFuture<MutableList<TsLinterError?>?>? {
+  ): CompletableFuture<List<TsLinterError>>? {
     val configFilePath = JSLanguageServiceUtil.normalizePathDoNotFollowSymlinks(config)
     if (configFilePath == null) {
       if (state.nodePackageRef === AutodetectLinterPackage.INSTANCE) {
-        return CompletableFuture.completedFuture<MutableList<TsLinterError?>?>(ContainerUtil.emptyList<TsLinterError?>())
+        return CompletableFuture.completedFuture(ContainerUtil.emptyList())
       }
-      return CompletableFuture.completedFuture<MutableList<TsLinterError?>?>(mutableListOf(TsLinterError.createGlobalError(
+      return CompletableFuture.completedFuture(listOf(TsLinterError.createGlobalError(
         TsLintBundle.message("tslint.inspection.message.config.file.was.not.found"))))
     }
     val path = JSLanguageServiceUtil.normalizePathDoNotFollowSymlinks(virtualFile)
@@ -73,18 +78,18 @@ class TsLintLanguageService(
       return null
     }
 
-    val process = process
-    if (process == null) {
-      return CompletableFuture.completedFuture<MutableList<TsLinterError?>?>(mutableListOf<TsLinterError?>(
-        TsLinterError.createGlobalError(JSLanguageServiceUtil.getLanguageServiceCreationError(this))))
-    }
-
     //doesn't pass content (file should be saved before)
     val command = commandProvider.apply(LocalFilePath.create(path),
                                         LocalFilePath.create(configFilePath))
     return cs.async {
-      val answer = process.execute(command)?.answer ?: return@async null
-      parseResults(answer, path, JSLanguageServiceUtil.getGson(this@TsLintLanguageService))
+      val process = getProcess()
+      if (process == null) {
+        return@async listOf(
+          TsLinterError.createGlobalError(JSLanguageServiceUtil.getLanguageServiceCreationError(this@TsLintLanguageService))
+        )
+      }
+      val answer = process.execute(command)?.answer ?: return@async emptyList()
+      parseResults(answer, path, JSLanguageServiceUtil.getGson(this@TsLintLanguageService)) ?: emptyList()
     }.asCompletableFuture()
   }
 
@@ -93,8 +98,7 @@ class TsLintLanguageService(
       myProject,
       Protocol(this.nodePackage, myWorkingDirectory, myProject),
       null,
-      myDefaultReporter,
-      JSLanguageServiceDefaultCacheData())
+      myDefaultReporter)
   }
 
   private abstract class BaseCommand protected constructor(
@@ -121,7 +125,7 @@ class TsLintLanguageService(
     private val myNodePackage: NodePackage,
     private val myWorkingDirectory: VirtualFile,
     project: Project
-  ) : JSLanguageServiceNodeStdProtocolBase("tslint", project, Consumer { o: Any? -> }) {
+  ) : JSLanguageServiceNodeStdProtocolBase("tslint", project) {
     override val workingDirectory: String?
       get() = JSLanguageServiceUtil.normalizePathDoNotFollowSymlinks(myWorkingDirectory)
 
@@ -140,16 +144,13 @@ class TsLintLanguageService(
       result.additionalRootDirectory = create(extendedState.getState().rulesDirectory)
       result.pluginName = "tslint"
       result.pluginPath = LocalFilePath.create(
-        JSLanguageServiceUtil.getPluginDirectory(javaClass, "js/languageService/tslint-plugin-provider.js")!!.absolutePath)
+        getBundledScriptsDir().resolve("languageService/tslint-plugin-provider.js").absolutePathString())
       return result
     }
 
     override fun addNodeProcessAdditionalArguments(targetRun: NodeTargetRun) {
       super.addNodeProcessAdditionalArguments(targetRun)
-      targetRun.path(JSLanguageServiceUtil.getPluginDirectory(javaClass, "js")!!.absolutePath)
-    }
-
-    override fun dispose() {
+      targetRun.path(getBundledScriptsDir())
     }
   }
 
@@ -167,11 +168,11 @@ class TsLintLanguageService(
   companion object {
     private val LOG = Logger.getInstance(TsLintLanguageService::class.java)
 
-    private fun parseResults(answer: JSLanguageServiceAnswer, path: String, gson: Gson): MutableList<TsLinterError?>? {
+    private fun parseResults(answer: JSLanguageServiceAnswer, path: String, gson: Gson): List<TsLinterError>? {
       val element = answer.element
       val error = element.get("error")
       if (error != null) {
-        return mutableListOf(TsLinterError.createGlobalError(error.asString)) //NON-NLS
+        return listOf(TsLinterError.createGlobalError(error.asString)) //NON-NLS
       }
       val body: JsonElement? = parseBody(element)
       if (body == null) return null
@@ -206,5 +207,11 @@ class TsLintLanguageService(
       }
       return null
     }
+
+    private fun getBundledScriptsDir(): Path = getPluginResource(
+      TsLintLanguageService::class.java,
+      "js",
+      if (AppMode.isRunningFromDevBuild()) "tslint" else "tslint/gen"
+    )
   }
 }

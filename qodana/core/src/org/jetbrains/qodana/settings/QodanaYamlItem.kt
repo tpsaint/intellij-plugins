@@ -6,6 +6,14 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 
+enum class LinterUsed {
+  GITHUB_PROMO,
+  DEFAULT
+}
+
+class DefaultQodanaYamlContext(
+  val linterUsed: LinterUsed = LinterUsed.DEFAULT
+)
 class QodanaYamlItem(
   val id: String,
   val weight: Int,
@@ -14,16 +22,16 @@ class QodanaYamlItem(
 
 interface QodanaYamlItemProvider {
   companion object {
-    private val EP = ExtensionPointName<QodanaYamlItemProvider>("org.intellij.qodana.defaultQodanaYamlItemProvider")
+    private val EP = ExtensionPointName<QodanaYamlItemProvider>("org.intellij.qodana.qodanaYamlItemProvider")
 
-    suspend fun provideAll(project: Project): List<QodanaYamlItem> {
+    suspend fun provideAll(project: Project, context: DefaultQodanaYamlContext): List<QodanaYamlItem> {
       return coroutineScope {
         EP.extensionList.map {
-          async { it.provide(project) }
+          async { it.provide(project, context) }
         }.awaitAll().filterNotNull()
       }
     }
   }
 
-  suspend fun provide(project: Project): QodanaYamlItem?
+  suspend fun provide(project: Project, context: DefaultQodanaYamlContext): QodanaYamlItem?
 }

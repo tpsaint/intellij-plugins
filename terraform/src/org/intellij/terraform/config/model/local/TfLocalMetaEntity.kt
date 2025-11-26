@@ -1,4 +1,4 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.config.model.local
 
 import com.intellij.platform.workspace.storage.EntitySource
@@ -25,47 +25,4 @@ interface TfLocalMetaEntity : WorkspaceEntity {
 
   object LockEntitySource : EntitySource
 
-  //region generated code
-  @GeneratedCodeApiVersion(3)
-  interface Builder : WorkspaceEntity.Builder<TfLocalMetaEntity> {
-    override var entitySource: EntitySource
-    var timeStampLow: Int
-    var timeStampHigh: Int
-    var jsonPath: String
-    var lockFile: VirtualFileUrl
-  }
-
-  companion object : EntityType<TfLocalMetaEntity, Builder>() {
-    @JvmOverloads
-    @JvmStatic
-    @JvmName("create")
-    operator fun invoke(
-      timeStampLow: Int,
-      timeStampHigh: Int,
-      jsonPath: String,
-      lockFile: VirtualFileUrl,
-      entitySource: EntitySource,
-      init: (Builder.() -> Unit)? = null,
-    ): Builder {
-      val builder = builder()
-      builder.timeStampLow = timeStampLow
-      builder.timeStampHigh = timeStampHigh
-      builder.jsonPath = jsonPath
-      builder.lockFile = lockFile
-      builder.entitySource = entitySource
-      init?.invoke(builder)
-      return builder
-    }
-  }
-  //endregion
-
 }
-
-//region generated code
-fun MutableEntityStorage.modifyTFLocalMetaEntity(
-  entity: TfLocalMetaEntity,
-  modification: TfLocalMetaEntity.Builder.() -> Unit,
-): TfLocalMetaEntity {
-  return modifyEntity(TfLocalMetaEntity.Builder::class.java, entity, modification)
-}
-//endregion

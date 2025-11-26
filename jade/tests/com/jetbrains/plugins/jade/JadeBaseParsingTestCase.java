@@ -36,7 +36,6 @@ import org.coffeescript.lang.CoffeeScriptHtmlScriptContentProvider;
 import org.coffeescript.lang.parser.CoffeeScriptParserDefinition;
 import org.jetbrains.annotations.NotNull;
 
-import static com.intellij.css.testFramework.CssElementTypeServiceHelper.registerCssElementTypeServices;
 import static com.intellij.lang.javascript.JSElementTypeServiceHelper.registerJSElementTypeServices;
 import static com.intellij.xml.testFramework.XmlElementTypeServiceHelper.registerXmlElementTypeServices;
 
@@ -74,7 +73,11 @@ public abstract class JadeBaseParsingTestCase extends ParsingTestCase {
 
     registerExtensionPoint(FileIndentOptionsProvider.EP_NAME, FileIndentOptionsProvider.class);
     getApplication().registerService(CodeStyleSettingsService.class, new CodeStyleSettingsServiceImpl());
-    getProject().registerService(ProjectCodeStyleSettingsManager.class, new ProjectCodeStyleSettingsManager(getProject()));
+    LanguageCodeStyleSettingsProvider.mockLanguageCodeStyleSettingsProviderService((aClass, o) -> {
+      //noinspection unchecked
+      getApplication().registerService((Class<Object>)aClass, o);
+    });
+    getProject().registerService(ProjectCodeStyleSettingsManager.class, new ProjectCodeStyleSettingsManager(getProject(), false));
     getApplication().registerService(AppCodeStyleSettingsManager.class, new AppCodeStyleSettingsManager());
     getApplication().registerService(CodeStyleSchemes.class, new PersistableCodeStyleSchemes(
       ApplicationManager.getApplication().getComponent(SchemeManagerFactory.class)));
@@ -91,7 +94,6 @@ public abstract class JadeBaseParsingTestCase extends ParsingTestCase {
 
   @Override
   public void configureFromParserDefinition(@NotNull ParserDefinition definition, String extension) {
-    registerCssElementTypeServices(getApplication(), getTestRootDisposable());
     super.configureFromParserDefinition(definition, extension);
   }
 }

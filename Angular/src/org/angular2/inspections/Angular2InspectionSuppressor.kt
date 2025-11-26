@@ -7,6 +7,8 @@ import com.intellij.codeInspection.SuppressQuickFix
 import com.intellij.codeInspection.SuppressionUtil.SUPPRESS_IN_LINE_COMMENT_PATTERN
 import com.intellij.codeInspection.SuppressionUtil.isInspectionToolIdMentioned
 import com.intellij.codeInspection.SuppressionUtilCore
+import com.intellij.lang.javascript.psi.JSVarStatement
+import com.intellij.lang.javascript.psi.JSVariable
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiComment
@@ -14,16 +16,20 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiParserFacade
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.util.IncorrectOperationException
+import com.intellij.util.asSafely
 import org.angular2.lang.Angular2Bundle
-import org.angular2.lang.expr.Angular2Language
+import org.angular2.lang.expr.Angular2ExprDialect
+import org.angular2.lang.expr.psi.Angular2BlockParameter
 import org.angular2.lang.expr.psi.Angular2EmbeddedExpression
 import org.angular2.lang.expr.psi.Angular2PipeArgumentsList
+import org.angular2.lang.expr.psi.Angular2TemplateBinding
 import org.jetbrains.annotations.NonNls
 
 object Angular2InspectionSuppressor : InspectionSuppressor {
 
   override fun isSuppressedFor(element: PsiElement, toolId: String): Boolean {
     return isSuppressedInStatement(element, stripToolIdPrefix(toolId))
+           || ("JSUnusedLocalSymbols" == toolId && isUnderscoredLocalVariableIdentifierInAngularTemplate(element))
   }
 
   override fun getSuppressActions(element: PsiElement?, toolId: String): Array<SuppressQuickFix> {
@@ -39,7 +45,7 @@ object Angular2InspectionSuppressor : InspectionSuppressor {
     @Throws(IncorrectOperationException::class)
     override fun createSuppression(project: Project, element: PsiElement, container: PsiElement) {
       val parserFacade = PsiParserFacade.getInstance(project)
-      val comment = parserFacade.createLineOrBlockCommentFromText(Angular2Language, suppressText)
+      val comment = parserFacade.createLineOrBlockCommentFromText(Angular2ExprDialect.forContext(element), suppressText)
       container.parent.addAfter(comment, container)
     }
 
@@ -60,8 +66,10 @@ object Angular2InspectionSuppressor : InspectionSuppressor {
   @NonNls
   private val PREFIXES_TO_STRIP = arrayOf("TypeScript", "JS", "Angular")
 
-  private fun getStatementToolSuppressedIn(place: PsiElement,
-                                           toolId: String): PsiElement? {
+  private fun getStatementToolSuppressedIn(
+    place: PsiElement,
+    toolId: String,
+  ): PsiElement? {
     val statement = PsiTreeUtil.getParentOfType(place, Angular2EmbeddedExpression::class.java)
     if (statement != null) {
       var candidate = PsiTreeUtil.skipWhitespacesForward(statement)
@@ -80,8 +88,10 @@ object Angular2InspectionSuppressor : InspectionSuppressor {
     return null
   }
 
-  private fun isSuppressedInStatement(place: PsiElement,
-                                      toolId: String): Boolean {
+  private fun isSuppressedInStatement(
+    place: PsiElement,
+    toolId: String,
+  ): Boolean {
     return ReadAction.compute<PsiElement, RuntimeException> { getStatementToolSuppressedIn(place, toolId) } != null
   }
 
@@ -93,4 +103,15 @@ object Angular2InspectionSuppressor : InspectionSuppressor {
     }
     return toolId
   }
+
+  fun isUnderscoredLocalVariableIdentifierInAngularTemplate(place: PsiElement): Boolean =
+    (place.parent as? JSVariable)
+      ?.takeIf { it.name?.startsWith("_") == true }
+      ?.parent
+      ?.asSafely<JSVarStatement>()
+      ?.parent
+      ?.let {
+        (it is Angular2BlockParameter && it.isPrimaryExpression)
+        || it is Angular2TemplateBinding
+      } == true
 }

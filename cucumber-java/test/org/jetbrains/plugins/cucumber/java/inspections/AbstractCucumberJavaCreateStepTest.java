@@ -3,15 +3,16 @@ package org.jetbrains.plugins.cucumber.java.inspections;
 
 import com.intellij.codeInsight.intention.IntentionAction;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.testFramework.LightProjectDescriptor;
+import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.plugins.cucumber.inspections.CucumberStepInspection;
-import org.jetbrains.plugins.cucumber.java.CucumberJavaCodeInsightTestCase;
 import org.jetbrains.plugins.cucumber.java.CucumberJavaTestUtil;
 
-public abstract class AbstractCucumberJavaCreateStepTest extends CucumberJavaCodeInsightTestCase {
+public abstract class AbstractCucumberJavaCreateStepTest extends BasePlatformTestCase {
   protected void doTest(boolean createAll) {
     myFixture.enableInspections(new CucumberStepInspection());
-    myFixture.copyDirectoryToProject("createStep/" + getTestName(true) , "");
+    myFixture.copyDirectoryToProject("createStep/" + getTestName(true), "");
     myFixture.configureByFile("createStep/" + getTestName(true) + "/test.feature");
 
     myFixture.checkHighlighting(true, false, false);
@@ -37,8 +38,7 @@ public abstract class AbstractCucumberJavaCreateStepTest extends CucumberJavaCod
   }
 
   @Override
-  protected void setUp() throws Exception {
-    super.setUp();
-    myFixture.allowTreeAccessForAllFiles();
+  protected LightProjectDescriptor getProjectDescriptor() {
+    return CucumberJavaTestUtil.createCucumber2ProjectDescriptor();
   }
 }

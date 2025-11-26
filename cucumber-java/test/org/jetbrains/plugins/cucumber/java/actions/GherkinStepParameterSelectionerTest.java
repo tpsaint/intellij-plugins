@@ -2,12 +2,12 @@ package org.jetbrains.plugins.cucumber.java.actions;
 
 import com.intellij.testFramework.LightProjectDescriptor;
 import com.intellij.testFramework.TestDataPath;
+import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import com.intellij.testFramework.fixtures.CodeInsightTestUtil;
-import org.jetbrains.plugins.cucumber.CucumberCodeInsightTestCase;
 import org.jetbrains.plugins.cucumber.java.CucumberJavaTestUtil;
 
 @TestDataPath("$CONTENT_ROOT/testData/selectWord")
-public class GherkinStepParameterSelectionerTest extends CucumberCodeInsightTestCase {
+public class GherkinStepParameterSelectionerTest extends BasePlatformTestCase {
 
   @Override
   public void setUp() throws Exception {
@@ -22,7 +22,7 @@ public class GherkinStepParameterSelectionerTest extends CucumberCodeInsightTest
   public void testScenarioStepWithTag() {
     doTest();
   }
-  
+
   private void doTest() {
     CodeInsightTestUtil.doWordSelectionTestOnDirectory(myFixture, getTestName(true), "feature");
   }
@@ -31,8 +31,8 @@ public class GherkinStepParameterSelectionerTest extends CucumberCodeInsightTest
   protected String getBasePath() {
     return CucumberJavaTestUtil.RELATED_TEST_DATA_PATH + "selectWord";
   }
-  
-    @Override
+
+  @Override
   protected LightProjectDescriptor getProjectDescriptor() {
     return CucumberJavaTestUtil.createCucumber2ProjectDescriptor();
   }

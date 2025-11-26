@@ -1,4 +1,4 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.runtime
 
 import com.intellij.notification.Notification
@@ -25,28 +25,26 @@ internal interface TfToolPathDetector {
 
   companion object {
     fun getInstance(project: Project): TfToolPathDetector = project.service<TfToolPathDetector>()
+
+    fun isExecutable(path: Path): Boolean {
+      return path.pathString.isNotBlank() && path.isRegularFile() && path.isExecutable()
+    }
   }
 
-  suspend fun detectAndVerifyTool(toolType: TfToolType, overrideExistingValue: Boolean): Boolean {
-    return true
-  }
-
-  fun isExecutable(path: Path): Boolean {
-    return true
-  }
+  suspend fun detectAndVerifyTool(toolType: TfToolType, overrideExistingValue: Boolean): Boolean = true
 
   suspend fun detect(path: String): String?
 }
 
 internal class TfToolPathDetectorImpl(val project: Project, val coroutineScope: CoroutineScope) : TfToolPathDetector {
 
-  override suspend fun detectAndVerifyTool(toolType: TfToolType, overwriteExistingSettings: Boolean): Boolean {
-    if (overwriteExistingSettings || toolType.getToolSettings(project).toolPath.isBlank()) {
+  override suspend fun detectAndVerifyTool(toolType: TfToolType, overrideExistingValue: Boolean): Boolean {
+    if (overrideExistingValue || toolType.getToolSettings(project).toolPath.isBlank()) {
       withProgressText(HCLBundle.message("progress.title.detecting.terraform.executable", toolType.displayName)) {
         detectToolAndUpdateSettings(toolType)
       }
     }
-    return isExecutable(Path(toolType.getToolSettings(project).toolPath))
+    return TfToolPathDetector.isExecutable(Path(toolType.getToolSettings(project).toolPath))
   }
 
   private suspend fun detectToolAndUpdateSettings(toolType: TfToolType): TfToolSettings {
@@ -64,18 +62,14 @@ internal class TfToolPathDetectorImpl(val project: Project, val coroutineScope: 
   override suspend fun detect(path: String): String? {
     return withContext(Dispatchers.IO) {
       val filePath = Path(path)
-      if (isExecutable(filePath)) {
+      if (TfToolPathDetector.isExecutable(filePath)) {
         return@withContext path
       }
       val fileName = filePath.fileName.nameWithoutExtension
-      val eelApi = project.getEelDescriptor().upgrade()
-      val exePath = eelApi.exec.where(fileName)?.asNioPath()?.takeIf { isExecutable(it) }?.absolutePathString()
+      val eelApi = project.getEelDescriptor().toEelApi()
+      val exePath = eelApi.exec.where(fileName)?.asNioPath()?.takeIf { TfToolPathDetector.isExecutable(it) }?.absolutePathString()
       return@withContext exePath
     }
-  }
-
-  override fun isExecutable(path: Path): Boolean {
-    return path.pathString.isNotBlank() && path.isRegularFile() && path.isExecutable()
   }
 }
 
@@ -97,4 +91,3 @@ internal class OpenSettingsAction : NotificationAction(HCLBundle.message("terraf
     ShowSettingsUtil.getInstance().showSettingsDialog(e.project, TfToolConfigurable::class.java)
   }
 }
-

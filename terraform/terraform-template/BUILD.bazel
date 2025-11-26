@@ -1,15 +1,15 @@
 ### auto-generated section `build intellij.terraform.template` start
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_resources", "jvm_test")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
 
-jvm_resources(
+resourcegroup(
   name = "template_resources",
-  files = glob(["resource/**/*"]),
+  srcs = glob(["resource/**/*"]),
   strip_prefix = "resource"
 )
 
-jvm_resources(
+resourcegroup(
   name = "template_test_resources",
-  files = glob(["test-data/**/*"]),
+  srcs = glob(["test-data/**/*"]),
   strip_prefix = "test-data"
 )
 
@@ -17,33 +17,36 @@ jvm_library(
   name = "template",
   module_name = "intellij.terraform.template",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java", "gen/**/*.kt", "gen/**/*.java"], allow_empty = True),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form", "gen/**/*.kt", "gen/**/*.java"], allow_empty = True),
+  resources = [":template_resources"],
   deps = [
     "@community//platform/core-api:core",
     "@community//platform/core-impl",
     "@community//platform/analysis-api:analysis",
+    "@community//platform/indexing-api:indexing",
+    "@community//platform/projectModel-api:projectModel",
     "@community//platform/util",
-    "@community//plugins/IntelliLang:langInjection",
     "@community//platform/editor-ui-api:editor-ui",
     "@community//platform/lang-impl",
     "@community//platform/editor-ui-ex:editor-ex",
     "//contrib/terraform",
     "@community//platform/util:util-ui",
-  ],
-  runtime_deps = [":template_resources"]
+  ]
 )
 
 jvm_library(
   name = "template_test_lib",
   visibility = ["//visibility:public"],
-  srcs = glob(["test/**/*.kt", "test/**/*.java"], allow_empty = True),
+  srcs = glob(["test/**/*.kt", "test/**/*.java", "test/**/*.form"], allow_empty = True),
+  resources = [":template_test_resources"],
   associates = [":template"],
   deps = [
     "@community//platform/core-api:core",
     "@community//platform/core-impl",
     "@community//platform/analysis-api:analysis",
+    "@community//platform/indexing-api:indexing",
+    "@community//platform/projectModel-api:projectModel",
     "@community//platform/util",
-    "@community//plugins/IntelliLang:langInjection",
     "@community//platform/editor-ui-api:editor-ui",
     "@community//platform/lang-impl",
     "@community//platform/editor-ui-ex:editor-ex",
@@ -52,15 +55,15 @@ jvm_library(
     "@community//platform/util:util-ui",
     "@community//platform/testFramework",
     "@community//platform/testFramework:testFramework_test_lib",
-  ],
-  runtime_deps = [
-    ":template_resources",
-    ":template_test_resources",
   ]
 )
+### auto-generated section `build intellij.terraform.template` end
 
-jvm_test(
+### auto-generated section `test intellij.terraform.template` start
+load("@community//build:tests-options.bzl", "jps_test")
+
+jps_test(
   name = "template_test",
   runtime_deps = [":template_test_lib"]
 )
-### auto-generated section `build intellij.terraform.template` end
+### auto-generated section `test intellij.terraform.template` end

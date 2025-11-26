@@ -12,9 +12,9 @@ import com.intellij.psi.createSmartPointer
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.xml.XmlAttribute
 import com.intellij.psi.xml.XmlTag
-import com.intellij.webSymbols.WebSymbol
-import com.intellij.webSymbols.completion.WebSymbolCodeCompletionItem
-import com.intellij.webSymbols.completion.WebSymbolCodeCompletionItemInsertHandler
+import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.completion.PolySymbolCodeCompletionItem
+import com.intellij.polySymbols.completion.PolySymbolCodeCompletionItemInsertHandler
 import org.angular2.codeInsight.Angular2DeclarationsScope.DeclarationProximity
 import org.angular2.codeInsight.attributes.Angular2ApplicableDirectivesProvider
 import org.angular2.entities.Angular2Component
@@ -26,10 +26,10 @@ import org.angular2.lang.expr.psi.Angular2TemplateBindings
 object Angular2CodeInsightUtils {
 
   @JvmStatic
-  fun decorateCodeCompletionItem(item: WebSymbolCodeCompletionItem,
+  fun decorateCodeCompletionItem(item: PolySymbolCodeCompletionItem,
                                  declarations: List<Angular2Declaration>,
                                  proximity: DeclarationProximity,
-                                 moduleScope: Angular2DeclarationsScope): WebSymbolCodeCompletionItem {
+                                 moduleScope: Angular2DeclarationsScope): PolySymbolCodeCompletionItem {
     if (proximity == DeclarationProximity.IMPORTABLE || proximity == DeclarationProximity.IN_SCOPE) {
       val modules = getModules(declarations, moduleScope)
       if (modules.size == 1) {
@@ -40,11 +40,11 @@ object Angular2CodeInsightUtils {
   }
 
   @JvmStatic
-  fun wrapWithImportDeclarationModuleHandler(item: WebSymbolCodeCompletionItem,
-                                             elementClass: Class<out PsiElement>): WebSymbolCodeCompletionItem {
-    return item.withInsertHandlerAdded(object : WebSymbolCodeCompletionItemInsertHandler {
-      override val priority: WebSymbol.Priority
-        get() = WebSymbol.Priority.LOWEST
+  fun wrapWithImportDeclarationModuleHandler(item: PolySymbolCodeCompletionItem,
+                                             elementClass: Class<out PsiElement>): PolySymbolCodeCompletionItem {
+    return item.withInsertHandlerAdded(object : PolySymbolCodeCompletionItemInsertHandler {
+      override val priority: PolySymbol.Priority
+        get() = PolySymbol.Priority.LOWEST
 
       override fun prepare(context: InsertionContext, item: LookupElement, completeAfterInsert: Boolean): Runnable? {
         val templateBindings = Angular2TemplateBindings::class.java == elementClass

@@ -3,6 +3,7 @@ package com.jetbrains.cidr.cpp.embedded.platformio.project
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.ExecutionTargetManager
 import com.intellij.execution.Platform
+import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.configurations.PathEnvironmentVariableUtil
 import com.intellij.execution.configurations.PtyCommandLine
@@ -30,7 +31,7 @@ class PlatformioCliBuilder(
     if (project?.let { TrustedProjects.isProjectTrusted(it) } == false) {
       throw ExecutionException(ClionEmbeddedPlatformioBundle.message("project.not.trusted"))
     }
-    commandLine = if(usePty) PtyCommandLine() else GeneralCommandLine()
+    commandLine = if(usePty) PtyCommandLine().withConsoleMode(false) else GeneralCommandLine()
   }
 
   fun withParams(vararg params: String): PlatformioCliBuilder {
@@ -76,6 +77,12 @@ class PlatformioCliBuilder(
       commandLine.withEnvironment(ENV_PATH, path + Platform.current().pathSeparator + pioBinFolder.toAbsolutePath())
     }
     commandLine.withWorkDirectory(project?.basePath ?: FileUtil.getTempDirectory())
+
+    if (project != null) {
+      val runConfiguration = RunManager.getInstance(project)
+        .selectedConfiguration?.configuration as? PlatformioDebugConfiguration
+      commandLine.withEnvironment(runConfiguration?.envs)
+    }
     return commandLine
   }
 

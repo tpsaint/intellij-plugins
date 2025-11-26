@@ -21,6 +21,7 @@ import com.intellij.ide.browsers.WebBrowserManager
 import com.intellij.javascript.debugger.DebuggableFileFinder
 import com.intellij.javascript.debugger.JavaScriptDebugProcess
 import com.intellij.javascript.debugger.RemoteDebuggingFileFinder
+import com.intellij.javascript.debugger.common.browser.WebBrowserId
 import com.intellij.javascript.karma.KarmaBundle
 import com.intellij.javascript.karma.execution.KarmaConsoleView
 import com.intellij.javascript.karma.execution.KarmaRunConfiguration
@@ -110,34 +111,34 @@ internal class KarmaDebugProgramRunner : AsyncProgramRunner<RunnerSettings>() {
       val karmaServer = consoleView.karmaServer
       val url = newFromEncoded(karmaServer.formatUrl("/"))
       val fileFinder = getDebuggableFileFinder(karmaServer)
-      val session = XDebuggerManager.getInstance(environment.project).startSession(
-        environment,
-        object : XDebugProcessStarter() {
-          override fun start(session: XDebugSession): XDebugProcess {
-            val debugProcess = createDebugProcess(session, karmaServer, fileFinder, executionResult, debuggableWebBrowser, url)
-            debugProcess.scriptsCanBeReloaded = true
-            debugProcess.addFirstLineBreakpointPattern("\\.browserify$")
-            debugProcess.elementsInspectorEnabled = false
-            debugProcess.setConsoleMessagesSupportEnabled(false)
-            debugProcess.setLayouter(consoleView.createDebugLayouter(debugProcess))
-            karmaServer.onBrowsersReady {
-              openConnectionIfRemoteDebugging(karmaServer, debugProcess.connection)
-              val resumeTestRunning = ConcurrencyUtil.once { resumeTestRunning(executionResult.processHandler as OSProcessHandler) }
-              val alarm = SingleAlarm(resumeTestRunning, 5000)
-              alarm.request()
-              debugProcess.connection.executeOnStart { vm ->
-                if (Registry.`is`("js.debugger.break.on.first.statement.karma")) {
-                  vm.breakpointManager.setBreakOnFirstStatement()
-                }
-                alarm.cancelAllRequests()
-                resumeTestRunning.run()
+      val starter = object : XDebugProcessStarter() {
+        override fun start(session: XDebugSession): XDebugProcess {
+          val debugProcess = createDebugProcess(session, karmaServer, fileFinder, executionResult, debuggableWebBrowser, url)
+          debugProcess.scriptsCanBeReloaded = true
+          debugProcess.addFirstLineBreakpointPattern("\\.browserify$")
+          debugProcess.elementsInspectorEnabled = false
+          debugProcess.setConsoleMessagesSupportEnabled(false)
+          debugProcess.setLayouter(consoleView.createDebugLayouter(debugProcess))
+          karmaServer.onBrowsersReady {
+            openConnectionIfRemoteDebugging(karmaServer, debugProcess.connection)
+            val resumeTestRunning = ConcurrencyUtil.once { resumeTestRunning(executionResult.processHandler as OSProcessHandler) }
+            val alarm = SingleAlarm(resumeTestRunning, 5000)
+            alarm.request()
+            debugProcess.connection.executeOnStart { vm ->
+              if (Registry.`is`("js.debugger.break.on.first.statement.karma")) {
+                vm.breakpointManager.setBreakOnFirstStatement()
               }
+              alarm.cancelAllRequests()
+              resumeTestRunning.run()
             }
-            return debugProcess
           }
+          return debugProcess
         }
-      )
-      return KarmaUtil.withReusePolicy(session.runContentDescriptor, karmaServer)
+      }
+      val descriptor = XDebuggerManager.getInstance(environment.project).newSessionBuilder(starter)
+        .environment(environment)
+        .startSession().runContentDescriptor
+      return KarmaUtil.withReusePolicy(descriptor!!, karmaServer)
     }
 
     private fun createDebugProcess(session: XDebugSession,
@@ -160,7 +161,7 @@ internal class KarmaDebugProgramRunner : AsyncProgramRunner<RunnerSettings>() {
       // If a capturing page was open, but not connected (e.g. it happens after karma server restart),
       // reload it to capture. Otherwise, (no capturing page was open), reloading shouldn't harm.
       val reloadPage = !karmaServer.areBrowsersReady()
-      return debugEngine.createDebugProcess(session, browser, fileFinder, url, executionResult, reloadPage)
+      return debugEngine.createDebugProcess(session, WebBrowserId(browser.id), fileFinder, url, executionResult, reloadPage)
     }
 
     private fun openConnectionIfRemoteDebugging(server: KarmaServer, connection: VmConnection<*>) {

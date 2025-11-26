@@ -8,3 +8,9 @@ false
 falses
 this
 thisus
+typeof
+typeofus
+in
+ins
+void
+voids

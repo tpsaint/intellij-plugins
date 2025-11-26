@@ -1,9 +1,9 @@
 ### auto-generated section `build intellij.qodana.js` start
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_resources", "jvm_test")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
 
-jvm_resources(
+resourcegroup(
   name = "js_resources",
-  files = glob(["resources/**/*"]),
+  srcs = glob(["resources/**/*"]),
   strip_prefix = "resources"
 )
 
@@ -11,44 +11,51 @@ jvm_library(
   name = "js",
   module_name = "intellij.qodana.js",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java"], allow_empty = True),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form"], allow_empty = True),
+  resources = [":js_resources"],
   deps = [
     "@lib//:kotlin-stdlib",
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/core-api:core",
     "@community//platform/platform-api:ide",
     "@community//platform/platform-impl:ide-impl",
     "@community//platform/platform-util-io:ide-util-io",
     "@community//platform/lang-impl",
     "@community//platform/execution-impl",
-    "//plugins/JavaScriptLanguage:javascript-impl",
+    "//plugins/JavaScriptLanguage:javascript-backend",
+    "@community//platform/projectModel-api:projectModel",
     "//contrib/qodana",
     "//contrib/qodana/coverage",
-    "//plugins/JavaScriptLanguage:javascript",
     "//plugins/NodeJS:nodeJS",
     "@community//plugins/coverage-common:coverage",
     "@community//plugins/coverage-common/intellij.platform.coverage.agent:coverage-agent",
-  ],
-  runtime_deps = [":js_resources"]
+    "//plugins/JavaScriptLanguage/javascript-common",
+    "//plugins/JavaScriptLanguage/javascript-coverage",
+  ]
 )
 
 jvm_library(
   name = "js_test_lib",
   visibility = ["//visibility:public"],
-  srcs = glob(["tests/**/*.kt", "tests/**/*.java"], allow_empty = True),
+  srcs = glob(["tests/**/*.kt", "tests/**/*.java", "tests/**/*.form"], allow_empty = True),
   associates = [":js"],
   deps = [
     "@lib//:kotlin-stdlib",
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/core-api:core",
+    "@community//platform/core-ui",
     "@community//platform/platform-api:ide",
     "@community//platform/platform-impl:ide-impl",
-    "@community//platform/platform-impl:ide-impl_test_lib",
     "@community//platform/platform-util-io:ide-util-io",
+    "@community//platform/indexing-api:indexing",
     "@community//platform/lang-impl",
     "@community//platform/execution-impl",
-    "//plugins/JavaScriptLanguage:javascript-impl",
+    "//plugins/JavaScriptLanguage:javascript-backend",
+    "@community//platform/projectModel-api:projectModel",
     "//contrib/qodana",
     "//contrib/qodana:qodana_test_lib",
     "//contrib/qodana/coverage",
     "//contrib/qodana/coverage:coverage_test_lib",
-    "//plugins/JavaScriptLanguage:javascript",
     "//plugins/NodeJS:nodeJS",
     "@community//plugins/coverage-common:coverage",
     "@community//plugins/coverage-common:coverage_test_lib",
@@ -59,13 +66,18 @@ jvm_library(
     "@community//platform/testFramework:testFramework_test_lib",
     "//duplicatedetector:duplicatesDetector",
     "//duplicatedetector:duplicatesDetector_test_lib",
-    "//plugins/NodeJS/tests:nodeJS-tests_test_lib",
-  ],
-  runtime_deps = [":js_resources"]
+    "//plugins/NodeJS/tests:tests_test_lib",
+    "//plugins/JavaScriptLanguage/javascript-common",
+    "//plugins/JavaScriptLanguage/javascript-coverage",
+  ]
 )
+### auto-generated section `build intellij.qodana.js` end
 
-jvm_test(
+### auto-generated section `test intellij.qodana.js` start
+load("@community//build:tests-options.bzl", "jps_test")
+
+jps_test(
   name = "js_test",
   runtime_deps = [":js_test_lib"]
 )
-### auto-generated section `build intellij.qodana.js` end
+### auto-generated section `test intellij.qodana.js` end

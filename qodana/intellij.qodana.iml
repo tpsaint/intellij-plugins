@@ -2,15 +2,15 @@
 <module type="JAVA_MODULE" version="4">
   <component name="FacetManager">
     <facet type="kotlin-language" name="Kotlin">
-      <configuration version="5" platform="JVM 17" allPlatforms="JVM [17]" useProjectSettings="false">
+      <configuration version="5" platform="JVM 21" allPlatforms="JVM [21]" useProjectSettings="false">
         <compilerSettings>
-          <option name="additionalArguments" value="-Xjvm-default=all -opt-in=com.intellij.openapi.util.IntellijInternalApi -Xsam-conversions=class -opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi -opt-in=kotlin.ExperimentalStdlibApi " />
+          <option name="additionalArguments" value="-Xjvm-default=all -opt-in=com.intellij.openapi.util.IntellijInternalApi -Xsam-conversions=class -opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi -opt-in=kotlin.ExperimentalStdlibApi -XXLanguage:+AllowEagerSupertypeAccessibilityChecks" />
         </compilerSettings>
         <compilerArguments>
           <stringArguments>
-            <stringArg name="jvmTarget" arg="17" />
-            <stringArg name="apiVersion" arg="2.1" />
-            <stringArg name="languageVersion" arg="2.1" />
+            <stringArg name="jvmTarget" arg="21" />
+            <stringArg name="apiVersion" arg="2.2" />
+            <stringArg name="languageVersion" arg="2.2" />
           </stringArguments>
           <arrayArguments>
             <arrayArg name="pluginClasspaths">
@@ -32,23 +32,33 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="intellij.platform.analysis" />
     <orderEntry type="module" module-name="intellij.platform.analysis.impl" />
+    <orderEntry type="module" module-name="intellij.platform.codeStyle" />
+    <orderEntry type="module" module-name="intellij.platform.concurrency" />
+    <orderEntry type="module" module-name="intellij.platform.core" />
+    <orderEntry type="module" module-name="intellij.platform.credentialStore" />
     <orderEntry type="module" module-name="intellij.platform.editor.ui" />
+    <orderEntry type="module" module-name="intellij.platform.jps.model" />
+    <orderEntry type="module" module-name="intellij.platform.lang.core" />
+    <orderEntry type="module" module-name="intellij.platform.lvcs" />
+    <orderEntry type="module" module-name="intellij.platform.util.diff" />
     <orderEntry type="module" module-name="intellij.qodana.sarif" />
     <orderEntry type="module" module-name="intellij.platform.lang.impl" />
-    <orderEntry type="library" name="gson" level="project" />
-    <orderEntry type="library" name="snakeyaml" level="project" />
-    <orderEntry type="library" name="snakeyaml-engine" level="project" />
-    <orderEntry type="library" name="Guava" level="project" />
-    <orderEntry type="library" name="commons-cli" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.gson" />
+    <orderEntry type="module" module-name="intellij.libraries.snakeyaml" />
+    <orderEntry type="module" module-name="intellij.libraries.snakeyaml.engine" />
+    <orderEntry type="module" module-name="intellij.libraries.guava" />
+    <orderEntry type="module" module-name="intellij.libraries.commons.cli" />
     <orderEntry type="module" module-name="intellij.platform.diff" />
     <orderEntry type="library" name="flexmark" level="project" />
-    <orderEntry type="library" name="jsoup" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.jsoup" />
     <orderEntry type="module" module-name="intellij.platform.core.ui" />
     <orderEntry type="module" module-name="intellij.yaml" />
     <orderEntry type="module" module-name="intellij.platform.externalProcessAuthHelper" />
     <orderEntry type="module" module-name="intellij.json.backend" />
     <orderEntry type="module" module-name="intellij.platform.editor.ex" />
+    <orderEntry type="module" module-name="intellij.platform.core.impl" />
     <orderEntry type="module" module-name="intellij.platform.testFramework" scope="TEST" />
     <orderEntry type="module" module-name="intellij.platform.projectModel" />
     <orderEntry type="module" module-name="intellij.platform.ide.core.impl" />
@@ -61,10 +71,11 @@
     <orderEntry type="module" module-name="intellij.platform.builtInServer.impl" />
     <orderEntry type="module" module-name="intellij.vcs.git" />
     <orderEntry type="module" module-name="intellij.vcs.git.shared" />
-    <orderEntry type="library" name="jackson" level="project" />
-    <orderEntry type="library" name="jackson-databind" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.jackson" />
+    <orderEntry type="module" module-name="intellij.platform.ide.concurrency" />
+    <orderEntry type="module" module-name="intellij.libraries.jackson.databind" />
     <orderEntry type="module" module-name="intellij.platform.ide.observable" />
-    <orderEntry type="library" name="jackson-module-kotlin" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.jackson.module.kotlin" />
     <orderEntry type="module" module-name="intellij.platform.ide.util.netty" />
     <orderEntry type="library" name="kotlinx-coroutines-core" level="project" />
     <orderEntry type="library" name="netty-codec-http" level="project" />
@@ -79,7 +90,7 @@
     <orderEntry type="module" module-name="intellij.platform.vcs.testFramework" scope="TEST" />
     <orderEntry type="module" module-name="intellij.platform.vcs.log.impl" />
     <orderEntry type="module" module-name="intellij.platform.vcs.log" />
-    <orderEntry type="library" scope="TEST" name="mockito" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.mockito" scope="TEST" />
     <orderEntry type="module" module-name="intellij.platform.util" />
     <orderEntry type="library" name="jetbrains.qodana.publisher" level="project" />
     <orderEntry type="library" name="netty-buffer" level="project" />
@@ -96,20 +107,22 @@
     <orderEntry type="library" name="opentelemetry" level="project" />
     <orderEntry type="library" name="opentelemetry-semconv" level="project" />
     <orderEntry type="module" module-name="intellij.lombok" scope="TEST" />
-    <orderEntry type="library" name="fastutil-min" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.fastutil" />
     <orderEntry type="module" module-name="intellij.platform.ide.internal" />
-    <orderEntry type="library" name="jackson-dataformat-yaml" level="project" />
-    <orderEntry type="library" name="kotlin-reflect" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.jackson.dataformat.yaml" />
+    <orderEntry type="module" module-name="intellij.libraries.kotlin.reflect" />
     <orderEntry type="module" module-name="intellij.platform.util.coroutines" />
     <orderEntry type="module" module-name="intellij.platform.backend.observation" />
     <orderEntry type="library" name="jetbrains-annotations" level="project" />
     <orderEntry type="module" module-name="intellij.platform.ide.impl" />
     <orderEntry type="library" name="jetbrains.qodana.cloud.kotlin.client" level="project" />
-    <orderEntry type="library" name="kotlinx-serialization-core" level="project" />
-    <orderEntry type="library" name="kotlinx-serialization-json" level="project" />
+    <orderEntry type="module" module-name="intellij.libraries.kotlinx.serialization.core" />
+    <orderEntry type="module" module-name="intellij.libraries.kotlinx.serialization.json" />
     <orderEntry type="module" module-name="intellij.platform.langInjection" />
     <orderEntry type="module" module-name="intellij.platform.ide.ui" />
     <orderEntry type="module" module-name="intellij.platform.statistics.testFramework" scope="TEST" />
     <orderEntry type="library" name="jetbrains.qodana.configuration" level="project" />
+    <orderEntry type="module" module-name="intellij.platform.externalSystem.impl" />
+    <orderEntry type="module" module-name="intellij.platform.externalSystem" />
   </component>
 </module>

@@ -8,29 +8,32 @@ import com.intellij.model.Symbol
 import com.intellij.openapi.project.Project
 import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.navigation.NavigationTarget
+import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.PolySymbolApiStatus
+import com.intellij.polySymbols.PolySymbolModifier
+import com.intellij.polySymbols.PolySymbolProperty
+import com.intellij.polySymbols.PolySymbolQualifiedKind
+import com.intellij.polySymbols.search.PolySymbolSearchTarget
+import com.intellij.polySymbols.search.PsiSourcedPolySymbol
+import com.intellij.polySymbols.utils.coalesceWith
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.contextOfType
-import com.intellij.webSymbols.PsiSourcedWebSymbol
-import com.intellij.webSymbols.WebSymbol
-import com.intellij.webSymbols.WebSymbolApiStatus
-import com.intellij.webSymbols.WebSymbolQualifiedKind
-import com.intellij.webSymbols.html.WebSymbolHtmlAttributeValue
-import com.intellij.webSymbols.search.WebSymbolSearchTarget
-import com.intellij.webSymbols.utils.coalesceWith
 import org.angular2.codeInsight.documentation.Angular2ElementDocumentationTarget
 import org.angular2.entities.source.Angular2SourceDirectiveProperty
 import org.angular2.lang.Angular2LangUtil.OUTPUT_CHANGE_SUFFIX
 import org.angular2.web.*
 import java.util.*
 
-class Angular2DirectiveProperties(rawInputs: Collection<Angular2DirectiveProperty>,
-                                  rawOutputs: Collection<Angular2DirectiveProperty>,
-                                  rawInOuts: Collection<Angular2DirectiveProperty>) {
+class Angular2DirectiveProperties(
+  rawInputs: Collection<Angular2DirectiveProperty>,
+  rawOutputs: Collection<Angular2DirectiveProperty>,
+  rawInOuts: Collection<Angular2DirectiveProperty>,
+) {
 
   constructor(
     inputs: Collection<Angular2DirectiveProperty>,
-    outputs: Collection<Angular2DirectiveProperty>
-  ): this(inputs, outputs, emptyList())
+    outputs: Collection<Angular2DirectiveProperty>,
+  ) : this(inputs, outputs, emptyList())
 
   val inputs: Collection<Angular2DirectiveProperty> by lazy(LazyThreadSafetyMode.PUBLICATION) {
     if (rawInOuts.isEmpty()) {
@@ -70,7 +73,7 @@ class Angular2DirectiveProperties(rawInputs: Collection<Angular2DirectivePropert
   private class InputDirectiveProperty(inOut: Angular2DirectiveProperty)
     : AbstractFromInOutDirectiveProperty(inOut) {
 
-    override val qualifiedKind: WebSymbolQualifiedKind
+    override val qualifiedKind: PolySymbolQualifiedKind
       get() = NG_DIRECTIVE_INPUTS
 
     override val required: Boolean
@@ -91,7 +94,7 @@ class Angular2DirectiveProperties(rawInputs: Collection<Angular2DirectivePropert
     override val name: String =
       inOut.name + OUTPUT_CHANGE_SUFFIX
 
-    override val qualifiedKind: WebSymbolQualifiedKind
+    override val qualifiedKind: PolySymbolQualifiedKind
       get() = NG_DIRECTIVE_OUTPUTS
 
     override val required: Boolean
@@ -112,13 +115,23 @@ class Angular2DirectiveProperties(rawInputs: Collection<Angular2DirectivePropert
 
   private abstract class AbstractFromInOutDirectiveProperty(inOut: Angular2DirectiveProperty)
     : Angular2SymbolDelegate<Angular2DirectiveProperty>(inOut),
-      Angular2DirectiveProperty, PsiSourcedWebSymbol {
+      Angular2DirectiveProperty, PsiSourcedPolySymbol {
+
+    override fun <T : Any> get(property: PolySymbolProperty<T>): T? =
+      super<Angular2DirectiveProperty>.get(property)
+      ?: delegate[property]
+
+    override val modifiers: Set<PolySymbolModifier>
+      get() = super<Angular2SymbolDelegate>.modifiers + super<Angular2DirectiveProperty>.modifiers
+
+    override val name: String
+      get() = delegate.name
 
     override val psiContext: PsiElement?
       get() = delegate.psiContext
 
     override val source: PsiElement?
-      get() = (delegate as? PsiSourcedWebSymbol)?.source
+      get() = (delegate as? PsiSourcedPolySymbol)?.source
 
     override val rawJsType: JSType?
       get() = delegate.rawJsType
@@ -131,10 +144,10 @@ class Angular2DirectiveProperties(rawInputs: Collection<Angular2DirectivePropert
     override val type: JSType?
       get() = delegate.type
 
-    override val searchTarget: WebSymbolSearchTarget?
+    override val searchTarget: PolySymbolSearchTarget?
       get() = delegate.searchTarget
 
-    override val apiStatus: WebSymbolApiStatus
+    override val apiStatus: PolySymbolApiStatus
       get() = delegate.apiStatus
 
     override val fieldName: String?
@@ -143,11 +156,8 @@ class Angular2DirectiveProperties(rawInputs: Collection<Angular2DirectivePropert
     override val project: Project
       get() = delegate.project
 
-    override val priority: WebSymbol.Priority?
+    override val priority: PolySymbol.Priority?
       get() = delegate.priority
-
-    override val attributeValue: WebSymbolHtmlAttributeValue?
-      get() = delegate.attributeValue
 
     override val isSignalProperty: Boolean
       get() = delegate.isSignalProperty
@@ -174,22 +184,23 @@ class Angular2DirectiveProperties(rawInputs: Collection<Angular2DirectivePropert
       return symbol == this || delegate.isEquivalentTo(symbol)
     }
 
-    final override fun getDocumentationTarget(location: PsiElement?): DocumentationTarget =
+    final override fun getDocumentationTarget(location: PsiElement?): DocumentationTarget? =
       Angular2ElementDocumentationTarget.create(
         name, location, delegate,
         Angular2EntitiesProvider.getEntity(delegate.sourceElement.contextOfType<TypeScriptClass>(true)))
       ?: super<Angular2DirectiveProperty>.getDocumentationTarget(location)
   }
 
-  private class InOutDirectiveProperty(input: Angular2DirectiveProperty,
-                                       private val myOutput: Angular2DirectiveProperty)
-    : Angular2SymbolDelegate<Angular2DirectiveProperty>(input) {
+  private class InOutDirectiveProperty(
+    input: Angular2DirectiveProperty,
+    private val myOutput: Angular2DirectiveProperty,
+  ) : Angular2SymbolDelegate<Angular2DirectiveProperty>(input) {
 
-    override val qualifiedKind: WebSymbolQualifiedKind
+    override val qualifiedKind: PolySymbolQualifiedKind
       get() = NG_DIRECTIVE_IN_OUTS
 
 
-    override val apiStatus: WebSymbolApiStatus
+    override val apiStatus: PolySymbolApiStatus
       get() = delegate.apiStatus.coalesceWith(myOutput.apiStatus)
 
     override fun createPointer(): Pointer<out InOutDirectiveProperty> {
@@ -210,14 +221,16 @@ class Angular2DirectiveProperties(rawInputs: Collection<Angular2DirectivePropert
     }
 
     override fun hashCode(): Int {
-      return Objects.hash(myOutput, delegate)
+      var result = myOutput.hashCode()
+      result = 31 * result + delegate.hashCode()
+      return result
     }
 
     override fun toString(): String {
       return "<$delegate,$myOutput>"
     }
 
-    override fun getDocumentationTarget(location: PsiElement?): DocumentationTarget =
+    override fun getDocumentationTarget(location: PsiElement?): DocumentationTarget? =
       Angular2ElementDocumentationTarget.create(
         name, location, delegate, myOutput,
         Angular2EntitiesProvider.getEntity(delegate.sourceElement.contextOfType<TypeScriptClass>(true)))

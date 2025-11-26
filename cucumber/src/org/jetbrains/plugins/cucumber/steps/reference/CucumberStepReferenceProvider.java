@@ -8,20 +8,27 @@ import com.intellij.psi.PsiReferenceProvider;
 import com.intellij.psi.TokenType;
 import com.intellij.psi.tree.TokenSet;
 import com.intellij.util.ProcessingContext;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.plugins.cucumber.psi.GherkinStep;
 import org.jetbrains.plugins.cucumber.psi.impl.GherkinStepImpl;
 
 import static com.intellij.psi.tree.TokenSet.WHITE_SPACE;
 import static org.jetbrains.plugins.cucumber.psi.GherkinElementTypes.STEP_PARAMETER;
 import static org.jetbrains.plugins.cucumber.psi.GherkinTokenTypes.*;
 
-public class CucumberStepReferenceProvider extends PsiReferenceProvider {
+/// Injects references to step definitions (aka "glue code") into step usages in Gherkin files.
+///
+/// Actual resolve logic ("what happens when the user clicks on the step in feature file") is implemented in [CucumberStepReference].
+///
+/// @see GherkinStepImpl#getReferences()
+@NotNullByDefault
+public final class CucumberStepReferenceProvider extends PsiReferenceProvider {
   private static final TokenSet TEXT_AND_PARAM_SET = TokenSet.create(TEXT, STEP_PARAMETER_TEXT, STEP_PARAMETER_BRACE, STEP_PARAMETER);
   private static final TokenSet TEXT_PARAM_AND_WHITE_SPACE_SET = TokenSet.orSet(TEXT_AND_PARAM_SET, WHITE_SPACE);
 
   @Override
-  public PsiReference @NotNull [] getReferencesByElement(@NotNull PsiElement element, @NotNull ProcessingContext context) {
-    if (element instanceof GherkinStepImpl) {
+  public PsiReference[] getReferencesByElement(PsiElement element, ProcessingContext context) {
+    if (element instanceof GherkinStep) {
       ASTNode textNode = element.getNode().findChildByType(TEXT_AND_PARAM_SET);
       if (textNode != null) {
         int start = textNode.getTextRange().getStartOffset();
@@ -34,8 +41,8 @@ public class CucumberStepReferenceProvider extends PsiReferenceProvider {
           textNode = textNode.getTreeNext();
         }
         TextRange textRange = new TextRange(start, endBeforeSpace);
-        CucumberStepReference reference =  new CucumberStepReference(element, textRange.shiftRight(-element.getTextOffset()));
-        return new PsiReference[] {reference};
+        CucumberStepReference reference = new CucumberStepReference(element, textRange.shiftRight(-element.getTextOffset()));
+        return new PsiReference[]{reference};
       }
     }
     return PsiReference.EMPTY_ARRAY;

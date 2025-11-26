@@ -1,10 +1,6 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.angular2.web.scopes
 
-import com.intellij.html.webSymbols.WebSymbolsHtmlQueryConfigurator
-import com.intellij.html.webSymbols.elements.WebSymbolElementDescriptor
-import com.intellij.javascript.webSymbols.jsType
-import com.intellij.javascript.webSymbols.types.TypeScriptSymbolTypeSupport
 import com.intellij.lang.javascript.evaluation.JSTypeEvaluationLocationProvider.withTypeEvaluationLocation
 import com.intellij.lang.javascript.psi.JSType
 import com.intellij.lang.javascript.psi.resolve.JSResolveUtil
@@ -14,11 +10,24 @@ import com.intellij.lang.javascript.psi.types.JSTypeComparingContextService
 import com.intellij.lang.javascript.psi.types.JSTypeSource
 import com.intellij.lang.javascript.psi.types.guard.TypeScriptTypeRelations
 import com.intellij.lang.javascript.psi.types.primitives.JSPrimitiveType
-import com.intellij.lang.javascript.psi.types.primitives.JSStringType
+import com.intellij.lang.javascript.psi.types.primitives.JSStringTypeImpl
 import com.intellij.model.Pointer
 import com.intellij.model.Symbol
 import com.intellij.openapi.project.Project
 import com.intellij.platform.backend.navigation.NavigationTarget
+import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.PolySymbolModifier
+import com.intellij.polySymbols.PolySymbolProperty
+import com.intellij.polySymbols.PolySymbolQualifiedKind
+import com.intellij.polySymbols.html.*
+import com.intellij.polySymbols.html.elements.HtmlElementSymbolDescriptor
+import com.intellij.polySymbols.js.jsType
+import com.intellij.polySymbols.js.types.TypeScriptSymbolTypeSupport
+import com.intellij.polySymbols.query.PolySymbolQueryExecutorFactory
+import com.intellij.polySymbols.query.PolySymbolWithPattern
+import com.intellij.polySymbols.search.PsiSourcedPolySymbol
+import com.intellij.polySymbols.utils.PolySymbolDelegate
+import com.intellij.polySymbols.utils.PolySymbolScopeWithCache
 import com.intellij.psi.PsiElement
 import com.intellij.psi.createSmartPointer
 import com.intellij.psi.util.CachedValueProvider
@@ -28,10 +37,6 @@ import com.intellij.psi.xml.XmlTag
 import com.intellij.util.ThreeState
 import com.intellij.util.asSafely
 import com.intellij.util.containers.mapSmartSet
-import com.intellij.webSymbols.*
-import com.intellij.webSymbols.html.WebSymbolHtmlAttributeValue
-import com.intellij.webSymbols.query.WebSymbolsQueryExecutorFactory
-import com.intellij.webSymbols.utils.qualifiedKind
 import org.angular2.Angular2Framework
 import org.angular2.codeInsight.attributes.Angular2AttributeValueProvider
 import org.angular2.codeInsight.config.Angular2Compiler.isStrictTemplates
@@ -39,32 +44,39 @@ import org.angular2.entities.Angular2DirectiveProperty
 import org.angular2.web.NG_DIRECTIVE_ATTRIBUTE_SELECTORS
 import org.angular2.web.NG_DIRECTIVE_INPUTS
 import org.angular2.web.NG_DIRECTIVE_ONE_TIME_BINDINGS
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
-internal class OneTimeBindingsScope(tag: XmlTag) : WebSymbolsScopeWithCache<XmlTag, Unit>(Angular2Framework.ID, tag.project, tag, Unit) {
+internal class OneTimeBindingsScope(tag: XmlTag) : PolySymbolScopeWithCache<XmlTag, Unit>(Angular2Framework.ID, tag.project, tag, Unit) {
 
-  override fun provides(qualifiedKind: WebSymbolQualifiedKind): Boolean =
+  override fun provides(qualifiedKind: PolySymbolQualifiedKind): Boolean =
     qualifiedKind == NG_DIRECTIVE_ONE_TIME_BINDINGS
 
-  override fun initialize(consumer: (WebSymbol) -> Unit, cacheDependencies: MutableSet<Any>) {
-    val queryExecutor = WebSymbolsQueryExecutorFactory.create(dataHolder)
-    val scope = dataHolder.descriptor?.asSafely<WebSymbolElementDescriptor>()
-                  ?.symbol?.let { listOf(it) }
+  override fun initialize(consumer: (PolySymbol) -> Unit, cacheDependencies: MutableSet<Any>) {
+    val queryExecutor = PolySymbolQueryExecutorFactory.create(dataHolder)
+    val scope = dataHolder.descriptor?.asSafely<HtmlElementSymbolDescriptor>()
+                  ?.symbol?.queryScope
                 ?: emptyList()
     val attributeSelectors = queryExecutor
-      .runListSymbolsQuery(NG_DIRECTIVE_ATTRIBUTE_SELECTORS, expandPatterns = true, additionalScope = scope)
+      .listSymbolsQuery(NG_DIRECTIVE_ATTRIBUTE_SELECTORS, expandPatterns = true)
+      .additionalScope(scope)
+      .run()
       .plus(queryExecutor
-              .runListSymbolsQuery(WebSymbol.HTML_ATTRIBUTES, expandPatterns = false, virtualSymbols = false, additionalScope = scope)
-              .filterIsInstance<WebSymbolsHtmlQueryConfigurator.StandardHtmlSymbol>()
+              .listSymbolsQuery(HTML_ATTRIBUTES, expandPatterns = false)
+              .additionalScope(scope)
+              .exclude(PolySymbolModifier.VIRTUAL, PolySymbolModifier.ABSTRACT)
+              .run()
+              .filterIsInstance<StandardHtmlSymbol>()
       )
-      .filter { it.attributeValue?.required == false }
+      .filter { it.htmlAttributeValue?.required == false }
       .mapSmartSet { it.name }
 
     val isStrictTemplates = isStrictTemplates(dataHolder)
     for (input in queryExecutor
-      .runListSymbolsQuery(NG_DIRECTIVE_INPUTS, expandPatterns = false, additionalScope = scope)) {
-      if (input.pattern != null) continue
+      .listSymbolsQuery(NG_DIRECTIVE_INPUTS, expandPatterns = false)
+      .additionalScope(scope)
+      .run()
+    ) {
+      if (input is PolySymbolWithPattern) continue
       val isOneTimeBinding = withTypeEvaluationLocation(dataHolder) {
         isOneTimeBindingProperty(input)
       }
@@ -79,7 +91,7 @@ internal class OneTimeBindingsScope(tag: XmlTag) : WebSymbolsScopeWithCache<XmlT
     cacheDependencies.add(PsiModificationTracker.MODIFICATION_COUNT)
   }
 
-  override fun createPointer(): Pointer<out WebSymbolsScopeWithCache<XmlTag, Unit>> {
+  override fun createPointer(): Pointer<out PolySymbolScopeWithCache<XmlTag, Unit>> {
     val tagPtr = dataHolder.createSmartPointer()
     return Pointer {
       tagPtr.dereference()?.let { OneTimeBindingsScope(it) }
@@ -88,22 +100,22 @@ internal class OneTimeBindingsScope(tag: XmlTag) : WebSymbolsScopeWithCache<XmlT
 
   companion object {
 
-    const val PROP_DELEGATE_PRIORITY = "ng-delegate-priority"
+    val PROP_DELEGATE_PRIORITY: PolySymbolProperty<PolySymbol.Priority> = PolySymbolProperty["ng-delegate-priority"]
 
     private val ONE_TIME_BINDING_EXCLUDES = listOf(Angular2AttributeValueProvider.NG_CLASS_ATTR)
-    private val STRING_TYPE: JSType = JSStringType.STRING_EMPTY_EXPLICIT_TYPE
+    private val STRING_TYPE: JSType = JSStringTypeImpl.STRING_EMPTY_EXPLICIT_TYPE
 
     @JvmStatic
-    fun isOneTimeBindingProperty(property: WebSymbol): Boolean {
+    fun isOneTimeBindingProperty(property: PolySymbol): Boolean {
       if (ONE_TIME_BINDING_EXCLUDES.contains(property.name) || NG_DIRECTIVE_INPUTS != property.qualifiedKind) {
         return false
       }
       if ((property as? Angular2DirectiveProperty)?.virtualProperty == true) return true
       val type = property.jsType ?: return true
-      val source = (property as? PsiSourcedWebSymbol)?.source ?: return true
+      val source = (property as? PsiSourcedPolySymbol)?.source ?: return true
 
       return CachedValuesManager.getCachedValue(source) {
-        CachedValueProvider.Result.create(ConcurrentHashMap<WebSymbol, Boolean>(),
+        CachedValueProvider.Result.create(ConcurrentHashMap<PolySymbol, Boolean>(),
                                           PsiModificationTracker.MODIFICATION_COUNT)
       }.getOrPut(property) {
         withTypeEvaluationLocation(source) {
@@ -118,34 +130,43 @@ internal class OneTimeBindingsScope(tag: XmlTag) : WebSymbolsScopeWithCache<XmlT
         .transformTypeHierarchy { toApply -> if (toApply is JSPrimitiveType) STRING_TYPE else toApply }
   }
 
-  private class Angular2OneTimeBinding(delegate: WebSymbol, val typeEvaluationLocation: PsiElement, val requiresValue: Boolean, val resolveOnly: Boolean = false)
-    : WebSymbolDelegate<WebSymbol>(delegate), PsiSourcedWebSymbol {
+  private class Angular2OneTimeBinding(
+    override val delegate: PolySymbol,
+    val typeEvaluationLocation: PsiElement,
+    val requiresValue: Boolean,
+    val resolveOnly: Boolean = false,
+  ) : PolySymbolDelegate<PolySymbol>, PsiSourcedPolySymbol {
     override val source: PsiElement?
-      get() = (delegate as? PsiSourcedWebSymbol)?.source
+      get() = (delegate as? PsiSourcedPolySymbol)?.source
 
-    override val kind: SymbolKind get() = NG_DIRECTIVE_ONE_TIME_BINDINGS.kind
+    override val qualifiedKind: PolySymbolQualifiedKind
+      get() = NG_DIRECTIVE_ONE_TIME_BINDINGS
 
-    override val priority: WebSymbol.Priority
-      get() = WebSymbol.Priority.LOW
+    override val priority: PolySymbol.Priority
+      get() = PolySymbol.Priority.LOW
 
-    override val properties: Map<String, Any>
-      get() = super<WebSymbolDelegate>.properties +
-              sequenceOf(
-                super<WebSymbolDelegate>.priority?.let { Pair(PROP_DELEGATE_PRIORITY, it) },
-                if (resolveOnly) Pair(WebSymbol.PROP_HIDE_FROM_COMPLETION, true) else null
-              ).filterNotNull()
+    override fun <T : Any> get(property: PolySymbolProperty<T>): T? =
+      when {
+        property == PROP_DELEGATE_PRIORITY -> property.tryCast(super<PolySymbolDelegate>.priority)
+        property == PROP_HTML_ATTRIBUTE_VALUE -> property.tryCast(attributeValue)
+        resolveOnly && property == PolySymbol.PROP_HIDE_FROM_COMPLETION -> property.tryCast(true)
+        else -> super<PolySymbolDelegate>.get(property)
+      }
 
-    // Even though an input property might be required,
-    // we need to do the check through AngularMissingRequiredDirectiveInputBindingInspection
-    override val required: Boolean
-      get() = false
+    override val modifiers: Set<PolySymbolModifier>
+      get() = super<PolySymbolDelegate>.modifiers.asSequence()
+        // Even though an input property might be required,
+        // we need to do the check through AngularMissingRequiredDirectiveInputBindingInspection
+        .filter { it != PolySymbolModifier.REQUIRED }
+        .plus(PolySymbolModifier.OPTIONAL)
+        .toSet()
 
-    override val attributeValue: WebSymbolHtmlAttributeValue? by lazy(LazyThreadSafetyMode.PUBLICATION) {
+    private val attributeValue: PolySymbolHtmlAttributeValue? by lazy(LazyThreadSafetyMode.PUBLICATION) {
       withTypeEvaluationLocation(typeEvaluationLocation) {
         if (isStrictTemplates(this.psiContext)) {
-          WebSymbolHtmlAttributeValue.create(
-            WebSymbolHtmlAttributeValue.Kind.PLAIN,
-            WebSymbolHtmlAttributeValue.Type.COMPLEX,
+          PolySymbolHtmlAttributeValue.create(
+            PolySymbolHtmlAttributeValue.Kind.PLAIN,
+            PolySymbolHtmlAttributeValue.Type.COMPLEX,
             !resolveOnly && !JSResolveUtil.isAssignableJSType(
               jsType, JSStringLiteralTypeImpl("", false, JSTypeSource.EXPLICITLY_DECLARED), null),
             null,
@@ -153,12 +174,12 @@ internal class OneTimeBindingsScope(tag: XmlTag) : WebSymbolsScopeWithCache<XmlT
           )
         }
         else {
-          val isBoolean = TypeScriptSymbolTypeSupport.isBoolean(jsType, psiContext)
+          val isBoolean = TypeScriptSymbolTypeSupport.isBoolean(jsType)
           when {
             isBoolean != ThreeState.NO -> {
-              WebSymbolHtmlAttributeValue.create(
-                WebSymbolHtmlAttributeValue.Kind.PLAIN,
-                WebSymbolHtmlAttributeValue.Type.COMPLEX, false,
+              PolySymbolHtmlAttributeValue.create(
+                PolySymbolHtmlAttributeValue.Kind.PLAIN,
+                PolySymbolHtmlAttributeValue.Type.COMPLEX, false,
                 null,
                 JSCompositeTypeFactory.createUnionType(
                   JSTypeSource.EXPLICITLY_DECLARED,
@@ -171,7 +192,7 @@ internal class OneTimeBindingsScope(tag: XmlTag) : WebSymbolsScopeWithCache<XmlT
                   JSStringLiteralTypeImpl("false", false, JSTypeSource.EXPLICITLY_DECLARED)
                 ))
             }
-            !requiresValue -> WebSymbolHtmlAttributeValue.create(required = false)
+            !requiresValue -> PolySymbolHtmlAttributeValue.create(required = false)
             else -> null
           }
         }
@@ -191,7 +212,7 @@ internal class OneTimeBindingsScope(tag: XmlTag) : WebSymbolsScopeWithCache<XmlT
     }
 
     override fun isEquivalentTo(symbol: Symbol): Boolean =
-      super<PsiSourcedWebSymbol>.isEquivalentTo(symbol)
+      super<PsiSourcedPolySymbol>.isEquivalentTo(symbol)
       || delegate.isEquivalentTo(symbol)
 
     override fun equals(other: Any?): Boolean =
@@ -200,13 +221,13 @@ internal class OneTimeBindingsScope(tag: XmlTag) : WebSymbolsScopeWithCache<XmlT
       && other.requiresValue == requiresValue
 
     override fun hashCode(): Int =
-      Objects.hash(delegate, requiresValue)
+      31 * delegate.hashCode() + requiresValue.hashCode()
 
     override fun getNavigationTargets(project: Project): Collection<NavigationTarget> =
-      super<WebSymbolDelegate>.getNavigationTargets(project)
+      super<PolySymbolDelegate>.getNavigationTargets(project)
 
     override val psiContext: PsiElement?
-      get() = super<WebSymbolDelegate>.psiContext
+      get() = super<PolySymbolDelegate>.psiContext
 
   }
 }

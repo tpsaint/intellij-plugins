@@ -50,11 +50,11 @@ public class GherkinBlock implements ASTBlock {
     this(node, indent, node.getTextRange());
   }
 
-  public GherkinBlock(ASTNode node, Indent indent, final TextRange textRange) {
+  public GherkinBlock(ASTNode node, Indent indent, TextRange textRange) {
     this(node, indent, textRange, false);
   }
 
-  public GherkinBlock(ASTNode node, Indent indent, final TextRange textRange, final boolean leaf) {
+  public GherkinBlock(ASTNode node, Indent indent, TextRange textRange, boolean leaf) {
     myNode = node;
     myIndent = indent;
     myTextRange = textRange;
@@ -92,11 +92,12 @@ public class GherkinBlock implements ASTBlock {
         continue;
       }
 
-      boolean isTagInsideScenario = child.getElementType() == GherkinElementTypes.TAG &&
-                  myNode.getElementType() == GherkinElementTypes.SCENARIO_OUTLINE &&
-                  child.getStartOffset() > myNode.getStartOffset();
+      final boolean nodeIsScenarioOutline = myNode.getElementType() == GherkinElementTypes.SCENARIO_OUTLINE;
+      final boolean childNodeIsTag = child.getElementType() == GherkinElementTypes.TAG;
+      final boolean isTagInsideScenario = TreeUtil.findSibling(child, TokenSet.create(GherkinTokenTypes.SCENARIO_OUTLINE_KEYWORD)) == null;
+      final boolean shouldIndentTag = nodeIsScenarioOutline && childNodeIsTag && isTagInsideScenario;
       Indent indent;
-      if (BLOCKS_TO_INDENT.contains(child.getElementType()) || isTagInsideScenario) {
+      if (BLOCKS_TO_INDENT.contains(child.getElementType()) || shouldIndentTag) {
         indent = Indent.getNormalIndent();
       }
       else {

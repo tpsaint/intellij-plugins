@@ -1,15 +1,15 @@
 ### auto-generated section `build intellij.prettierJS` start
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_resources", "jvm_test")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
 
-jvm_resources(
+resourcegroup(
   name = "prettierJS_resources",
-  files = glob(["resources/**/*"]),
+  srcs = glob(["resources/**/*"]),
   strip_prefix = "resources"
 )
 
-jvm_resources(
+resourcegroup(
   name = "prettierJS_resources_1",
-  files = glob(["gen/**/*"]),
+  srcs = glob(["gen/**/*"]),
   strip_prefix = "gen"
 )
 
@@ -17,24 +17,31 @@ jvm_library(
   name = "prettierJS",
   module_name = "intellij.prettierJS",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java"], allow_empty = True),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form"], allow_empty = True),
+  resources = [
+    ":prettierJS_resources",
+    ":prettierJS_resources_1",
+  ],
   deps = [
     "//plugins/JavaScriptLanguage/javascript-parser",
-    "//plugins/JavaScriptLanguage:javascript",
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/code-style-api:codeStyle",
+    "@community//platform/core-api:core",
+    "@community//platform/editor-ui-api:editor-ui",
     "@community//platform/lang-impl",
     "@community//platform/editor-ui-ex:editor-ex",
+    "@community//platform/projectModel-api:projectModel",
+    "@community//platform/util/diff",
     "@community//xml/xml-parser:parser",
     "@community//platform/execution-impl",
     "@community//platform/platform-impl:ide-impl",
     "@community//platform/lang-api:lang",
     "@community//xml/impl",
-    "//plugins/JavaScriptLanguage/javascript-frontback-impl",
-    "@community//platform/observable:ide-observable",
-    "//plugins/JavaScriptLanguage:javascript-impl",
-    "//webcore/impl:webide-impl",
-    "@lib//:gson",
-    "//CSS:css",
-    "@lib//:snakeyaml",
+    "@community//platform/observable",
+    "//plugins/JavaScriptLanguage:javascript-backend",
+    "//webcore/impl",
+    "@community//libraries/gson",
+    "@community//libraries/snakeyaml",
     "@community//json/backend",
     "//plugins/fileWatcher",
     "@community//platform/core-ui",
@@ -43,36 +50,35 @@ jvm_library(
     "@community//platform/platform-util-io:ide-util-io",
     "@community//platform/statistics",
     "@community//platform/diff-impl",
-  ],
-  runtime_deps = [
-    ":prettierJS_resources",
-    ":prettierJS_resources_1",
+    "//plugins/JavaScriptLanguage/javascript-common",
   ]
 )
 
 jvm_library(
   name = "prettierJS_test_lib",
   visibility = ["//visibility:public"],
-  srcs = glob(["test/**/*.kt", "test/**/*.java"], allow_empty = True),
+  srcs = glob(["test/**/*.kt", "test/**/*.java", "test/**/*.form"], allow_empty = True),
   associates = [":prettierJS"],
   deps = [
     "//plugins/JavaScriptLanguage/javascript-parser",
-    "//plugins/JavaScriptLanguage:javascript",
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/code-style-api:codeStyle",
+    "@community//platform/core-api:core",
+    "@community//platform/editor-ui-api:editor-ui",
     "@community//platform/lang-impl",
     "@community//platform/editor-ui-ex:editor-ex",
+    "@community//platform/projectModel-api:projectModel",
+    "@community//platform/util/diff",
     "@community//xml/xml-parser:parser",
     "@community//platform/execution-impl",
     "@community//platform/platform-impl:ide-impl",
-    "@community//platform/platform-impl:ide-impl_test_lib",
     "@community//platform/lang-api:lang",
     "@community//xml/impl",
-    "//plugins/JavaScriptLanguage/javascript-frontback-impl",
-    "@community//platform/observable:ide-observable",
-    "//plugins/JavaScriptLanguage:javascript-impl",
-    "//webcore/impl:webide-impl",
-    "@lib//:gson",
-    "//CSS:css",
-    "@lib//:snakeyaml",
+    "@community//platform/observable",
+    "//plugins/JavaScriptLanguage:javascript-backend",
+    "//webcore/impl",
+    "@community//libraries/gson",
+    "@community//libraries/snakeyaml",
     "@community//json/backend",
     "//plugins/fileWatcher",
     "//plugins/fileWatcher:fileWatcher_test_lib",
@@ -89,15 +95,16 @@ jvm_library(
     "@community//platform/statistics:statistics_test_lib",
     "@community//platform/statistics/testFramework",
     "@community//platform/diff-impl",
-  ],
-  runtime_deps = [
-    ":prettierJS_resources",
-    ":prettierJS_resources_1",
+    "//plugins/JavaScriptLanguage/javascript-common",
   ]
 )
+### auto-generated section `build intellij.prettierJS` end
 
-jvm_test(
+### auto-generated section `test intellij.prettierJS` start
+load("@community//build:tests-options.bzl", "jps_test")
+
+jps_test(
   name = "prettierJS_test",
   runtime_deps = [":prettierJS_test_lib"]
 )
-### auto-generated section `build intellij.prettierJS` end
+### auto-generated section `test intellij.prettierJS` end

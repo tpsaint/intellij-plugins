@@ -22,6 +22,10 @@ public final class GherkinFindUsagesProvider implements FindUsagesProvider {
       return true;
     }
 
+    if (psiElement instanceof GherkinTableCell) {
+      return true;
+    }
+
     return false;
   }
 
@@ -34,7 +38,8 @@ public final class GherkinFindUsagesProvider implements FindUsagesProvider {
   public @NotNull String getType(@NotNull PsiElement element) {
     if (element instanceof GherkinStep) {
       return CucumberBundle.message("cucumber.step");
-    } else if (element instanceof GherkinStepParameter) {
+    }
+    else if (element instanceof GherkinTableCell) {
       return CucumberBundle.message("cucumber.step.parameter");
     }
     return CucumberBundle.message("gherkin.find.usages.unknown.element.type");
@@ -42,7 +47,13 @@ public final class GherkinFindUsagesProvider implements FindUsagesProvider {
 
   @Override
   public @NotNull String getDescriptiveName(@NotNull PsiElement element) {
-    return element instanceof PsiNamedElement ? ((PsiNamedElement)element).getName() : "";
+    if (element instanceof PsiNamedElement namedElement) {
+      String name = namedElement.getName();
+      if (name != null) {
+        return name;
+      }
+    }
+    return "";
   }
 
   @Override

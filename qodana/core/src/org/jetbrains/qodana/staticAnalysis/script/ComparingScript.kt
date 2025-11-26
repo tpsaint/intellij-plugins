@@ -13,6 +13,7 @@ import org.jetbrains.qodana.staticAnalysis.inspections.runner.*
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.startup.QodanaRunContextFactory
 import org.jetbrains.qodana.staticAnalysis.profile.QodanaProfile
 import org.jetbrains.qodana.staticAnalysis.sarif.*
+import org.jetbrains.qodana.staticAnalysis.sarif.getOrCreateRun
 import org.jetbrains.qodana.staticAnalysis.scopes.QodanaAnalysisScope
 import org.jetbrains.qodana.staticAnalysis.stat.CoverageFeatureEventsCollector
 import java.nio.file.Paths
@@ -25,12 +26,12 @@ abstract class ComparingScript(
   private val config: QodanaConfig,
   private val messageReporter: QodanaMessageReporter,
   private val contextFactory: QodanaRunContextFactory,
-  private val analysisKind: AnalysisKind,
+  override val analysisKind: AnalysisKind,
 ) : QodanaScript {
-
   protected val progressIndicator = QodanaProgressIndicator(messageReporter)
 
-  override suspend fun execute(report: SarifReport, run: Run): QodanaScriptResult {
+  override suspend fun execute(report: SarifReport): QodanaScriptResult {
+    val run = report.getOrCreateRun()
     val scriptResult: QodanaScriptResult
     val runContext = contextFactory.openRunContext()
     fillComponents(run.tool, runContext.qodanaProfile)

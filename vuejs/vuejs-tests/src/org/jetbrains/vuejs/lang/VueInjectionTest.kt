@@ -2,22 +2,28 @@
 package org.jetbrains.vuejs.lang
 
 import com.intellij.codeInsight.CodeInsightSettings
+import com.intellij.codeInsight.completion.CompletionContributor
+import com.intellij.codeInsight.completion.CompletionContributorEP
+import com.intellij.codeInsight.lookup.LookupElementBuilder
+import com.intellij.lang.Language
 import com.intellij.lang.html.HTMLLanguage
 import com.intellij.lang.injection.InjectedLanguageManager
 import com.intellij.lang.javascript.JSTestUtils
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.extensions.DefaultPluginDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.polySymbols.context.PolyContext
+import com.intellij.polySymbols.context.PolyContext.Companion.KIND_FRAMEWORK
+import com.intellij.polySymbols.context.PolyContextProvider
+import com.intellij.polySymbols.context.impl.PolyContextProviderExtensionPoint
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
 import com.intellij.psi.impl.DebugUtil
 import com.intellij.testFramework.ParsingTestCase
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.util.ui.UIUtil
-import com.intellij.webSymbols.context.WebSymbolsContext
-import com.intellij.webSymbols.context.WebSymbolsContext.Companion.KIND_FRAMEWORK
-import com.intellij.webSymbols.context.WebSymbolsContextProvider
-import com.intellij.webSymbols.context.impl.WebSymbolsContextProviderExtensionPoint
 import com.intellij.webcore.libraries.ScriptingLibraryModel
 import junit.framework.TestCase
 import org.jetbrains.vuejs.context.isVueContext
@@ -63,7 +69,7 @@ class VueInjectionTest : BasePlatformTestCase() {
     </div>
   </body>
 </html>""")
-    TestCase.assertEquals(VueJSLanguage.INSTANCE, myFixture.file.language)
+    TestCase.assertEquals(VueJSLanguage, myFixture.file.language)
   }
 
   fun testSimpleInterpolationInVue() {
@@ -73,7 +79,7 @@ class VueInjectionTest : BasePlatformTestCase() {
       {{ 1 + <caret>2 }}
     </div>
 </template>""")
-    TestCase.assertEquals(VueJSLanguage.INSTANCE, myFixture.file.language)
+    TestCase.assertEquals(VueJSLanguage, myFixture.file.language)
   }
 
   fun testCustomDelimitersInterpolationInVue() {
@@ -133,7 +139,7 @@ new Vue({
 })
 </script>
 """)
-    TestCase.assertEquals(VueLanguage.INSTANCE, myFixture.file.language)
+    TestCase.assertEquals(VueLanguage, myFixture.file.language)
     checkParseTree()
   }
 
@@ -156,7 +162,7 @@ new Vue({
 })
 </script>
 </html>""")
-    TestCase.assertEquals(VueJSLanguage.INSTANCE, myFixture.file.language)
+    TestCase.assertEquals(VueJSLanguage, myFixture.file.language)
   }
 
   fun testCommentIntersectsDelimitersInterpolationInHtml() {
@@ -196,7 +202,7 @@ new Vue({
 })
 </script>
 </html>""")
-    TestCase.assertEquals(VueLanguage.INSTANCE, myFixture.file.language)
+    TestCase.assertEquals(VueLanguage, myFixture.file.language)
     checkParseTree()
   }
 
@@ -219,13 +225,13 @@ another}}{{two}}"""
   fun testInjectionByConfigDelimitersAssignmentJS() {
     myFixture.configureByText("InjectionByConfigDelimitersAssignmentJS.js", "Vue.config.delimiters = ['<%', '%>']")
     myFixture.configureByText("InjectionByConfigDelimitersAssignmentJS.vue", "<template><% <caret> %></template>")
-    TestCase.assertEquals(VueJSLanguage.INSTANCE, myFixture.file.language)
+    TestCase.assertEquals(VueJSLanguage, myFixture.file.language)
   }
 
   fun testInjectionByOptionsDelimitersAssignmentJS() {
     myFixture.configureByText("InjectionByConfigDelimitersAssignmentJS.js", "Vue.options.delimiters = ['<%', '%>']")
     myFixture.configureByText("InjectionByConfigDelimitersAssignmentJS.vue", "<template><% <caret> %></template>")
-    TestCase.assertEquals(VueJSLanguage.INSTANCE, myFixture.file.language)
+    TestCase.assertEquals(VueJSLanguage, myFixture.file.language)
   }
 
   fun testInjectionByConfigDelimitersAssignment() {
@@ -235,7 +241,7 @@ another}}{{two}}"""
 Vue.config.delimiters = ['<%', '%>']
 </script>
 """)
-    TestCase.assertEquals(VueJSLanguage.INSTANCE, myFixture.file.language)
+    TestCase.assertEquals(VueJSLanguage, myFixture.file.language)
   }
 
   fun testInjectionByOptionsDelimitersAssignment() {
@@ -245,7 +251,7 @@ Vue.config.delimiters = ['<%', '%>']
 Vue.options.delimiters = ['<%', '%>']
 </script>
 """)
-    TestCase.assertEquals(VueJSLanguage.INSTANCE, myFixture.file.language)
+    TestCase.assertEquals(VueJSLanguage, myFixture.file.language)
   }
 
   fun testAttrValueInjection() {
@@ -289,15 +295,17 @@ Vue.options.delimiters = ['<%', '%>']
 
     val disposable = Disposer.newDisposable()
     var forbid = true
-    WebSymbolsContext.WEB_SYMBOLS_CONTEXT_EP
+    PolyContext.POLY_SYMBOLS_CONTEXT_EP
       .point
       ?.registerExtension(
-        WebSymbolsContextProviderExtensionPoint(
+        PolyContextProviderExtensionPoint(
           KIND_FRAMEWORK,
           "vue",
-          object : WebSymbolsContextProvider {
-            override fun isForbidden(contextFile: VirtualFile,
-                                     project: Project): Boolean = forbid
+          object : PolyContextProvider {
+            override fun isForbidden(
+              contextFile: VirtualFile,
+              project: Project,
+            ): Boolean = forbid
           }), disposable)
     try {
       // Force reload of roots
@@ -318,7 +326,25 @@ Vue.options.delimiters = ['<%', '%>']
     }
   }
 
+  class InjectedYamlCompletionContributor : CompletionContributor() {
+    override fun fillCompletionVariants(parameters: com.intellij.codeInsight.completion.CompletionParameters, result: com.intellij.codeInsight.completion.CompletionResultSet) {
+      if (parameters.originalFile.language == Language.findLanguageByID("yaml")) {
+        result.consume(LookupElementBuilder.create("keep-alive"))
+      }
+    }
+  }
+
   fun testCompletionInsideInjectedI18NContents() {
+    ApplicationManager.getApplication().extensionArea
+      .getExtensionPoint(CompletionContributor.EP)
+      .registerExtension(
+        CompletionContributorEP(
+          "yaml",
+          InjectedYamlCompletionContributor::class.java.name,
+          DefaultPluginDescriptor("testVuePluginDescriptor")),
+        testRootDisposable
+      )
+
     myFixture.configureVueDependencies("vue-i18n" to "*")
     myFixture.configureByText("Test.vue", """
       <i18n lang="yaml">
@@ -326,8 +352,9 @@ Vue.options.delimiters = ['<%', '%>']
       </i18n>
     """.trimIndent())
     myFixture.completeBasic()
-    // non-ideal - here we test that completion actually works without throwing exceptions, but it shouldn't suggest any tags here
-    assertContainsElements(myFixture.lookupElementStrings!!, "<keep-alive")
+    // Check that completion actually works without throwing exceptions.
+    // It should suggest the element from the test YAML contributor
+    assertContainsElements(myFixture.lookupElementStrings!!, "keep-alive")
   }
 
   fun testTypingInI18NTag() {

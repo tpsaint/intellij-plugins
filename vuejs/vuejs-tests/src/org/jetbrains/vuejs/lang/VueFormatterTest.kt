@@ -103,7 +103,7 @@ class VueFormatterTest : JavaScriptFormatterTestBase() {
     JSTestUtils.testWithTempCodeStyleSettings<Throwable>(project) {
       it.getCustomSettings(VueCodeStyleSettings::class.java).UNIFORM_INDENT = false
       it.getCustomSettings(HtmlCodeStyleSettings::class.java).HTML_UNIFORM_INDENT = true
-      it.getLanguageIndentOptions(VueLanguage.INSTANCE).INDENT_SIZE = 1
+      it.getLanguageIndentOptions(VueLanguage).INDENT_SIZE = 1
       it.getLanguageIndentOptions(HTMLLanguage.INSTANCE).INDENT_SIZE = 2
       it.getLanguageIndentOptions(JavascriptLanguage).INDENT_SIZE = 4
       doTestFromFile("html")
@@ -115,7 +115,7 @@ class VueFormatterTest : JavaScriptFormatterTestBase() {
     JSTestUtils.testWithTempCodeStyleSettings<Throwable>(project) {
       it.getCustomSettings(VueCodeStyleSettings::class.java).UNIFORM_INDENT = true
       it.getCustomSettings(HtmlCodeStyleSettings::class.java).HTML_UNIFORM_INDENT = false
-      it.getLanguageIndentOptions(VueLanguage.INSTANCE).INDENT_SIZE = 1
+      it.getLanguageIndentOptions(VueLanguage).INDENT_SIZE = 1
       it.getLanguageIndentOptions(HTMLLanguage.INSTANCE).INDENT_SIZE = 2
       it.getLanguageIndentOptions(JavascriptLanguage).INDENT_SIZE = 4
       doTestFromFile("html")
@@ -158,7 +158,7 @@ class VueFormatterTest : JavaScriptFormatterTestBase() {
         it.UNIFORM_INDENT = true
         it.INDENT_CHILDREN_OF_TOP_LEVEL = "style"
       }
-      styleSettings.getLanguageIndentOptions(VueLanguage.INSTANCE).INDENT_SIZE = 2
+      styleSettings.getLanguageIndentOptions(VueLanguage).INDENT_SIZE = 2
       styleSettings.getLanguageIndentOptions(SASSLanguage.INSTANCE).INDENT_SIZE = 1
       doTestFromFile("vue")
     }
@@ -170,7 +170,7 @@ class VueFormatterTest : JavaScriptFormatterTestBase() {
         it.UNIFORM_INDENT = true
         it.INDENT_CHILDREN_OF_TOP_LEVEL = "style"
       }
-      styleSettings.getLanguageIndentOptions(VueLanguage.INSTANCE).INDENT_SIZE = 2
+      styleSettings.getLanguageIndentOptions(VueLanguage).INDENT_SIZE = 2
       styleSettings.getLanguageIndentOptions(StylusLanguage.INSTANCE).INDENT_SIZE = 1
       doTestFromFile("vue")
     }
@@ -184,7 +184,7 @@ class VueFormatterTest : JavaScriptFormatterTestBase() {
         it.SPACES_WITHIN_INTERPOLATION_EXPRESSIONS = true
       }
       styleSettings.getCommonSettings(JavascriptLanguage).SPACE_AROUND_ADDITIVE_OPERATORS = false
-      styleSettings.getLanguageIndentOptions(VueLanguage.INSTANCE).INDENT_SIZE = 2
+      styleSettings.getLanguageIndentOptions(VueLanguage).INDENT_SIZE = 2
       doTestFromFile("vue")
     }
   }
@@ -197,7 +197,7 @@ class VueFormatterTest : JavaScriptFormatterTestBase() {
         it.SPACES_WITHIN_INTERPOLATION_EXPRESSIONS = true
       }
       styleSettings.getCommonSettings(JavaScriptSupportLoader.TYPESCRIPT).SPACE_AROUND_ADDITIVE_OPERATORS = false
-      styleSettings.getLanguageIndentOptions(VueLanguage.INSTANCE).INDENT_SIZE = 2
+      styleSettings.getLanguageIndentOptions(VueLanguage).INDENT_SIZE = 2
       doTestFromFile("vue")
     }
   }
@@ -211,7 +211,7 @@ class VueFormatterTest : JavaScriptFormatterTestBase() {
       }
       styleSettings.getCommonSettings(JavascriptLanguage).SPACE_AROUND_MULTIPLICATIVE_OPERATORS = false
       styleSettings.getCommonSettings(JavascriptLanguage).SPACE_AROUND_ADDITIVE_OPERATORS = true
-      styleSettings.getLanguageIndentOptions(VueLanguage.INSTANCE).INDENT_SIZE = 2
+      styleSettings.getLanguageIndentOptions(VueLanguage).INDENT_SIZE = 2
       doTestFromFile("vue")
     }
   }
@@ -222,7 +222,7 @@ class VueFormatterTest : JavaScriptFormatterTestBase() {
       val vueSettings = styleSettings.getCustomSettings(VueCodeStyleSettings::class.java)
       vueSettings.UNIFORM_INDENT = true
       vueSettings.SPACES_WITHIN_INTERPOLATION_EXPRESSIONS = false
-      styleSettings.getLanguageIndentOptions(VueLanguage.INSTANCE).INDENT_SIZE = 4
+      styleSettings.getLanguageIndentOptions(VueLanguage).INDENT_SIZE = 4
       vueSettings.INTERPOLATION_NEW_LINE_BEFORE_END_DELIMITER = false
       vueSettings.INTERPOLATION_NEW_LINE_AFTER_START_DELIMITER = false
 
@@ -261,6 +261,13 @@ class VueFormatterTest : JavaScriptFormatterTestBase() {
     }
   }
 
+  fun testHardWrap() {
+    JSTestUtils.testWithTempCodeStyleSettings<Throwable>(project) { styleSettings ->
+      styleSettings.getCommonSettings(HTMLLanguage.INSTANCE).RIGHT_MARGIN = 30
+      //styleSettings.getCustomSettings(HtmlCodeStyleSettings::class.java).HTML_TEXT_WRAP = WRAP_ALWAYS
+      doTestFromFile("vue")
+    }}
+
   private fun doTest(id: Int) {
     val testName = getTestName(false)
     val sourceFile = "$testDataPath/$basePath/$testName.vue"
@@ -270,7 +277,7 @@ class VueFormatterTest : JavaScriptFormatterTestBase() {
   }
 
   private fun doIndentationTest(settings: CodeStyleSettings) {
-    settings.getLanguageIndentOptions(VueLanguage.INSTANCE).INDENT_SIZE = 1
+    settings.getLanguageIndentOptions(VueLanguage).INDENT_SIZE = 1
     settings.getLanguageIndentOptions(HTMLLanguage.INSTANCE).INDENT_SIZE = 2
     settings.getLanguageIndentOptions(CSSLanguage.INSTANCE).INDENT_SIZE = 3
     settings.getLanguageIndentOptions(JavascriptLanguage).INDENT_SIZE = 4

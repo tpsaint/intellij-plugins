@@ -1,16 +1,16 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.vuejs.service
 
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementPresentation
 import com.intellij.lang.javascript.JSDaemonAnalyzerLightTestCase.checkHighlightingByText
-import com.intellij.lang.typescript.service.TypeScriptServiceTestBase.Companion.assertHasServiceItems
 import com.intellij.lang.typescript.compiler.TypeScriptCompilerSettings
+import com.intellij.lang.typescript.service.TypeScriptServiceTestBase.Companion.assertHasServiceItems
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.util.registry.Registry
 import com.intellij.platform.lsp.tests.checkLspHighlighting
 import com.intellij.platform.lsp.tests.waitForDiagnosticsFromLspServer
 import com.intellij.util.text.SemVer
-import junit.framework.TestCase
 import org.jetbrains.vuejs.lang.VueInspectionsProvider
 import org.jetbrains.vuejs.lang.VueTestModule
 import org.jetbrains.vuejs.lang.configureVueDependencies
@@ -88,8 +88,8 @@ class VolarServiceTest : VueLspServiceTestBase() {
   @Test
   fun testDisableSuggestions() {
     val settings = TypeScriptCompilerSettings.getSettings(project)
-    settings.isShowSuggestions = false
-    disposeOnTearDown(Disposable { settings.isShowSuggestions = true })
+    settings.showSuggestions = false
+    disposeOnTearDown(Disposable { settings.showSuggestions = true })
     myFixture.configureVueDependencies(VueTestModule.VUE_3_0_0)
     myFixture.addFileToProject("tsconfig.json", tsconfig)
     myFixture.configureByText("Simple.vue", """
@@ -174,8 +174,7 @@ class VolarServiceTest : VueLspServiceTestBase() {
     """.trimIndent(), true)
 
     val presentationTexts = getPresentationTexts(elements)
-    // duplicated question mark is definitely unwanted, but for now, this is what we get from Volar, so let's encode it in test
-    TestCase.assertTrue("Lookup element presentation must match expected", presentationTexts.contains("base??"))
+    assertTrue("Lookup element presentation must match expected", presentationTexts.contains("base?"))
     assertHasServiceItems(elements, true)
   }
 
@@ -202,8 +201,7 @@ class VolarServiceTest : VueLspServiceTestBase() {
     """.trimIndent(), true)
 
     val presentationTexts = getPresentationTexts(elements)
-    // duplicated question mark is definitely unwanted, but for now, this is what we get from Volar, so let's encode it in test
-    TestCase.assertTrue("Lookup element presentation must match expected", presentationTexts.contains("bar??"))
+    assertTrue("Lookup element presentation must match expected", presentationTexts.contains("bar?"))
     assertHasServiceItems(elements, true)
   }
 
@@ -232,8 +230,7 @@ class VolarServiceTest : VueLspServiceTestBase() {
     """.trimIndent(), true)
 
     val presentationTexts = getPresentationTexts(elements)
-    // duplicated question mark is definitely unwanted, but for now, this is what we get from Volar, so let's encode it in test
-    TestCase.assertTrue("Lookup element presentation must match expected", presentationTexts.contains("bar??"))
+    assertTrue("Lookup element presentation must match expected", presentationTexts.contains("bar?"))
     assertHasServiceItems(elements, true)
   }
 
@@ -248,7 +245,7 @@ class VolarServiceTest : VueLspServiceTestBase() {
     val old = state.packageName
     disposeOnTearDown(Disposable { state.packageName = old })
     val path = myFixture.findFileInTempDir("node_modules/@vue/language-server").path
-    TestCase.assertNotNull(path)
+    assertNotNull(path)
     state.packageName = path
 
     myFixture.configureByText("Simple.vue", """
@@ -274,6 +271,7 @@ class VolarServiceTest : VueLspServiceTestBase() {
   fun testMultilineCompletionItem() {
     myFixture.configureVueDependencies(VueTestModule.VUE_3_3_4)
     myFixture.addFileToProject("tsconfig.json", tsconfig)
+    Registry.get("typescript.service.completion.ownContributorsEnabled").setValue(false, testRootDisposable)
     myFixture.configureByText("main.vue", """
       <script lang="ts">
       import {defineComponent} from "vue"
@@ -357,9 +355,11 @@ class VolarServiceTest : VueLspServiceTestBase() {
     // @apply is not part of CSS spec,
     myFixture.configureByText("Simple.vue", """
       <style scoped>
-      button {
-        @apply bg-red-500;
-      }
+        @reference "";
+        button {
+          @apply bg-red-500;
+          <warning descr="Vue: Unknown at rule @apply1">@apply1</warning> bg-red-500;
+        }
       </style>
     """)
     myFixture.checkLspHighlighting()

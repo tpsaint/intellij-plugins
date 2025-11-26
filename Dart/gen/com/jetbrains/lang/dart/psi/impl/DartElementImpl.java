@@ -53,6 +53,12 @@ public class DartElementImpl extends DartPsiCompositeElementImpl implements Dart
 
   @Override
   @Nullable
+  public DartNullAwareElement getNullAwareElement() {
+    return findChildByClass(DartNullAwareElement.class);
+  }
+
+  @Override
+  @Nullable
   public DartSpreadElement getSpreadElement() {
     return findChildByClass(DartSpreadElement.class);
   }

@@ -2,13 +2,15 @@
 package org.angular2.entities.ivy
 
 import com.intellij.extapi.psi.StubBasedPsiElementBase
-import com.intellij.lang.javascript.JSStubElementTypes
+import com.intellij.lang.javascript.JSElementTypes
 import com.intellij.lang.javascript.psi.ecma6.*
 import com.intellij.lang.javascript.psi.ecmal4.JSAttributeList
+import com.intellij.lang.javascript.psi.stubs.JSAttributeListStub
 import com.intellij.lang.javascript.psi.stubs.JSVarStatementStub
 import com.intellij.lang.javascript.psi.stubs.TypeScriptClassStub
 import com.intellij.lang.javascript.psi.stubs.TypeScriptFieldStub
-import com.intellij.lang.typescript.TypeScriptStubElementTypes
+import com.intellij.lang.javascript.psi.stubs.TypeScriptSingleTypeStub
+import com.intellij.lang.typescript.TypeScriptElementTypes
 import com.intellij.model.Pointer
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.createSmartPointer
@@ -24,7 +26,6 @@ import org.angular2.Angular2DecoratorUtil.OUTPUTS_PROP
 import org.angular2.Angular2DecoratorUtil.REQUIRED_PROP
 import org.angular2.entities.source.Angular2PropertyInfo
 import org.jetbrains.annotations.NonNls
-import java.util.*
 import java.util.function.BiConsumer
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
@@ -208,8 +209,10 @@ abstract class Angular2IvySymbolDef private constructor(private val myFieldOrStu
         return result
       }
 
-    private fun <T : TypeScriptType> processConstructorArguments(kind: String, valueClass: KClass<T>,
-                                                                 consumer: BiConsumer<T, TypeScriptType>): Boolean {
+    private fun <T : TypeScriptType> processConstructorArguments(
+      kind: String, valueClass: KClass<T>,
+      consumer: BiConsumer<T, TypeScriptType>,
+    ): Boolean {
       val declaration = getDefFieldArgument(1) ?: return false
       val cls = contextClass
       if (declaration !is TypeScriptTupleType || cls == null) {
@@ -248,7 +251,7 @@ abstract class Angular2IvySymbolDef private constructor(private val myFieldOrStu
   }
 
   override fun hashCode(): Int {
-    return Objects.hash(field)
+    return field.hashCode()
   }
 
   protected fun getDefFieldArgument(index: Int): JSTypeDeclaration? {
@@ -276,10 +279,12 @@ abstract class Angular2IvySymbolDef private constructor(private val myFieldOrStu
   }
 
   @OptIn(ExperimentalContracts::class)
-  protected fun <T : TypeScriptType, R> processTupleArgument(index: Int,
-                                                             itemsClass: KClass<T>,
-                                                             itemMapper: (T) -> R?,
-                                                             nullIfNotFound: Boolean): List<R>? {
+  protected fun <T : TypeScriptType, R> processTupleArgument(
+    index: Int,
+    itemsClass: KClass<T>,
+    itemMapper: (T) -> R?,
+    nullIfNotFound: Boolean,
+  ): List<R>? {
     contract {
       returnsNotNull() implies (!nullIfNotFound)
     }
@@ -293,14 +298,18 @@ abstract class Angular2IvySymbolDef private constructor(private val myFieldOrStu
       .mapNotNull(itemMapper)
   }
 
-  protected fun <T : JSTypeDeclaration, R> processObjectArgument(index: Int,
-                                                                 valueClass: KClass<T>,
-                                                                 valueMapper: (T, String) -> R?): Map<String, R> =
+  protected fun <T : JSTypeDeclaration, R> processObjectArgument(
+    index: Int,
+    valueClass: KClass<T>,
+    valueMapper: (T, String) -> R?,
+  ): Map<String, R> =
     processObjectArgument(getDefFieldArgument(index) as? TypeScriptObjectType, valueClass, valueMapper)
 
-  data class HostDirectiveDef(val directive: TypeScriptTypeofType,
-                              val inputs: Map<String, Angular2PropertyInfo>,
-                              val outputs: Map<String, Angular2PropertyInfo>)
+  data class HostDirectiveDef(
+    val directive: TypeScriptTypeofType,
+    val inputs: Map<String, Angular2PropertyInfo>,
+    val outputs: Map<String, Angular2PropertyInfo>,
+  )
 
   @Suppress("NonAsciiCharacters")
   companion object {
@@ -367,10 +376,12 @@ abstract class Angular2IvySymbolDef private constructor(private val myFieldOrStu
       return tsClass.attributeList?.hasModifier(JSAttributeList.ModifierType.ABSTRACT) ?: false
     }
 
-    private fun <T : Angular2IvySymbolDef> getSymbolDefStubbed(jsClassStub: TypeScriptClassStub,
-                                                               allowAbstractClasses: Boolean,
-                                                               symbolFactory: (String, Any) -> T?): T? {
-      val clsAttrs = jsClassStub.findChildStubByType(JSStubElementTypes.ATTRIBUTE_LIST)
+    private fun <T : Angular2IvySymbolDef> getSymbolDefStubbed(
+      jsClassStub: TypeScriptClassStub,
+      allowAbstractClasses: Boolean,
+      symbolFactory: (String, Any) -> T?,
+    ): T? {
+      val clsAttrs = jsClassStub.findChildStubByElementType(JSElementTypes.ATTRIBUTE_LIST) as? JSAttributeListStub
       if (clsAttrs == null || !allowAbstractClasses && clsAttrs.hasModifier(JSAttributeList.ModifierType.ABSTRACT)) {
         return null
       }
@@ -378,11 +389,11 @@ abstract class Angular2IvySymbolDef private constructor(private val myFieldOrStu
         if (classChild !is JSVarStatementStub) {
           continue
         }
-        val attrs = classChild.findChildStubByType(JSStubElementTypes.ATTRIBUTE_LIST)
+        val attrs = classChild.findChildStubByElementType(JSElementTypes.ATTRIBUTE_LIST) as? JSAttributeListStub
         if (attrs == null || !attrs.hasModifier(JSAttributeList.ModifierType.STATIC)) {
           continue
         }
-        val fieldStub = classChild.findChildStubByType(TypeScriptStubElementTypes.TYPESCRIPT_FIELD)
+        val fieldStub = classChild.findChildStubByElementType(TypeScriptElementTypes.TYPESCRIPT_FIELD)
         if (fieldStub !is TypeScriptFieldStub) {
           continue
         }
@@ -394,9 +405,11 @@ abstract class Angular2IvySymbolDef private constructor(private val myFieldOrStu
       return null
     }
 
-    private fun <T : Angular2IvySymbolDef> findSymbolDefFieldPsi(jsClass: TypeScriptClass,
-                                                                 allowAbstractClass: Boolean,
-                                                                 symbolFactory: (String, Any) -> T?): T? {
+    private fun <T : Angular2IvySymbolDef> findSymbolDefFieldPsi(
+      jsClass: TypeScriptClass,
+      allowAbstractClass: Boolean,
+      symbolFactory: (String, Any) -> T?,
+    ): T? {
       for (field in jsClass.fields) {
         if (field !is TypeScriptField) {
           continue
@@ -409,9 +422,11 @@ abstract class Angular2IvySymbolDef private constructor(private val myFieldOrStu
       return null
     }
 
-    private fun <T : Angular2IvySymbolDef> getSymbolDef(typeScriptClass: TypeScriptClass,
-                                                        allowAbstractClass: Boolean,
-                                                        symbolFactory: (String, Any) -> T?): T? {
+    private fun <T : Angular2IvySymbolDef> getSymbolDef(
+      typeScriptClass: TypeScriptClass,
+      allowAbstractClass: Boolean,
+      symbolFactory: (String, Any) -> T?,
+    ): T? {
       if (!allowAbstractClass && isAbstractClass(typeScriptClass)) {
         return null
       }
@@ -422,9 +437,11 @@ abstract class Angular2IvySymbolDef private constructor(private val myFieldOrStu
       else findSymbolDefFieldPsi(typeScriptClass, allowAbstractClass, symbolFactory)
     }
 
-    private fun <T : Angular2IvySymbolDef> getSymbolDef(field: TypeScriptField,
-                                                        allowAbstractClass: Boolean,
-                                                        symbolFactory: (String, Any) -> T?): T? {
+    private fun <T : Angular2IvySymbolDef> getSymbolDef(
+      field: TypeScriptField,
+      allowAbstractClass: Boolean,
+      symbolFactory: (String, Any) -> T?,
+    ): T? {
       val attrs = field.attributeList
       if (attrs == null || !attrs.hasModifier(JSAttributeList.ModifierType.STATIC)) {
         return null
@@ -449,13 +466,15 @@ abstract class Angular2IvySymbolDef private constructor(private val myFieldOrStu
       return if (fieldName != null && fieldName == FIELD_FACTORY_DEF) Factory(fieldPsiOrStub) else null
     }
 
-    private fun getDefFieldArgumentStubbed(field: TypeScriptFieldStub,
-                                           index: Int,
-                                           typeNames: List<String>): JSTypeDeclaration? {
-      val type = field.findChildStubByType(TypeScriptStubElementTypes.SINGLE_TYPE)
+    private fun getDefFieldArgumentStubbed(
+      field: TypeScriptFieldStub,
+      index: Int,
+      typeNames: List<String>,
+    ): JSTypeDeclaration? {
+      val type = field.findChildStubByElementType(TypeScriptElementTypes.SINGLE_TYPE) as? TypeScriptSingleTypeStub
       val qualifiedName = type?.qualifiedTypeName ?: return null
       if (typeNames.any { name -> qualifiedName.endsWith(name) }) {
-        val typeArguments = type.findChildStubByType(TypeScriptStubElementTypes.TYPE_ARGUMENT_LIST)
+        val typeArguments = type.findChildStubByElementType(TypeScriptElementTypes.TYPE_ARGUMENT_LIST)
         if (typeArguments != null) {
           val declarations = typeArguments.childrenStubs
           if (index < declarations.size) {
@@ -466,9 +485,11 @@ abstract class Angular2IvySymbolDef private constructor(private val myFieldOrStu
       return null
     }
 
-    private fun getDefFieldArgumentPsi(field: TypeScriptField,
-                                       index: Int,
-                                       typeNames: List<String>): JSTypeDeclaration? {
+    private fun getDefFieldArgumentPsi(
+      field: TypeScriptField,
+      index: Int,
+      typeNames: List<String>,
+    ): JSTypeDeclaration? {
       val type = PsiTreeUtil.getChildOfType(field, TypeScriptSingleType::class.java)
       val qualifiedName = type?.qualifiedTypeName ?: return null
       if (typeNames.any { name -> qualifiedName.endsWith(name) }) {
@@ -480,9 +501,11 @@ abstract class Angular2IvySymbolDef private constructor(private val myFieldOrStu
       return null
     }
 
-    private fun <T : JSTypeDeclaration, R> processObjectArgument(`object`: TypeScriptObjectType?,
-                                                                 valueClass: KClass<T>,
-                                                                 valueMapper: (T, String) -> R?): Map<String, R> {
+    private fun <T : JSTypeDeclaration, R> processObjectArgument(
+      `object`: TypeScriptObjectType?,
+      valueClass: KClass<T>,
+      valueMapper: (T, String) -> R?,
+    ): Map<String, R> {
       if (`object` == null) return emptyMap()
       val result = LinkedHashMap<String, R>()
       for (child in `object`.typeMembers) {

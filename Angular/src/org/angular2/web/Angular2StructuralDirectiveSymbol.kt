@@ -5,15 +5,17 @@ import com.intellij.lang.javascript.evaluation.JSTypeEvaluationLocationProvider
 import com.intellij.model.Pointer
 import com.intellij.openapi.project.Project
 import com.intellij.platform.backend.navigation.NavigationTarget
+import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.PolySymbolApiStatus
+import com.intellij.polySymbols.PolySymbolProperty
+import com.intellij.polySymbols.PolySymbolQualifiedKind
+import com.intellij.polySymbols.html.PolySymbolHtmlAttributeValue
+import com.intellij.polySymbols.search.PsiSourcedPolySymbol
+import com.intellij.polySymbols.utils.coalesceWith
+import com.intellij.polySymbols.html.PROP_HTML_ATTRIBUTE_VALUE
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.createSmartPointer
-import com.intellij.webSymbols.PsiSourcedWebSymbol
-import com.intellij.webSymbols.WebSymbol
-import com.intellij.webSymbols.WebSymbolApiStatus
-import com.intellij.webSymbols.WebSymbolQualifiedKind
-import com.intellij.webSymbols.html.WebSymbolHtmlAttributeValue
-import com.intellij.webSymbols.utils.coalesceWith
 import org.angular2.entities.Angular2Directive
 
 open class Angular2StructuralDirectiveSymbol private constructor(
@@ -33,29 +35,31 @@ open class Angular2StructuralDirectiveSymbol private constructor(
       location: PsiFile,
     ): Angular2StructuralDirectiveSymbol =
       when (sourceSymbol) {
-        is PsiSourcedWebSymbol ->
+        is PsiSourcedPolySymbol ->
           Angular2PsiSourcedStructuralDirectiveSymbol(directive, sourceSymbol, hasInputsToBind, location)
         else -> Angular2StructuralDirectiveSymbol(directive, sourceSymbol, hasInputsToBind, location)
       }
   }
 
-  override val attributeValue: WebSymbolHtmlAttributeValue?
-    get() = if (!hasInputsToBind)
-      WebSymbolHtmlAttributeValue.create(required = false)
-    else JSTypeEvaluationLocationProvider.withTypeEvaluationLocation(location) {
-      super.attributeValue
-    }
+  override val priority: PolySymbol.Priority?
+    get() = PolySymbol.Priority.HIGH
 
-  override val priority: WebSymbol.Priority?
-    get() = WebSymbol.Priority.HIGH
-
-  override val qualifiedKind: WebSymbolQualifiedKind
+  override val qualifiedKind: PolySymbolQualifiedKind
     get() = NG_STRUCTURAL_DIRECTIVES
 
-  override val properties: Map<String, Any>
-    get() = super.properties + Pair(PROP_SYMBOL_DIRECTIVE, directive)
+  override fun <T : Any> get(property: PolySymbolProperty<T>): T? =
+    when (property) {
+      PROP_SYMBOL_DIRECTIVE -> property.tryCast(directive)
+      PROP_HTML_ATTRIBUTE_VALUE -> property.tryCast(
+        if (!hasInputsToBind)
+          PolySymbolHtmlAttributeValue.create(required = false)
+        else JSTypeEvaluationLocationProvider.withTypeEvaluationLocation(location) {
+          super[PROP_HTML_ATTRIBUTE_VALUE]
+        })
+      else -> super.get(property)
+    }
 
-  override val apiStatus: WebSymbolApiStatus
+  override val apiStatus: PolySymbolApiStatus
     get() = directive.apiStatus.coalesceWith(delegate.apiStatus)
 
   override fun createPointer(): Pointer<out Angular2StructuralDirectiveSymbol> =
@@ -94,11 +98,10 @@ open class Angular2StructuralDirectiveSymbol private constructor(
     sourceSymbol: Angular2Symbol,
     hasInputsToBind: Boolean,
     location: PsiFile,
-  )
-    : Angular2StructuralDirectiveSymbol(directive, sourceSymbol, hasInputsToBind, location), PsiSourcedWebSymbol {
+  ) : Angular2StructuralDirectiveSymbol(directive, sourceSymbol, hasInputsToBind, location), PsiSourcedPolySymbol {
 
     override val source: PsiElement?
-      get() = (delegate as PsiSourcedWebSymbol).source
+      get() = (delegate as PsiSourcedPolySymbol).source
 
     override fun getNavigationTargets(project: Project): Collection<NavigationTarget> =
       super<Angular2StructuralDirectiveSymbol>.getNavigationTargets(project)

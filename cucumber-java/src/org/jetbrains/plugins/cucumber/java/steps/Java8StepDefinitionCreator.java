@@ -23,18 +23,19 @@ import cucumber.runtime.snippets.CamelCaseConcatenator;
 import cucumber.runtime.snippets.FunctionNameGenerator;
 import cucumber.runtime.snippets.SnippetGenerator;
 import gherkin.formatter.model.Step;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.plugins.cucumber.psi.GherkinStep;
 
 import java.util.ArrayList;
 
-public class Java8StepDefinitionCreator extends JavaStepDefinitionCreator {
-  public static final String CUCUMBER_API_JAVA8_EN = "cucumber.api.java8.En";
+@NotNullByDefault
+public final class Java8StepDefinitionCreator extends JavaStepDefinitionCreator {
+  private static final String CUCUMBER_API_JAVA8_EN = "cucumber.api.java8.En";
   private static final String FILE_TEMPLATE_CUCUMBER_JAVA_8_STEP_DEFINITION_JAVA = "Cucumber Java 8 Step Definition.java";
 
   @Override
-  public @NotNull PsiFile createStepDefinitionContainer(@NotNull PsiDirectory dir, @NotNull String name) {
-    final PsiFile result =  super.createStepDefinitionContainer(dir, name);
+  public PsiFile createStepDefinitionContainer(PsiDirectory dir, String name) {
+    final PsiFile result = super.createStepDefinitionContainer(dir, name);
 
     final ProjectFileIndex fileIndex = ProjectRootManager.getInstance(dir.getProject()).getFileIndex();
     final Module module = fileIndex.getModuleForFile(result.getVirtualFile());
@@ -61,7 +62,7 @@ public class Java8StepDefinitionCreator extends JavaStepDefinitionCreator {
   }
 
   @Override
-  public @NotNull String getStepDefinitionFilePath(@NotNull PsiFile file) {
+  public String getStepDefinitionFilePath(PsiFile file) {
     return super.getStepDefinitionFilePath(file) + " (Java 8 style)";
   }
 
@@ -75,7 +76,7 @@ public class Java8StepDefinitionCreator extends JavaStepDefinitionCreator {
   }
 
   @Override
-  public boolean createStepDefinition(@NotNull GherkinStep step, @NotNull PsiFile file, boolean withTemplate) {
+  public boolean createStepDefinition(GherkinStep step, PsiFile file, boolean withTemplate) {
     if (!(file instanceof PsiClassOwner)) return false;
 
     final PsiClass clazz = PsiTreeUtil.getChildOfType(file, PsiClass.class);
@@ -103,6 +104,7 @@ public class Java8StepDefinitionCreator extends JavaStepDefinitionCreator {
     wrapStepDefWithLineBreakAndSemicolon(addedStepDef);
 
     addedStepDef = CodeInsightUtilCore.forcePsiPostprocessAndRestoreElement(addedStepDef);
+    if (addedStepDef == null) return false;
 
     JavaCodeStyleManager.getInstance(project).shortenClassReferences(addedStepDef);
 
@@ -135,7 +137,7 @@ public class Java8StepDefinitionCreator extends JavaStepDefinitionCreator {
     return true;
   }
 
-  protected void wrapStepDefWithLineBreakAndSemicolon(PsiElement addedStepDef) {
+  private static void wrapStepDefWithLineBreakAndSemicolon(PsiElement addedStepDef) {
     LeafElement linebreak = Factory.createSingleLeafElement(TokenType.WHITE_SPACE, "\n", 0, 1, null, addedStepDef.getManager());
     addedStepDef.getParent().addBefore(linebreak.getPsi(), addedStepDef);
 
@@ -143,7 +145,7 @@ public class Java8StepDefinitionCreator extends JavaStepDefinitionCreator {
     addedStepDef.getParent().addAfter(semicolon.getPsi(), addedStepDef);
   }
 
-  private static PsiElement buildStepDefinitionByStep(final @NotNull GherkinStep step, Language language) {
+  private static PsiElement buildStepDefinitionByStep(GherkinStep step, Language language) {
     final Step cucumberStep = new Step(new ArrayList<>(), step.getKeyword().getText(), step.getName(), 0, null, null);
     final SnippetGenerator generator = new SnippetGenerator(new Java8Snippet());
 
@@ -151,27 +153,31 @@ public class Java8StepDefinitionCreator extends JavaStepDefinitionCreator {
     String snippet = processGeneratedStepDefinition(snippetTemplate, step);
 
     JVMElementFactory factory = JVMElementFactories.requireFactory(language, step.getProject());
-    PsiElement expression =  factory.createExpressionFromText(snippet, step);
+    PsiElement expression = factory.createExpressionFromText(snippet, step);
 
     try {
       return createStepDefinitionFromSnippet(expression, step, factory);
-    } catch (Exception e) {
+    }
+    catch (Exception e) {
       return expression;
     }
   }
 
-  private static PsiElement createStepDefinitionFromSnippet(@NotNull PsiElement snippetExpression, @NotNull GherkinStep step,
-                                                            @NotNull JVMElementFactory factory) {
+  private static PsiElement createStepDefinitionFromSnippet(PsiElement snippetExpression, GherkinStep step, JVMElementFactory factory) {
     PsiMethodCallExpression callExpression = (PsiMethodCallExpression)snippetExpression;
     PsiExpression[] arguments = callExpression.getArgumentList().getExpressions();
     PsiLambdaExpression lambda = (PsiLambdaExpression)arguments[1];
 
     FileTemplateDescriptor fileTemplateDescriptor = new FileTemplateDescriptor(FILE_TEMPLATE_CUCUMBER_JAVA_8_STEP_DEFINITION_JAVA);
-    FileTemplate fileTemplate = FileTemplateManager.getInstance(snippetExpression.getProject()).getCodeTemplate(fileTemplateDescriptor.getFileName());
+    FileTemplate fileTemplate =
+      FileTemplateManager.getInstance(snippetExpression.getProject()).getCodeTemplate(fileTemplateDescriptor.getFileName());
     String text = fileTemplate.getText().replace("${STEP_KEYWORD}", callExpression.getMethodExpression().getText())
       .replace("${STEP_REGEXP}", arguments[0].getText())
       .replace("${PARAMETERS}", lambda.getParameterList().getText())
-      .replace("${BODY}\n", "");
+      .replace("${BODY}\n", """
+        // Write code here that turns the phrase above into concrete actions
+        throw new PendingException();
+        """);
 
     text = processGeneratedStepDefinition(text, snippetExpression);
 

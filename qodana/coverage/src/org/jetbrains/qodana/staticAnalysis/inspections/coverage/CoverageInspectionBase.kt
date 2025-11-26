@@ -20,7 +20,8 @@ import org.jetbrains.qodana.QodanaBundle
 import org.jetbrains.qodana.coverage.CoverageLanguage
 import org.jetbrains.qodana.staticAnalysis.inspections.coverageData.precomputedCoverageFiles
 import org.jetbrains.qodana.staticAnalysis.inspections.runner.QodanaGlobalInspectionContext
-import org.jetbrains.qodana.staticAnalysis.stat.CoverageFeatureEventsCollector.INSPECTION_LOADED_COVERAGE
+import org.jetbrains.qodana.staticAnalysis.stat.CoverageFeatureEventsCollector.INPUT_COVERAGE_LOADED
+import org.jetbrains.qodana.staticAnalysis.stat.CoverageFeatureEventsCollector.COVERAGE_LANGUAGE_FIELD
 import java.io.File
 import java.nio.file.Files
 import kotlin.io.path.ExperimentalPathApi
@@ -41,6 +42,15 @@ abstract class CoverageInspectionBase: GlobalSimpleInspectionTool() {
   var warnMissingCoverage = false
 
   abstract fun loadCoverage(globalContext: QodanaGlobalInspectionContext)
+
+  open fun loadReportForIncrementalAnalysis(globalContext: QodanaGlobalInspectionContext) {}
+
+  protected fun loadReportData(globalContext: QodanaGlobalInspectionContext, data: ProjectData) {
+    // TODO: check supported languages?
+    if (isLocalChanges(globalContext)) {
+      processReportData(data, globalContext)
+    }
+  }
   abstract fun checker(file: PsiFile, problemsHolder: ProblemsHolder, globalContext: QodanaGlobalInspectionContext)
   abstract fun validateFileType(file: PsiFile): Boolean
   abstract fun cleanup(globalContext: QodanaGlobalInspectionContext)
@@ -51,18 +61,19 @@ abstract class CoverageInspectionBase: GlobalSimpleInspectionTool() {
     if (globalContext !is QodanaGlobalInspectionContext
         || isUnderLocalChangesOnOldCode(globalContext)) return
     loadCoverage(globalContext)
+    loadReportForIncrementalAnalysis(globalContext)
   }
 
-  override fun checkFile(file: PsiFile,
+  override fun checkFile(psiFile: PsiFile,
                          manager: InspectionManager,
                          problemsHolder: ProblemsHolder,
                          globalContext: GlobalInspectionContext,
                          problemDescriptionsProcessor: ProblemDescriptionsProcessor) {
     if (globalContext !is QodanaGlobalInspectionContext
         || isUnderLocalChangesOnOldCode(globalContext)
-        || !validateFileType(file)
-        || TestSourcesFilter.isTestSources(file.virtualFile, globalContext.project)) return
-    checker(file, problemsHolder, globalContext)
+        || !validateFileType(psiFile)
+        || TestSourcesFilter.isTestSources(psiFile.virtualFile, globalContext.project)) return
+    checker(psiFile, problemsHolder, globalContext)
   }
 
   override fun inspectionFinished(manager: InspectionManager,
@@ -123,10 +134,8 @@ abstract class CoverageInspectionBase: GlobalSimpleInspectionTool() {
       val engine = CoverageEngine.EP_NAME.findExtensionOrFail(engineType.java)
       val data = retrieveCoverageData(engine, coverageFiles, globalContext)
       if (data != null) {
-        if (isLocalChanges(globalContext)) {
-          processReportData(data, globalContext)
-        }
-        INSPECTION_LOADED_COVERAGE.log(globalContext.project, CoverageLanguage.mapEngine(engineType.java.simpleName))
+        INPUT_COVERAGE_LOADED.log(globalContext.project,
+                                       COVERAGE_LANGUAGE_FIELD.with(CoverageLanguage.mapEngine(engineType.java.simpleName)))
         return data
       }
     }

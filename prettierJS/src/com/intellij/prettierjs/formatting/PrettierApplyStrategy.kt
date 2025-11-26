@@ -2,112 +2,64 @@
 package com.intellij.prettierjs.formatting
 
 import com.intellij.codeStyle.AbstractConvertLineSeparatorsAction
-import com.intellij.diff.util.DiffRangeUtil
+import com.intellij.openapi.editor.Document
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.psi.PsiFile
 import com.intellij.util.LineSeparator
 
-internal interface PrettierApplyFormattingStrategy {
-  fun apply(project: Project, file: VirtualFile, context: PrettierFormattingContext): Boolean
+fun interface PrettierFormattingApplier {
+  fun apply(project: Project, psiFile: PsiFile): Boolean
 
   companion object {
-    fun from(context: PrettierFormattingContext): PrettierApplyFormattingStrategy {
-      return if (Registry.`is`("prettier.use.diff.formatting")) {
-        val diff = computeFormattingDiff(context)
-        DiffBased(diff)
-      }
-      else {
-        ReplaceAll
-      }
-    }
-  }
+    fun from(document: Document, psiFile: PsiFile, formattedContent: String): PrettierFormattingApplier {
+      val context = createFormattingContext(document, formattedContent)
+      val snapshot = CaretSnapshot.from(document, psiFile)
+      val diff = computeFormattingDiff(context, snapshot)
 
-  class DiffBased(
-    private val formattingDiff: PrettierFormattingDiff,
-  ) : PrettierApplyFormattingStrategy {
-    override fun apply(project: Project, virtualFile: VirtualFile, context: PrettierFormattingContext): Boolean {
-      applyTextDifferencesToDocument(context, formattingDiff)
-      return updateLineSeparatorIfNeeded(project, virtualFile, context.detectedLineSeparator)
-    }
-  }
+      return PrettierFormattingApplier { project, psiFile ->
+        if (diff.isEmpty()) return@PrettierFormattingApplier false
 
-  object ReplaceAll : PrettierApplyFormattingStrategy {
-    override fun apply(project: Project, virtualFile: VirtualFile, context: PrettierFormattingContext): Boolean {
-      context.document.setText(context.formattedContent)
-      return updateLineSeparatorIfNeeded(project, virtualFile, context.detectedLineSeparator)
+        applyTextDifferencesToDocument(context, diff)
+        val lineSeparatorUpdate = updateLineSeparatorIfNeeded(project, psiFile.virtualFile, context.detectedLineSeparator)
+
+        snapshot?.restore(document, psiFile)
+
+        lineSeparatorUpdate
+      }
     }
   }
 }
 
 internal fun applyTextDifferencesToDocument(
   formattingContext: PrettierFormattingContext,
-  formattingDiff: PrettierFormattingDiff,
+  diffFragments: List<PrettierDiffFragment>,
 ) {
   val document = formattingContext.document
-  val textDifferences = formattingDiff.textDifferences
-  val originalLineOffsets = formattingDiff.originalLineOffsets
-  val formattedLineOffsets = formattingDiff.formattedLineOffsets
   val formattedText = formattingContext.formattedContent
 
-  for (change in textDifferences.iterateChanges().reversed()) {
-    if (change.isEmpty) {
-      continue
-    }
+  // Apply from the end to keep offsets stable
+  for (fragment in diffFragments.asReversed()) {
+    val start1 = fragment.startOffset1
+    val end1 = fragment.endOffset1
+    val start2 = fragment.startOffset2
+    val end2 = fragment.endOffset2
 
-    val originalStartLine = change.start1
-    val originalEndLine = change.end1
-    val formattedStartLine = change.start2
-    val formattedEndLine = change.end2
+    val len1 = end1 - start1
+    val len2 = end2 - start2
 
     when {
-      originalStartLine == originalEndLine -> {
-        val insertionText = DiffRangeUtil.getLinesRange(
-          formattedLineOffsets,
-          formattedStartLine,
-          formattedEndLine,
-          false,
-        ).subSequence(formattedText)
-
-        val offset = if (originalStartLine == document.lineCount) {
-          document.textLength
-        }
-        else {
-          document.getLineStartOffset(originalStartLine)
-        }
-
-        document.insertString(offset, "$insertionText\n")
+      len1 == 0 -> {
+        val newText = formattedText.substring(start2, end2)
+        val insertion = if (fragment.isCharFragment) newText else "$newText\n"
+        document.insertString(start1, insertion)
       }
-      formattedStartLine == formattedEndLine -> {
-        val range = DiffRangeUtil.getLinesRange(
-          originalLineOffsets,
-          originalStartLine,
-          originalEndLine,
-          false,
-        )
-
-        var startOffset = range.startOffset
-        var endOffset = range.endOffset
-
-        if (startOffset > 0) {
-          startOffset--
-        }
-        else if (endOffset < document.textLength) {
-          endOffset++
-        }
-
-        document.deleteString(startOffset, endOffset)
+      len2 == 0 -> {
+        document.deleteString(start1, end1)
       }
       else -> {
-        val replacementText = DiffRangeUtil.getLinesRange(
-          formattedLineOffsets,
-          formattedStartLine,
-          formattedEndLine,
-          false,
-        ).subSequence(formattedText)
-
-        val range = DiffRangeUtil.getLinesRange(originalLineOffsets, originalStartLine, originalEndLine, false)
-        document.replaceString(range.startOffset, range.endOffset, replacementText)
+        val newText = formattedText.substring(start2, end2)
+        document.replaceString(start1, end1, newText)
       }
     }
   }

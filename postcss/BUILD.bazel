@@ -1,21 +1,21 @@
 ### auto-generated section `build intellij.postcss` start
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_resources", "jvm_test")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
 
-jvm_resources(
+resourcegroup(
   name = "postcss_resources",
-  files = glob(["resources/**/*"]),
+  srcs = glob(["resources/**/*"]),
   strip_prefix = "resources"
 )
 
-jvm_resources(
+resourcegroup(
   name = "postcss_resources_1",
-  files = glob(["compatibilityResources/**/*"]),
+  srcs = glob(["compatibilityResources/**/*"]),
   strip_prefix = "compatibilityResources"
 )
 
-jvm_resources(
+resourcegroup(
   name = "postcss_test_resources",
-  files = glob(["testData/**/*"]),
+  srcs = glob(["testData/**/*"]),
   strip_prefix = "testData"
 )
 
@@ -23,71 +23,86 @@ jvm_library(
   name = "postcss",
   module_name = "intellij.postcss",
   visibility = ["//visibility:public"],
-  srcs = glob(["src/**/*.kt", "src/**/*.java", "gen/**/*.kt", "gen/**/*.java"], allow_empty = True),
+  srcs = glob(["src/**/*.kt", "src/**/*.java", "src/**/*.form", "gen/**/*.kt", "gen/**/*.java"], allow_empty = True),
+  resources = [
+    ":postcss_resources",
+    ":postcss_resources_1",
+  ],
   deps = [
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/code-style-api:codeStyle",
+    "@community//platform/core-api:core",
+    "@community//platform/editor-ui-api:editor-ui",
     "@community//platform/platform-impl:ide-impl",
     "@community//platform/platform-api:ide",
+    "@community//platform/indexing-api:indexing",
     "@community//platform/lang-api:lang",
     "@community//platform/lang-impl",
-    "//CSS/frontback/css-api:css-frontback",
-    "//CSS:css",
+    "//plugins/css/common",
+    "@community//platform/projectModel-api:projectModel",
+    "@community//platform/structure-view-impl:structureView-impl",
     "@community//platform/usageView",
-    "//CSS/css-psi-impl:css-psi",
-    "//CSS/css-analysis-impl:css-analysis",
+    "//plugins/css/psi",
+    "//plugins/css/analysis",
     "@community//platform/indexing-impl",
     "@community//platform/core-impl",
     "@community//xml/xml-parser:parser",
     "@community//xml/impl",
-    "//CSS/impl:css-impl",
+    "//plugins/css/plugin",
     "@community//plugins/copyright",
     "@community//platform/core-ui",
-    "//CSS/frontback/css-psi-impl:css-frontback-psi",
+    "//plugins/css/common/psi",
+    "//plugins/css/backend",
+    "//plugins/css/copyright",
   ],
-  exports = ["@community//xml/impl"],
-  runtime_deps = [
-    ":postcss_resources",
-    ":postcss_resources_1",
-  ]
+  exports = ["@community//xml/impl"]
 )
 
 jvm_library(
   name = "postcss_test_lib",
   visibility = ["//visibility:public"],
-  srcs = glob(["testSrc/**/*.kt", "testSrc/**/*.java"], allow_empty = True),
+  srcs = glob(["testSrc/**/*.kt", "testSrc/**/*.java", "testSrc/**/*.form"], allow_empty = True),
+  resources = [":postcss_test_resources"],
   associates = [":postcss"],
   deps = [
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/code-style-api:codeStyle",
+    "@community//platform/core-api:core",
+    "@community//platform/editor-ui-api:editor-ui",
     "@community//platform/platform-impl:ide-impl",
-    "@community//platform/platform-impl:ide-impl_test_lib",
     "@community//platform/platform-api:ide",
+    "@community//platform/indexing-api:indexing",
     "@community//platform/lang-api:lang",
     "@community//platform/lang-impl",
-    "//CSS/frontback/css-api:css-frontback",
-    "//CSS:css",
+    "//plugins/css/common",
+    "@community//platform/projectModel-api:projectModel",
+    "@community//platform/structure-view-impl:structureView-impl",
     "@community//platform/usageView",
-    "//CSS/css-psi-impl:css-psi",
-    "//CSS/css-analysis-impl:css-analysis",
+    "//plugins/css/psi",
+    "//plugins/css/analysis",
     "@community//platform/indexing-impl",
     "@community//platform/core-impl",
     "@community//xml/xml-parser:parser",
     "@community//xml/impl",
     "@community//platform/testFramework",
     "@community//platform/testFramework:testFramework_test_lib",
-    "//CSS/impl:css-impl",
+    "//plugins/css/plugin",
     "@community//plugins/copyright",
     "@community//plugins/copyright:copyright_test_lib",
     "@community//platform/core-ui",
-    "//CSS/frontback/css-psi-impl:css-frontback-psi",
-    "//CSS/testFramework:css-testFramework",
+    "//plugins/css/common/psi",
+    "//plugins/css/backend",
+    "//plugins/css/copyright",
   ],
-  runtime_deps = [
-    ":postcss_resources",
-    ":postcss_resources_1",
-    ":postcss_test_resources",
-  ]
+  exports = ["@community//xml/impl"]
 )
+### auto-generated section `build intellij.postcss` end
 
-jvm_test(
+### auto-generated section `test intellij.postcss` start
+load("@community//build:tests-options.bzl", "jps_test")
+
+jps_test(
   name = "postcss_test",
   runtime_deps = [":postcss_test_lib"]
 )
-### auto-generated section `build intellij.postcss` end
+### auto-generated section `test intellij.postcss` end

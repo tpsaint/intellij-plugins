@@ -13,6 +13,7 @@ import com.intellij.openapi.module.ModuleUtilCore;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Comparing;
 import com.intellij.openapi.util.Ref;
+import com.intellij.openapi.util.registry.Registry;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.JavaPsiFacade;
@@ -24,6 +25,7 @@ import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.text.VersionComparatorUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.VisibleForTesting;
 import org.jetbrains.plugins.cucumber.psi.GherkinFileType;
 
 import java.util.Set;
@@ -42,6 +44,14 @@ public abstract class CucumberJavaRunConfigurationProducer extends JavaRunConfig
   public static final String FORMATTER_OPTIONS_3 = " --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvm3SMFormatter";
   public static final String FORMATTER_OPTIONS_4 = " --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvm4SMFormatter";
   public static final String FORMATTER_OPTIONS_5 = " --plugin org.jetbrains.plugins.cucumber.java.run.CucumberJvm5SMFormatter";
+
+  /**
+   * Cucumber v6 and newer come with a built-in `teamcity` formatter (which works for both TeamCity and JetBrains IDEs).
+   *
+   * @see <a href="https://youtrack.jetbrains.com/issue/IDEA-276468/Use-plugin-teamcity-with-Cucumber-JVM-v6">IDEA-276468</a>
+   * @see <a href="https://github.com/cucumber/cucumber-jvm/blob/v7.22.2/cucumber-core/src/main/java/io/cucumber/core/plugin/TeamCityPlugin.java">TeamCityPlugin.java</a>
+   */
+  public static final String FORMATTER_OPTIONS_6 = " --plugin teamcity";
 
   public static final Set<String> HOOK_AND_TYPE_ANNOTATION_NAMES = ContainerUtil.newHashSet("cucumber.annotation.Before",
                                                                                             "cucumber.annotation.After",
@@ -67,7 +77,7 @@ public abstract class CucumberJavaRunConfigurationProducer extends JavaRunConfig
     return CucumberJavaRunConfigurationType.getInstance().getConfigurationFactories()[0];
   }
 
-  protected abstract @Nullable CucumberGlueProvider getGlueProvider(final @NotNull PsiElement element);
+  protected abstract @Nullable CucumberGlueProvider getGlueProvider(@NotNull PsiElement element);
 
   protected abstract String getConfigurationName(@NotNull ConfigurationContext context);
 
@@ -78,7 +88,8 @@ public abstract class CucumberJavaRunConfigurationProducer extends JavaRunConfig
   protected abstract @Nullable VirtualFile getFileToRun(ConfigurationContext context);
 
   @Override
-  protected boolean setupConfigurationFromContext(@NotNull CucumberJavaRunConfiguration configuration,
+  @VisibleForTesting
+  public boolean setupConfigurationFromContext(@NotNull CucumberJavaRunConfiguration configuration,
                                                   @NotNull ConfigurationContext context,
                                                   @NotNull Ref<PsiElement> sourceElement) {
     final VirtualFile virtualFile = getFileToRun(context);
@@ -127,6 +138,15 @@ public abstract class CucumberJavaRunConfigurationProducer extends JavaRunConfig
     if (StringUtil.isEmpty(configuration.getGlue())) {
       if (isCucumber60orMore(module)) {
         // Cucumber can automatically find glue packages since v6. See IDEA-243074
+        // Do not reset glue in case it's set manually.
+
+        // Some users reported in IDEA-377245 that this breaks their workflows.
+        // Until the root cause and fix are known, let's expose a registry key.
+        if (Registry.is("cucumber.java.run.configuration.glue.use.idea")) {
+          configuration.setGlueProvider(getGlueProvider(element));
+        }
+      }
+      else {
         configuration.setGlueProvider(getGlueProvider(element));
       }
     }
@@ -183,6 +203,9 @@ public abstract class CucumberJavaRunConfigurationProducer extends JavaRunConfig
   }
 
   private static @NotNull String getSMFormatterOptions(@NotNull String cucumberCoreVersion) {
+    if (VersionComparatorUtil.compare(cucumberCoreVersion, CUCUMBER_CORE_VERSION_6) >= 0) {
+      return FORMATTER_OPTIONS_6;
+    }
     if (VersionComparatorUtil.compare(cucumberCoreVersion, CUCUMBER_CORE_VERSION_5) >= 0) {
       return FORMATTER_OPTIONS_5;
     }

@@ -25,11 +25,9 @@ version '232.SNAPSHOT'
 intellij {
   type = "CL"
   version = "LATEST-EAP-SNAPSHOT"
-  plugins = ["com.intellij.cidr.base",
-             "nativeDebug-plugin",
+  plugins = ["nativeDebug-plugin",
              "com.intellij.clion",
              "com.intellij.clion.embedded",
-             "clion-ide",
              "terminal"]
 }
 

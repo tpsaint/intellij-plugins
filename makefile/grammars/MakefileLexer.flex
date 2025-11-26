@@ -1,6 +1,7 @@
 package com.jetbrains.lang.makefile;
 
 import com.intellij.lexer.FlexLexer;
+import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.tree.IElementType;
 import com.jetbrains.lang.makefile.psi.MakefileTypes;
 
@@ -11,6 +12,31 @@ import static com.jetbrains.lang.makefile.psi.MakefileTypes.*;
 %%
 
 %{
+  private static char getRecipePrefix(String variable) {
+    final var index = variable.indexOf('=');
+    assert index != -1;
+
+    final var value = StringUtil.trimLeading(variable.substring(index + 1, variable.length()), ' ');
+    if (value.startsWith("\\t") || value.isEmpty()) {
+      return '\t';
+    }
+
+    return value.charAt(0);
+  }
+
+  private char recipePrefix = '\t';
+
+  private int lastState = YYINITIAL;
+
+  private void setState(int state) {
+      lastState = yystate();
+      yybegin(state);
+  }
+
+  private void resetState() {
+      yybegin(lastState);
+  }
+
   public _MakefileLexer() {
     this((java.io.Reader)null);
   }
@@ -36,86 +62,111 @@ FUNCTIONS=("error"|"warning"|"info"|"shell"|"subst"|"patsubst"|"strip"|"findstri
 MACRO="@"[^@ \n]+"@"
 ASSIGN=("="|":="|"::="|"?="|"!="|"+=")
 
-CHARS = [0-9\p{L}.!\-?%@/_\[\]+~*\^&+<>]
+CHARS = [0-9\p{L}.!\-?%@/_\[\]+~*\^&+<>] | (\\[\\:\(\)#])
+
+RECIPEPREFIX=[\t ]*"\.RECIPEPREFIX"[\t ]*"="[^\n]*
 
 
-%state SQSTRING DQSTRING DEFINE
+%state SQSTRING DQSTRING DEFINE LINE
 
 %%
 
 <SQSTRING> {
-  "'"   { yybegin(YYINITIAL); return QUOTE; }
+  "'"   { resetState(); return QUOTE; }
   "\""  { return CHARS; }
   "#"+  { return CHARS; }
-  {EOL} { yybegin(YYINITIAL); return EOL; }
+  {EOL} { setState(YYINITIAL); return EOL; }
 }
 
 <DQSTRING> {
-  "\""  { yybegin(YYINITIAL); return DOUBLEQUOTE; }
+  "\""  { resetState(); return DOUBLEQUOTE; }
   "'"   { return CHARS; }
   "#"+  { return CHARS; }
-  {EOL} { yybegin(YYINITIAL); return EOL; }
+  {EOL} { setState(YYINITIAL); return EOL; }
 }
 
 <DEFINE> {
-  "endef"  { yybegin(YYINITIAL); return KEYWORD_ENDEF; }
+  "endef"  { resetState(); return KEYWORD_ENDEF; }
   {CHARS}+ { return CHARS; }
-  "\""  { return CHARS; }
-  "'"   { return CHARS; }
-  "#"+  { return CHARS; }
+  "\""     { return CHARS; }
+  "'"      { return CHARS; }
+  "#"+     { return CHARS; }
+  {EOL}    { return EOL; }
 }
 
-\\"#"                  { return CHARS; }
+<YYINITIAL, LINE> {
+  ^[ ]*{COMMENT}\n       { setState(YYINITIAL); return COMMENT; }
+  {DOCCOMMENT}           { setState(YYINITIAL); return DOC_COMMENT; }
+  {MULTILINECOMMENT}     { setState(YYINITIAL); return COMMENT; }
+  {COMMENT}              { setState(YYINITIAL); return COMMENT; }
+}
+
+^{MACRO} { return MACRO; }
 
 <YYINITIAL> {
-  ^[ ]*{COMMENT}\n           { return COMMENT; }
-  {DOCCOMMENT}           { return DOC_COMMENT; }
-  {MULTILINECOMMENT}     { return COMMENT; }
-  {COMMENT}              { return COMMENT; }
+  ^. {
+    setState(LINE);
+
+    if (yytext().charAt(0) == recipePrefix) {
+      return RECIPE_PREFIX;
+    } else {
+      yypushback(yylength());
+    }
+  }
+
+  ^{RECIPEPREFIX} {
+    setState(LINE);
+
+    recipePrefix = getRecipePrefix(yytext().toString());
+    yypushback(yylength());
+  }
+
+  [^] {
+    setState(LINE);
+    yypushback(yylength());
+  }
 }
 
-^{MACRO}               { return MACRO; }
+<LINE, SQSTRING, DQSTRING, DEFINE> {
+  {EOL}              { setState(YYINITIAL); return EOL; }
 
-^\t+               { return TAB; }
-\t+                { return WHITE_SPACE; }
-{EOL}              { return EOL; }
-{SPACES}           { return WHITE_SPACE; }
-\\:                { return CHARS; }
-(\\\(|\\\))        { return CHARS; }
-:                  { return COLON; }
-","                { return COMMA; }
-"`"                { return BACKTICK; }
-{ASSIGN}           { return ASSIGN; }
-{BACKSLASHCRLF}    { return SPLIT; }
-"|"                { return PIPE; }
-";"                { return SEMICOLON; }
-"include"          { return KEYWORD_INCLUDE; }
-"-include"         { return KEYWORD_INCLUDE; }
-"sinclude"         { return KEYWORD_INCLUDE; }
-"vpath"            { return KEYWORD_VPATH; }
-^"define"           { yybegin(DEFINE); return KEYWORD_DEFINE; }
-"undefine"         { return KEYWORD_UNDEFINE; }
-"ifeq"             { return KEYWORD_IFEQ; }
-"ifneq"            { return KEYWORD_IFNEQ; }
-"ifdef"            { return KEYWORD_IFDEF; }
-"ifndef"           { return KEYWORD_IFNDEF; }
-"else"             { return KEYWORD_ELSE; }
-"endif"            { return KEYWORD_ENDIF; }
-"override"         { return KEYWORD_OVERRIDE; }
-"export"           { return KEYWORD_EXPORT; }
-"unexport"         { return KEYWORD_UNEXPORT; }
-"private"          { return KEYWORD_PRIVATE; }
-"$"                { return DOLLAR; }
-{FUNCTIONS}        { return FUNCTION_NAME; }
-"("                { return OPEN_PAREN; }
-")"                { return CLOSE_PAREN; }
-"{"                { return OPEN_CURLY; }
-"}"                { return CLOSE_CURLY; }
-\\\"               { return ESCAPED_DOUBLEQUOTE; }
-"'"                { yybegin(SQSTRING); return QUOTE; }
-"\""               { yybegin(DQSTRING); return DOUBLEQUOTE; }
-{CHARS}+           { return CHARS; }
-\\\\               { return CHARS; }
-\\                 { return CHARS; }
+  \t+                { return WHITE_SPACE; }
+  {SPACES}           { return WHITE_SPACE; }
+  ":"                { return COLON; }
+  ","                { return COMMA; }
+  "`"                { return BACKTICK; }
+  {ASSIGN}           { return ASSIGN; }
+  {BACKSLASHCRLF}    { return SPLIT; }
+  "|"                { return PIPE; }
+  ";"                { return SEMICOLON; }
+  "include"          { return KEYWORD_INCLUDE; }
+  "-include"         { return KEYWORD_INCLUDE; }
+  "sinclude"         { return KEYWORD_INCLUDE; }
+  "vpath"            { return KEYWORD_VPATH; }
+  ^"define"          { setState(DEFINE); return KEYWORD_DEFINE; }
+  "undefine"         { return KEYWORD_UNDEFINE; }
+  "ifeq"             { return KEYWORD_IFEQ; }
+  "ifneq"            { return KEYWORD_IFNEQ; }
+  "ifdef"            { return KEYWORD_IFDEF; }
+  "ifndef"           { return KEYWORD_IFNDEF; }
+  "else"             { return KEYWORD_ELSE; }
+  "endif"            { return KEYWORD_ENDIF; }
+  "override"         { return KEYWORD_OVERRIDE; }
+  "export"           { return KEYWORD_EXPORT; }
+  "unexport"         { return KEYWORD_UNEXPORT; }
+  "private"          { return KEYWORD_PRIVATE; }
+  "$"                { return DOLLAR; }
+  {FUNCTIONS}        { return FUNCTION_NAME; }
+  "("                { return OPEN_PAREN; }
+  ")"                { return CLOSE_PAREN; }
+  "{"                { return OPEN_CURLY; }
+  "}"                { return CLOSE_CURLY; }
+  \\\"               { return ESCAPED_DOUBLEQUOTE; }
+  "'"                { setState(SQSTRING); return QUOTE; }
+  "\""               { setState(DQSTRING); return DOUBLEQUOTE; }
 
-[^] { return BAD_CHARACTER; }
+  {CHARS}+           { return CHARS; }
+  \\                 { return CHARS; }
+
+  [^] { return BAD_CHARACTER; }
+}

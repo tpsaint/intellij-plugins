@@ -1,4 +1,4 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.config;
 
 import com.intellij.openapi.util.text.StringUtil;
@@ -11,11 +11,11 @@ import java.util.*;
 public class TfModelProviderTest extends LightPlatformTestCase {
   public void testModelIsLoaded() {
     //noinspection unused
-    final TypeModel model = TypeModelProvider.Companion.getGlobalModel();
+    final TfTypeModel model = TypeModelProvider.Companion.getGlobalModel();
   }
 
   public void testProperlyParsedOsDiskConfig() {
-    final TypeModel model = TypeModelProvider.Companion.getGlobalModel();
+    final TfTypeModel model = TypeModelProvider.Companion.getGlobalModel();
     assertNotNull(model);
     final ResourceType azurerm_linux_virtual_machine = model.getResourceType("azurerm_linux_virtual_machine", null);
     assertNotNull(azurerm_linux_virtual_machine);
@@ -36,7 +36,7 @@ public class TfModelProviderTest extends LightPlatformTestCase {
 
   // Test for #67
   public void test_azurerm_kubernetes_cluster_values() {
-    final TypeModel model = TypeModelProvider.Companion.getGlobalModel();
+    final TfTypeModel model = TypeModelProvider.Companion.getGlobalModel();
     assertNotNull(model);
 
     final ResourceType azurerm_kubernetes_cluster = model.getResourceType("azurerm_kubernetes_cluster", null);
@@ -66,7 +66,7 @@ public class TfModelProviderTest extends LightPlatformTestCase {
   }
 
   public void test_azurerm_storage_encryption_scope_depends_on() {
-    final TypeModel model = TypeModelProvider.Companion.getGlobalModel();
+    final TfTypeModel model = TypeModelProvider.Companion.getGlobalModel();
     assertNotNull(model);
 
     final DataSourceType azurerm_storage_encryption_scope = model.getDataSourceType("azurerm_storage_encryption_scope", null);
@@ -78,13 +78,13 @@ public class TfModelProviderTest extends LightPlatformTestCase {
     assertInstanceOf(depends_on, PropertyType.class);
 
     PropertyType contextProperty = (PropertyType)depends_on;
-    Type type = contextProperty.getType();
-    assertEquals("list", type.getPresentableText().toLowerCase());
+    HclType type = contextProperty.getType();
+    assertEquals("list", type.getPresentableText().toLowerCase(Locale.ROOT));
   }
 
   // Have explicit mode == attr, yet it's a block
   public void test_azurerm_application_security_group_provisioner() {
-    final TypeModel model = TypeModelProvider.Companion.getGlobalModel();
+    final TfTypeModel model = TypeModelProvider.Companion.getGlobalModel();
     assertNotNull(model);
 
     final ResourceType azurerm_application_security_group = model.getResourceType("azurerm_application_security_group", null);
@@ -97,7 +97,7 @@ public class TfModelProviderTest extends LightPlatformTestCase {
   }
 
   public void test_containers_as_block_type_if_non_scalar_typed() {
-    final TypeModel model = TypeModelProvider.Companion.getGlobalModel();
+    final TfTypeModel model = TypeModelProvider.Companion.getGlobalModel();
     assertNotNull(model);
 
     assertInstanceOf(model.getResourceType("vault_audit", null).getProperties().get("path"), PropertyType.class);
@@ -111,7 +111,7 @@ public class TfModelProviderTest extends LightPlatformTestCase {
 
   // Have dynamic attributes
   public void test_external_result() {
-    final TypeModel model = TypeModelProvider.Companion.getGlobalModel();
+    final TfTypeModel model = TypeModelProvider.Companion.getGlobalModel();
     assertNotNull(model);
 
     final DataSourceType external = model.getDataSourceType("external", null);
@@ -123,12 +123,12 @@ public class TfModelProviderTest extends LightPlatformTestCase {
 
     assertInstanceOf(result, PropertyType.class);
     PropertyType resultAsProperty = (PropertyType)result;
-    Type type = resultAsProperty.getType();
-    assertEquals("map(string)", type.getPresentableText().toLowerCase());
+    HclType type = resultAsProperty.getType();
+    assertEquals("map(string)", type.getPresentableText().toLowerCase(Locale.ROOT));
   }
 
   public void test_kubernetes_provider_exec() {
-    final TypeModel model = TypeModelProvider.Companion.getGlobalModel();
+    final TfTypeModel model = TypeModelProvider.Companion.getGlobalModel();
     assertNotNull(model);
     ProviderType k8s = model.getProviderType("kubernetes", null);
     assertNotNull(k8s);
@@ -137,13 +137,13 @@ public class TfModelProviderTest extends LightPlatformTestCase {
     assertInstanceOf(pobt, BlockType.class);
     BlockType prop = (BlockType)pobt;
     assertEquals("exec({api_version=string, args=list(string), command=string, env=map(string)})",
-                 prop.getPresentableText().toLowerCase());
+                 prop.getPresentableText().toLowerCase(Locale.ROOT));
   }
 
   public void testAllResourcesForSameProviderHasSamePrefix() {
-    final TypeModel model = TypeModelProvider.Companion.getGlobalModel();
+    final TfTypeModel model = TypeModelProvider.Companion.getGlobalModel();
     assertNotNull(model);
-    Set<String> exceptions = Set.of("marcozj/centrify", "max-gabriel-susman/gaia", "catchpoint/catchpoint");
+    Set<String> exceptions = Set.of("catchpoint/catchpoint", "sap-cloud-infrastructure/sci");
     model.allProviders().iterator().forEachRemaining(provider -> {
       String providerFullName = provider.getFullName().toLowerCase(Locale.getDefault());
       final Set<String> names = new HashSet<>();
@@ -162,14 +162,14 @@ public class TfModelProviderTest extends LightPlatformTestCase {
     });
   }
 
-  public void testAllDatasourcesForSameProviderHasSamePrefix() {
-    final TypeModel model = TypeModelProvider.Companion.getGlobalModel();
+  public void testAllDataSourcesForSameProviderHasSamePrefix() {
+    final TfTypeModel model = TypeModelProvider.Companion.getGlobalModel();
     assertNotNull(model);
-    Set<String> exceptions = Set.of("cloudposse/awsutils", "marcozj/centrify", "axiotl/nftower");
+    Set<String> exceptions = Set.of("cloudposse/awsutils", "sap-cloud-infrastructure/sci");
     model.allProviders().iterator().forEachRemaining(provider -> {
       String providerFullName = provider.getFullName().toLowerCase(Locale.getDefault());
       final Set<String> names = new HashSet<>();
-      List<DataSourceType> datasourceTypes = model.getDatasourcesByProvider().get(providerFullName);
+      List<DataSourceType> datasourceTypes = model.getDataSourcesByProvider().get(providerFullName);
       if (datasourceTypes != null) {
         datasourceTypes.iterator().forEachRemaining(resource -> {
           String typePrefix = StringUtil.substringBefore(resource.getType(), "_");
@@ -186,7 +186,7 @@ public class TfModelProviderTest extends LightPlatformTestCase {
 
 
   public void testResourceWithSimilarNameInDifferentProviders() {
-    final TypeModel model = TypeModelProvider.Companion.getGlobalModel();
+    final TfTypeModel model = TypeModelProvider.Companion.getGlobalModel();
     assertNotNull(model);
 
     List<String> resources = new ArrayList<>();
@@ -197,7 +197,7 @@ public class TfModelProviderTest extends LightPlatformTestCase {
     });
 
     List<String> datasources = new ArrayList<>();
-    model.allDatasources().iterator().forEachRemaining(it -> {
+    model.allDataSources().iterator().forEachRemaining(it -> {
       if (it.getType().equals("google_compute_instance")) {
         datasources.add(it.getType()+": "+it.getProvider().getFullName());
       }
@@ -207,11 +207,9 @@ public class TfModelProviderTest extends LightPlatformTestCase {
   }
 
   public void testProvisionersLoaded() {
-    final TypeModel model = TypeModelProvider.Companion.getGlobalModel();
+    final TfTypeModel model = TypeModelProvider.Companion.getGlobalModel();
     List<@NotNull ProvisionerType> provisionerTypes = model.getProvisioners().stream().filter(prov -> prov.getType().contains("chef")).toList();
     assertEquals(1, provisionerTypes.size());
   }
-
-
 
 }

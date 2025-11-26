@@ -39,16 +39,21 @@ import org.angular2.Angular2DecoratorUtil.isHostBindingExpression
 import org.angular2.Angular2InjectionUtils
 import org.angular2.codeInsight.refs.Angular2TemplateReferencesProvider
 import org.angular2.entities.*
+import org.angular2.index.getFunctionNameFromIndex
 import org.angular2.index.resolveComponentsFromIndex
+import org.angular2.lang.expr.Angular2ExprDialect
 import org.angular2.lang.expr.Angular2Language
 import org.angular2.lang.html.Angular2HtmlLanguage
+import org.angular2.lang.html.parser.Angular2HtmlElementTypes
 import org.angular2.lang.html.psi.Angular2HtmlNgContentSelector
 import org.angular2.lang.html.psi.Angular2HtmlRecursiveElementWalkingVisitor
-import org.angular2.lang.html.stub.Angular2HtmlStubElementTypes
+import org.angular2.signals.Angular2SignalUtils
+import org.jetbrains.annotations.ApiStatus
 import java.util.*
 import java.util.function.BiPredicate
 
-internal object Angular2SourceUtil {
+@ApiStatus.Internal
+object Angular2SourceUtil {
   @JvmStatic
   fun getNgContentSelectors(template: PsiFile?): List<Angular2DirectiveSelector> =
     if (template is PsiFileImpl) {
@@ -56,7 +61,7 @@ internal object Angular2SourceUtil {
       template.withGreenStubOrAst(
         { stub ->
           for (el in stub.childrenStubs) {
-            if (el.stubType === Angular2HtmlStubElementTypes.NG_CONTENT_SELECTOR) {
+            if (el.elementType === Angular2HtmlElementTypes.NG_CONTENT_SELECTOR) {
               result.add((el.psi as Angular2HtmlNgContentSelector).selector)
             }
           }
@@ -201,19 +206,18 @@ internal object Angular2SourceUtil {
                                         "org.angular2.entities.source.Angular2SourceUtil.createPropertyInfo"))
   fun createPropertyInfo(
     call: JSCallExpression, functionName: String?, defaultName: String,
-    getFunctionNameFromIndex: (JSCallExpression) -> String?,
   ): Angular2PropertyInfo? =
-    createPropertyInfo(call, listOfNotNull(functionName), defaultName, getFunctionNameFromIndex)
+    createPropertyInfo(call, listOfNotNull(functionName), defaultName)
 
   @JvmStatic
   fun createPropertyInfo(
     call: JSCallExpression, functionNames: List<String>, defaultName: String,
-    getFunctionNameFromIndex: (JSCallExpression) -> String?,
   ): Angular2PropertyInfo? {
     if (functionNames.isEmpty()) return null
     val referenceNames = getFunctionNameFromIndex(call)
                            ?.split('.')
                            ?.takeIf { qname -> functionNames.contains(qname.getOrNull(0)) }
+                           ?.takeIf { _ -> Angular2SignalUtils.isSignalInputOutFunctionCall(call) }
                          ?: return null
     return when (referenceNames.size) {
       1 -> {
@@ -252,7 +256,7 @@ internal object Angular2SourceUtil {
 
   @JvmStatic
   fun findComponentClass(templateContext: PsiElement): TypeScriptClass? {
-    if (templateContext.language is Angular2Language
+    if (templateContext.language is Angular2ExprDialect
         && isHostBindingExpression(templateContext)) {
       return Angular2DecoratorUtil.getClassForDecoratorElement(
         InjectedLanguageManager.getInstance(templateContext.project).getInjectionHost(templateContext)
@@ -269,7 +273,7 @@ internal object Angular2SourceUtil {
   fun findComponentClasses(templateContext: PsiElement): List<TypeScriptClass> {
     val file = templateContext.containingFile
     if (file == null || !(file.language.isKindOf(Angular2HtmlLanguage)
-                          || file.language.`is`(Angular2Language)
+                          || file.language.isKindOf(Angular2Language)
                           || isStylesheet(file))) {
       return Collections.emptyList()
     }

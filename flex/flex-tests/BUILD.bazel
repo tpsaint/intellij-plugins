@@ -1,36 +1,46 @@
 ### auto-generated section `build intellij.flex.tests` start
-load("@rules_java//java:defs.bzl", "java_library")
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_test")
+load("@rules_jvm//:jvm.bzl", "jvm_library")
 
-java_library(
+jvm_library(
   name = "tests",
-  visibility = ["//visibility:public"]
+  visibility = ["//visibility:public"],
+  srcs = glob([], allow_empty = True)
 )
 
 jvm_library(
   name = "tests_test_lib",
+  module_name = "intellij.flex.tests",
   visibility = ["//visibility:public"],
-  srcs = glob(["testSrc/**/*.kt", "testSrc/**/*.java"], allow_empty = True),
+  srcs = glob(["testSrc/**/*.kt", "testSrc/**/*.java", "testSrc/**/*.form"], allow_empty = True),
   deps = [
     "//plugins/JavaScriptLanguage:javascript-tests_test_lib",
     "//plugins/JavaScriptLanguage:javascript-testFramework",
     "//plugins/JavaScriptLanguage:javascript-tests-ex_test_lib",
-    "//plugins/uml:diagram-impl",
+    "//plugins/uml/impl",
     "//contrib/flex",
     "//plugins/JavaScriptLanguage/javascript-parser",
-    "//plugins/JavaScriptLanguage/javascript-frontback-impl",
-    "//CSS/frontback/css-api:css-frontback",
-    "//plugins/JavaScriptLanguage:javascript-impl",
-    "//CSS:css",
+    "//plugins/css/common",
+    "//plugins/JavaScriptLanguage:javascript-backend",
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/code-style-api:codeStyle",
+    "@community//platform/core-api:core",
+    "@community//platform/editor-ui-api:editor-ui",
+    "@community//platform/execution-impl",
+    "@community//platform/indexing-api:indexing",
+    "@community//jps/model-api:model",
+    "@community//platform/lang-core",
+    "@community//platform/projectModel-api:projectModel",
+    "@community//platform/refactoring",
+    "@community//platform/structure-view-impl:structureView-impl",
     "@community//spellchecker",
     "@community//spellchecker:spellchecker_test_lib",
+    "@community//plugins/grazie/src:core",
     "@lib//:assert_j",
-    "//CSS/impl:css-impl",
+    "//plugins/css/plugin",
     "@community//platform/testFramework",
     "@community//platform/testFramework:testFramework_test_lib",
-    "//CSS/css-psi-impl:css-psi",
+    "//plugins/css/psi",
     "//contrib/flex/flex-shared:shared",
-    "//plugins/JavaScriptLanguage:javascript",
     "@community//platform/util:util-tests_test_lib",
     "@community//platform/editor-ui-ex:editor-ex",
     "//plugins/JSIntentionPowerPack:javascript-intentions",
@@ -49,17 +59,27 @@ jvm_library(
     "@community//plugins/maven/testFramework",
     "@community//java/java-impl-refactorings:impl-refactorings",
     "@community//platform/util/jdom",
-    "//plugins/yourkit:performanceTesting-yourkit",
+    "//plugins/yourkit",
     "@community//platform/util/nanoxml",
     "@community//tools/intellij.tools.ide.metrics.benchmark:ide-metrics-benchmark",
     "@community//tools/intellij.tools.ide.metrics.benchmark:ide-metrics-benchmark_test_lib",
     "@community//platform/structuralsearch:structuralSearch-tests_test_lib",
+    "@community//xml/xml-psi-api:psi",
     "@community//platform/structuralsearch:structuralSearch",
+    "@community//xml/xml-analysis-api:analysis",
+    "//plugins/css/backend",
+    "//plugins/css/analysis",
+    "//plugins/JavaScriptLanguage/javascript-common",
+    "//plugins/graph",
   ]
 )
+### auto-generated section `build intellij.flex.tests` end
 
-jvm_test(
+### auto-generated section `test intellij.flex.tests` start
+load("@community//build:tests-options.bzl", "jps_test")
+
+jps_test(
   name = "tests_test",
   runtime_deps = [":tests_test_lib"]
 )
-### auto-generated section `build intellij.flex.tests` end
+### auto-generated section `test intellij.flex.tests` end

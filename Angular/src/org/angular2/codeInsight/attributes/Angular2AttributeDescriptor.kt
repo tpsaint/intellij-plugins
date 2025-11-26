@@ -1,24 +1,24 @@
 // Copyright 2000-2021 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license that can be found in the LICENSE file.
 package org.angular2.codeInsight.attributes
 
-import com.intellij.html.webSymbols.attributes.WebSymbolAttributeDescriptor
-import com.intellij.html.webSymbols.attributes.WebSymbolHtmlAttributeInfo
+import com.intellij.polySymbols.html.attributes.HtmlAttributeSymbolDescriptor
+import com.intellij.polySymbols.html.attributes.HtmlAttributeSymbolInfo
 import com.intellij.model.Pointer
+import com.intellij.polySymbols.html.HTML_ATTRIBUTES
+import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.PolySymbolOrigin
+import com.intellij.polySymbols.PolySymbolQualifiedKind
 import com.intellij.psi.PsiElement
 import com.intellij.psi.xml.XmlTag
 import com.intellij.util.asSafely
-import com.intellij.webSymbols.SymbolKind
-import com.intellij.webSymbols.SymbolNamespace
-import com.intellij.webSymbols.WebSymbol
-import com.intellij.webSymbols.WebSymbolOrigin
 import org.angular2.entities.Angular2Directive
 import org.angular2.lang.html.parser.Angular2AttributeNameParser
 import org.angular2.lang.html.psi.Angular2HtmlBoundAttribute
 import org.angular2.web.Angular2DescriptorSymbolsProvider
 import org.angular2.web.Angular2SymbolOrigin
 
-class Angular2AttributeDescriptor(info: WebSymbolHtmlAttributeInfo, tag: XmlTag?)
-  : WebSymbolAttributeDescriptor(info, tag) {
+class Angular2AttributeDescriptor(info: HtmlAttributeSymbolInfo, tag: XmlTag?)
+  : HtmlAttributeSymbolDescriptor(info, tag) {
 
   /**
    * Represents most of the matched directives, even these out-of-scopes. Some directives
@@ -46,29 +46,28 @@ class Angular2AttributeDescriptor(info: WebSymbolHtmlAttributeInfo, tag: XmlTag?
 
   companion object {
     @JvmStatic
-    @Deprecated(message = "Deprecated, returns fake descriptor. Use web-types or Web Symbols instead")
+    @Deprecated(message = "Deprecated, returns fake descriptor. Use web-types or Poly Symbols instead")
     fun create(
       tag: XmlTag,
       attributeName: String,
       @Suppress("UNUSED_PARAMETER")
       element: PsiElement,
     ): Angular2AttributeDescriptor {
-      val symbol = object : WebSymbol {
-        override val origin: WebSymbolOrigin
+      val symbol = object : PolySymbol {
+        override val origin: PolySymbolOrigin
           get() = Angular2SymbolOrigin.empty
-        override val namespace: SymbolNamespace
-          get() = WebSymbol.NAMESPACE_HTML
-        override val kind: SymbolKind
-          get() = WebSymbol.KIND_HTML_ATTRIBUTES
+
+        override val qualifiedKind: PolySymbolQualifiedKind
+          get() = HTML_ATTRIBUTES
 
         override val name: String
           get() = "Fake symbol"
 
-        override fun createPointer(): Pointer<out WebSymbol> =
+        override fun createPointer(): Pointer<out PolySymbol> =
           Pointer.hardPointer(this)
       }
 
-      return Angular2AttributeDescriptor(WebSymbolHtmlAttributeInfo.create(attributeName, symbol), tag)
+      return Angular2AttributeDescriptor(HtmlAttributeSymbolInfo.create(attributeName, symbol), tag)
     }
   }
 

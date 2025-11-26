@@ -5,16 +5,16 @@ import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.LocalInspectionToolSession
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
-import com.intellij.html.webSymbols.elements.WebSymbolElementDescriptor
+import com.intellij.polySymbols.html.elements.HtmlElementSymbolDescriptor
+import com.intellij.polySymbols.search.PsiSourcedPolySymbol
 import com.intellij.psi.PsiElementVisitor
 import com.intellij.psi.XmlElementVisitor
 import com.intellij.psi.xml.XmlTag
-import com.intellij.webSymbols.PsiSourcedWebSymbol
 import com.intellij.xml.util.XmlTagUtil
 import org.jetbrains.astro.AstroBundle
 import org.jetbrains.astro.inspections.quickfixes.AstroImportComponentQuickFix
-import org.jetbrains.astro.webSymbols.AstroProximity
-import org.jetbrains.astro.webSymbols.PROP_ASTRO_PROXIMITY
+import org.jetbrains.astro.polySymbols.AstroProximity
+import org.jetbrains.astro.polySymbols.PROP_ASTRO_PROXIMITY
 
 class AstroMissingComponentImportInspection : LocalInspectionTool() {
 
@@ -22,12 +22,12 @@ class AstroMissingComponentImportInspection : LocalInspectionTool() {
     return object : XmlElementVisitor() {
       override fun visitXmlTag(tag: XmlTag) {
         val descriptor = tag.descriptor
-        if (descriptor !is WebSymbolElementDescriptor)
+        if (descriptor !is HtmlElementSymbolDescriptor)
           return
 
         val symbol = descriptor.symbol
-        if (symbol !is PsiSourcedWebSymbol
-            || symbol.properties[PROP_ASTRO_PROXIMITY] != AstroProximity.OUT_OF_SCOPE)
+        if (symbol !is PsiSourcedPolySymbol
+            || symbol[PROP_ASTRO_PROXIMITY] != AstroProximity.OUT_OF_SCOPE)
           return
 
         val elementToImport = symbol.source ?: return

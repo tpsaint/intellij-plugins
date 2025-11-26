@@ -22,8 +22,8 @@ import org.angular2.lang.html.Angular2HtmlFile
 
 class Angular2RainbowVisitor : RainbowVisitor() {
 
-  override fun suitableForFile(file: PsiFile): Boolean =
-    file is Angular2HtmlFile
+  override fun suitableForFile(psiFile: PsiFile): Boolean =
+    psiFile is Angular2HtmlFile
 
   override fun visit(element: PsiElement) {
     if ((element !is JSReferenceExpression && element !is JSVariable)
@@ -59,7 +59,7 @@ class Angular2RainbowVisitor : RainbowVisitor() {
     Angular2HighlightDescriptor.getFor(element, element)
       ?.let { return it.attributesKey }
     return if (element is JSVariable) {
-      if (JSSemanticHighlightingVisitor.isLocalVariable(element, element))
+      if (JSSemanticHighlightingVisitor.isLocalVariable(element))
         JSHighlighter.JS_LOCAL_VARIABLE
       else
         JSHighlighter.JS_GLOBAL_VARIABLE

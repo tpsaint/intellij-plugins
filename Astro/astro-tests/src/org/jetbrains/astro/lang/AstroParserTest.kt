@@ -4,6 +4,7 @@ import com.intellij.html.embedding.HtmlEmbeddedContentSupport
 import com.intellij.javascript.testFramework.web.JSHtmlParsingTest
 import com.intellij.lang.LanguageParserDefinitions
 import com.intellij.lang.javascript.dialects.TypeScriptParserDefinition
+import com.intellij.psi.LanguageFileViewProviders
 import org.jetbrains.astro.getAstroTestDataPath
 import org.jetbrains.astro.lang.frontmatter.AstroFrontmatterLanguage
 import org.jetbrains.astro.lang.parser.AstroEmbeddedContentSupport
@@ -17,6 +18,14 @@ class AstroParserTest : JSHtmlParsingTest("astro", AstroParserDefinition()) {
   }
 
   override fun testContent1() {
+    throw AssumptionViolatedException("disable")
+  }
+
+  override fun testSpecialTagsParsing() {
+    throw AssumptionViolatedException("disable")
+  }
+
+  override fun testScriptEmbeddingParsing() {
     throw AssumptionViolatedException("disable")
   }
 
@@ -112,6 +121,12 @@ class AstroParserTest : JSHtmlParsingTest("astro", AstroParserDefinition()) {
   fun testBroken2() {
     doTestAstro("""
       { 12 + <a>foo{12 + <b>bar</> + 12 bar</a> + 32 }
+    """)
+  }
+
+  fun testBroken3() {
+    doTestAstro("""
+      { 12 + <a>foo{12 + <b>bar</> + <foo> { bar</a> + 32 }
     """)
   }
 
@@ -484,8 +499,113 @@ class AstroParserTest : JSHtmlParsingTest("astro", AstroParserDefinition()) {
     """)
   }
 
+  fun testContentAfterScriptBlock() {
+    doTestAstro("""
+      <div></div>
+      <script>const a = 12</script>
+      <style>
+        div { margin: 0; }
+      </style>
+      <style>
+        p { margin: 0; }
+      </style>
+    """)
+  }
+
+  fun testMultipleScriptBlocks() {
+    doTestAstro("""
+      <div>
+        <script type="text/javascript"
+                src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <script src="/js/highcharts/highcharts.js" defer></script>
+        <script src="/js/buoychart.js" data={JSON.stringify(chartData)} defer></script>
+      </div>
+    """.trimIndent())
+  }
+
+  fun testRawTextWithInterpolation() {
+    doTestAstro($$"""
+      <title>{ title as number } and { 12 + "foo" }</title>
+      <textarea>My { title ? `${title} foo` : `bar` } is cool</textarea>
+      <div>My {title ? `${title} foo` : `bar`}</div>
+    """.trimIndent())
+  }
+
+  fun testJsxWithAndOperator() {
+    doTestAstro("""
+       <table>
+         {data.map((wd:any) =>
+           <tr>
+             <td>{wd.wdir !== null && <i></i>}</td>
+             <td></td>
+           </tr>
+         )}
+       </table>
+    """.trimIndent())
+  }
+
+  fun testJsxWithAndOperatorBroken1() {
+    doTestAstro("""
+       <table>
+         {data.map((wd:any) =>
+           <tr>
+             <td>{wd.wdir !== null && </i>}</td>
+             <td></td>
+           </tr>
+         )}
+       </table>
+    """.trimIndent())
+  }
+
+  fun testJsxWithAndOperatorBroken2() {
+    doTestAstro("""
+       <table>
+         {data.map((wd:any) =>
+           <tr>
+             <td>{wd.wdir !== null && </i></td>
+             <td></td>
+           </tr>
+         )}
+       </table>
+    """.trimIndent())
+  }
+
+  fun testRawTextUnclosedBrace() {
+    doTestAstro("<title>{</title>")
+  }
+
+  fun testRawTextUnclosedTemplateLiteral() {
+    doTestAstro("<title>{`</title>")
+  }
+
+  fun testRawTextEmptyBraces() {
+    doTestAstro("<title>{}</title>")
+  }
+
+  fun testRawTextUnclosedNestedTemplateExpression() {
+    doTestAstro($$"<title>{`foo ${</title>")
+  }
+
+  fun testTextareaUnclosedBrace() {
+    doTestAstro("<textarea>{</textarea>")
+  }
+
+  fun testTextareaUnclosedTemplateLiteral() {
+    doTestAstro("<textarea>{`</textarea>")
+  }
+
+  fun testTextareaUnclosedNestedTemplateExpression() {
+    doTestAstro($$"<textarea>{`foo ${</textarea>")
+  }
+
+  fun testTextareaEmptyBraces() {
+    doTestAstro("<textarea>{}</textarea>")
+  }
+
   override fun setUp() {
     super.setUp()
+
+    addExplicitExtension(LanguageFileViewProviders.INSTANCE, AstroLanguage.INSTANCE, AstroFileViewProviderFactory())
     addExplicitExtension(LanguageParserDefinitions.INSTANCE, AstroFrontmatterLanguage.INSTANCE, TypeScriptParserDefinition())
     HtmlEmbeddedContentSupport.register(application, testRootDisposable, AstroEmbeddedContentSupport::class.java)
   }

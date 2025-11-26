@@ -1,4 +1,4 @@
-<idea-plugin>
+<idea-plugin allow-bundled-update="true">
   <id>name.kropp.intellij.makefile</id>
   <name>Makefile Language</name>
   <vendor>JetBrains</vendor>
@@ -27,8 +27,14 @@ In addition, the plugin provides support for running Make targets using:
 Plugin source code was previously located at <a href="https://github.com/kropp/intellij-makefile/">https://github.com/kropp/intellij-makefile/</a>
     ]]></description>
 
-  <depends>com.intellij.modules.lang</depends>
-  <depends optional="true" config-file="terminal-config.xml">org.jetbrains.plugins.terminal</depends>
+  <dependencies>
+    <plugin id="com.intellij.modules.lang"/>
+    <module name="intellij.spellchecker"/>
+  </dependencies>
+
+  <content>
+    <module name="intellij.makefile.terminal"/>
+  </content>
 
   <extensions defaultExtensionNs="com.intellij">
     <fileType name="Makefile" language="Makefile" implementationClass="com.jetbrains.lang.makefile.MakefileFileType" fieldName="INSTANCE" extensions="mk" fileNamesCaseInsensitive="makefile;GNUmakefile;makefile.inc;GNUmakefile.inc"/>
@@ -86,9 +92,8 @@ Plugin source code was previously located at <a href="https://github.com/kropp/i
   <extensionPoints>
     <extensionPoint qualifiedName="com.intellij.makefile.toolWindowStripeController"
                     interface="com.jetbrains.lang.makefile.toolWindow.MakefileToolWindowStripeController" dynamic="true"/>
+    <extensionPoint qualifiedName="com.intellij.makefile.runConfigurationCustomizer"
+                    interface="com.jetbrains.lang.makefile.MakefileRunConfigurationCustomizer" dynamic="true"/>
   </extensionPoints>
-
-  <actions>
-  </actions>
 
 </idea-plugin>

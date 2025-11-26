@@ -2,9 +2,14 @@ package org.angular2.lang.expr.service.tcb
 
 import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemHighlightType
+import com.intellij.lang.ecmascript6.actions.JSImportDescriptorBuilder
 import com.intellij.lang.ecmascript6.psi.ES6ImportExportSpecifier.ImportExportSpecifierKind
 import com.intellij.lang.ecmascript6.psi.ES6ImportSpecifier
 import com.intellij.lang.ecmascript6.psi.impl.ES6CreateImportUtil
+import com.intellij.lang.javascript.buildTools.npm.PackageJsonUtil
+import com.intellij.lang.javascript.library.JSCorePredefinedLibrariesProviderSupport.Companion.instance
+import com.intellij.lang.javascript.modules.JSImportPlaceInfo
+import com.intellij.lang.javascript.modules.NodeModuleUtil
 import com.intellij.lang.javascript.psi.JSRecursiveWalkingElementVisitor
 import com.intellij.lang.javascript.psi.JSReferenceExpression
 import com.intellij.lang.javascript.psi.JSType
@@ -12,10 +17,17 @@ import com.intellij.lang.javascript.psi.ecma6.TypeScriptClass
 import com.intellij.lang.javascript.psi.ecma6.TypeScriptSingleType
 import com.intellij.lang.javascript.psi.ecma6.TypeScriptType
 import com.intellij.lang.javascript.psi.ecmal4.JSQualifiedNamedElement
+import com.intellij.lang.javascript.psi.resolve.JSResolveUtil
+import com.intellij.lang.javascript.psi.types.JSAliasTypeImpl
+import com.intellij.lang.javascript.psi.types.JSTypeImpl
 import com.intellij.openapi.util.TextRange
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiNameIdentifierOwner
+import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.impl.source.tree.LeafPsiElement
+import com.intellij.psi.util.PsiUtilCore
 import com.intellij.util.SmartList
 import com.intellij.util.containers.sequenceOfNotNull
 import org.angular2.codeInsight.Angular2HighlightingUtils.TextAttributesKind
@@ -32,7 +44,6 @@ import org.angular2.lang.Angular2Bundle
 import org.angular2.lang.expr.psi.Angular2PipeExpression
 import org.angular2.lang.expr.psi.Angular2PipeReferenceExpression
 import org.angular2.lang.expr.service.tcb.Angular2TemplateTranspiler.DiagnosticKind
-import java.util.Objects
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -59,8 +70,18 @@ internal class Environment(
   fun reference(ref: TypeScriptClass): Expression =
     Expression(reference(ref, ImportExportSpecifierKind.IMPORT))
 
-  fun referenceExternalType(packageName: String, symbol: String): Expression =
-    Expression(getModuleImportName(packageName, false, ImportExportSpecifierKind.IMPORT) + "." + symbol)
+  fun referenceExternalType(packageName: String, symbol: String, sourceElement: PsiNameIdentifierOwner? = null): Expression =
+    Expression {
+      append(getModuleImportName(packageName, false, ImportExportSpecifierKind.IMPORT) + ".")
+      if (sourceElement != null) {
+        withSourceFile(sourceElement.containingFile) {
+          append(symbol, originalRange = sourceElement.nameIdentifier?.textRange)
+        }
+      }
+      else {
+        append(symbol)
+      }
+    }
 
   fun referenceExternalSymbol(moduleName: String, name: String): Expression =
     Expression(getModuleImportName(moduleName, false, ImportExportSpecifierKind.IMPORT) + "." + name)
@@ -68,13 +89,43 @@ internal class Environment(
   private fun referenceExternalType(extRef: R3Identifiers.ExternalReference): Expression =
     referenceExternalType(extRef.moduleName, extRef.name)
 
-  fun referenceType(dirTypeRef: JSType): Expression =
+  fun referenceType(dirTypeRef: JSType): Expression {
+    val substitutedType = dirTypeRef
+      .let { it as? JSAliasTypeImpl ?: it.substitute() }
+      .let { (it as? JSAliasTypeImpl)?.alias ?: it }
+    if (substitutedType.sourceElement != null) {
+      val typeScriptType = substitutedType as? TypeScriptType
+                           ?: substitutedType.sourceElement as? TypeScriptType
+      if (typeScriptType is TypeScriptType) {
+        return typeScriptType.toExpression()
+      }
+      else if (substitutedType is JSTypeImpl) {
+        val sourceElement = substitutedType.source.sourceElement
+        if (sourceElement is PsiNameIdentifierOwner) {
+          val importDescriptor = if (!JSResolveUtil.isFromPredefinedFile(sourceElement.containingFile))
+            JSImportDescriptorBuilder(file)
+              .createDescriptor(substitutedType.typeText, sourceElement, JSImportPlaceInfo.ImportContext.SIMPLE)
+          else
+            null
+          return importDescriptor
+                   ?.takeIf { descriptor -> descriptor.moduleName.let { it != "typescript" && !it.startsWith("typescript/") } }
+                   ?.exportedName
+                   ?.let { referenceExternalType(importDescriptor.moduleName, it, sourceElement) }
+                 ?: Expression {
+                   withSourceFile(sourceElement.containingFile) {
+                     append(substitutedType.getTypeText(JSType.TypeTextFormat.CODE), originalRange = sourceElement.nameIdentifier?.textRange)
+                   }
+                 }
+        }
+      }
+    }
     // TODO detect stuff to import
-    Expression(dirTypeRef.getTypeText(JSType.TypeTextFormat.CODE))
+    return Expression(substitutedType.getTypeText(JSType.TypeTextFormat.CODE))
+  }
 
   private fun reference(element: JSQualifiedNamedElement, kind: ImportExportSpecifierKind): String =
     importCache.computeIfAbsent(element) {
-      if (element.containingFile == file) {
+      if (element.containingFile == file || isBuiltIn(element)) {
         return@computeIfAbsent element.qualifiedName ?: element.name!!
       }
       val importDescriptor = ES6CreateImportUtil.getImportDescriptor(
@@ -99,6 +150,16 @@ internal class Environment(
         return@computeIfAbsent importName + "." + importDescriptor.effectiveName
       }
     }
+
+  private fun isBuiltIn(element: PsiElement) =
+    element.containingFile.let { JSResolveUtil.isFromPredefinedFile(it) }
+    || PsiUtilCore.getVirtualFile(element.containingFile)?.let {
+      instance.isCoreLibraryFile(it) || isFromTypeScriptPackage(it)
+    } != false
+
+  private fun isFromTypeScriptPackage(file: VirtualFile): Boolean =
+    PackageJsonUtil.findUpPackageJson(file)
+      ?.let { NodeModuleUtil.inferNodeModulePackageName(it) } == "typescript"
 
   private fun getModuleImportName(
     moduleName: String,
@@ -291,10 +352,22 @@ internal class Environment(
     }.toList()
 
   private fun TypeScriptType.toExpression(): Expression = Expression {
-    acceptChildren(object : JSRecursiveWalkingElementVisitor() {
+    withSourceFile(containingFile) {
+      withSupportReverseTypes {
+        withIgnoreMappings {
+          withSourceSpan(textRange) {
+            this@withSourceSpan.buildTypeExpression(this@toExpression)
+          }
+        }
+      }
+    }
+  }
+
+  private fun Expression.ExpressionBuilder.buildTypeExpression(type: TypeScriptType) {
+    type.acceptChildren(object : JSRecursiveWalkingElementVisitor() {
       override fun visitElement(element: PsiElement) {
         if (element is LeafPsiElement) {
-          append(element.text)
+          append(element.text, element.textRange.takeIf { element !is PsiWhiteSpace })
         }
         else {
           super.visitElement(element)
@@ -313,11 +386,14 @@ internal class Environment(
               resolveResult
           }
           if (templateTarget !is JSQualifiedNamedElement) {
-            append(node.text, node.textRange, supportTypes = true)
+            append(node.text, node.textRange)
           }
           else {
-            append(reference(templateTarget, importSpecifierKind), node.textRange, supportTypes = true)
+            append(reference(templateTarget, importSpecifierKind), node.textRange)
           }
+        }
+        else {
+          super.visitJSReferenceExpression(node)
         }
       }
     })
@@ -387,7 +463,7 @@ internal class OutOfBandDiagnosticRecorder {
         "angular.inspection.illegal-for-loop-access.message",
         ast.text.withColor(TextAttributesKind.TS_LOCAL_VARIABLE, ast),
         sequenceOfNotNull(block.item).plus(block.contextVariables.get("\$index").map { it.first })
-          .joinToString(", ") {it.name.withColor(TextAttributesKind.TS_LOCAL_VARIABLE, ast) },
+          .joinToString(", ") { it.name.withColor(TextAttributesKind.TS_LOCAL_VARIABLE, ast) },
       ),
       highlightType = ProblemHighlightType.GENERIC_ERROR_OR_WARNING,
     )
@@ -466,6 +542,13 @@ internal data class DiagnosticData(
     && other.category == category
     && other.highlightType == highlightType
 
-  override fun hashCode(): Int =
-    Objects.hash(kind, startOffset, length, message, category, highlightType)
+  override fun hashCode(): Int {
+    var result = kind.hashCode()
+    result = 31 * result + startOffset
+    result = 31 * result + length
+    result = 31 * result + message.hashCode()
+    result = 31 * result + category.hashCode()
+    result = 31 * result + highlightType.hashCode()
+    return result
+  }
 }

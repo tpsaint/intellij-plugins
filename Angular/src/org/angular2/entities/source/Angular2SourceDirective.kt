@@ -18,14 +18,12 @@ import com.intellij.lang.javascript.psi.util.stubSafeStringValue
 import com.intellij.model.Pointer
 import com.intellij.openapi.util.Ref
 import com.intellij.psi.PsiElement
-import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValueProvider.Result
-import com.intellij.psi.util.CachedValuesManager
 import com.intellij.util.AstLoadingFilter
 import com.intellij.util.SmartList
 import com.intellij.util.applyIf
 import com.intellij.util.asSafely
-import com.intellij.webSymbols.WebSymbolQualifiedKind
+import com.intellij.polySymbols.PolySymbolQualifiedKind
 import org.angular2.Angular2DecoratorUtil
 import org.angular2.Angular2DecoratorUtil.COMPONENT_DEC
 import org.angular2.Angular2DecoratorUtil.DIRECTIVE_DEC
@@ -33,11 +31,11 @@ import org.angular2.Angular2DecoratorUtil.HOST_ATTRIBUTE_TOKEN_CLASS
 import org.angular2.Angular2DecoratorUtil.HOST_DIRECTIVES_PROP
 import org.angular2.Angular2DecoratorUtil.INJECT_FUN
 import org.angular2.Angular2DecoratorUtil.INPUT_DEC
-import org.angular2.Angular2DecoratorUtil.INPUT_FUN
-import org.angular2.Angular2DecoratorUtil.MODEL_FUN
+import org.angular2.signals.Angular2SignalUtils.INPUT_FUN
+import org.angular2.signals.Angular2SignalUtils.MODEL_FUN
 import org.angular2.Angular2DecoratorUtil.OUTPUT_DEC
-import org.angular2.Angular2DecoratorUtil.OUTPUT_FROM_OBSERVABLE_FUN
-import org.angular2.Angular2DecoratorUtil.OUTPUT_FUN
+import org.angular2.signals.Angular2SignalUtils.OUTPUT_FROM_OBSERVABLE_FUN
+import org.angular2.signals.Angular2SignalUtils.OUTPUT_FUN
 import org.angular2.codeInsight.controlflow.Angular2ControlFlowBuilder
 import org.angular2.codeInsight.refs.Angular2ReferenceExpressionResolver
 import org.angular2.entities.*
@@ -251,7 +249,7 @@ open class Angular2SourceDirective(decorator: ES6Decorator, implicitElement: JSI
       mappings: MutableMap<String, Angular2PropertyInfo>?,
       decorator: String?,
       functionNames: List<String>,
-      qualifiedKind: WebSymbolQualifiedKind,
+      qualifiedKind: PolySymbolQualifiedKind,
       result: MutableMap<String, Angular2DirectiveProperty>,
     ) {
       val info: Angular2PropertyInfo? =
@@ -263,7 +261,7 @@ open class Angular2SourceDirective(decorator: ES6Decorator, implicitElement: JSI
         ?: field.asSafely<TypeScriptField>()
           ?.initializerOrStub
           ?.asSafely<JSCallExpression>()
-          ?.let { Angular2SourceUtil.createPropertyInfo(it, functionNames, property.memberName, ::getFunctionNameFromIndex) }
+          ?.let { Angular2SourceUtil.createPropertyInfo(it, functionNames, property.memberName) }
       if (info != null) {
         result.putIfAbsent(info.name, Angular2SourceDirectiveProperty.create(sourceClass, property, qualifiedKind, info))
       }

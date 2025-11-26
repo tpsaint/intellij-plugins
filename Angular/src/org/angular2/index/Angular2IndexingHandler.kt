@@ -4,7 +4,10 @@ package org.angular2.index
 import com.intellij.lang.ASTNode
 import com.intellij.lang.ecmascript6.psi.ES6ImportedBinding
 import com.intellij.lang.ecmascript6.psi.impl.ES6FieldStatementImpl
-import com.intellij.lang.javascript.*
+import com.intellij.lang.javascript.JSElementTypes
+import com.intellij.lang.javascript.JSExtendedLanguagesTokenSetProvider
+import com.intellij.lang.javascript.JSStringUtil
+import com.intellij.lang.javascript.JSTokenTypes
 import com.intellij.lang.javascript.index.FrameworkIndexingHandler
 import com.intellij.lang.javascript.psi.*
 import com.intellij.lang.javascript.psi.ecma6.*
@@ -15,7 +18,7 @@ import com.intellij.lang.javascript.psi.stubs.*
 import com.intellij.lang.javascript.psi.stubs.impl.JSElementIndexingDataImpl
 import com.intellij.lang.javascript.psi.stubs.impl.JSImplicitElementImpl
 import com.intellij.lang.tree.util.children
-import com.intellij.lang.typescript.TypeScriptStubElementTypes
+import com.intellij.lang.typescript.TypeScriptElementTypes
 import com.intellij.openapi.util.io.FileUtilRt.getNameWithoutExtension
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.PsiElement
@@ -39,14 +42,10 @@ import org.angular2.Angular2DecoratorUtil.HOST_BINDING_DEC
 import org.angular2.Angular2DecoratorUtil.INJECT_FUN
 import org.angular2.Angular2DecoratorUtil.INPUTS_PROP
 import org.angular2.Angular2DecoratorUtil.INPUT_DEC
-import org.angular2.Angular2DecoratorUtil.INPUT_FUN
-import org.angular2.Angular2DecoratorUtil.MODEL_FUN
 import org.angular2.Angular2DecoratorUtil.MODULE_DEC
 import org.angular2.Angular2DecoratorUtil.NAME_PROP
 import org.angular2.Angular2DecoratorUtil.OUTPUTS_PROP
 import org.angular2.Angular2DecoratorUtil.OUTPUT_DEC
-import org.angular2.Angular2DecoratorUtil.OUTPUT_FROM_OBSERVABLE_FUN
-import org.angular2.Angular2DecoratorUtil.OUTPUT_FUN
 import org.angular2.Angular2DecoratorUtil.PIPE_DEC
 import org.angular2.Angular2DecoratorUtil.SELECTOR_PROP
 import org.angular2.Angular2DecoratorUtil.STYLES_PROP
@@ -64,6 +63,10 @@ import org.angular2.entities.source.Angular2SourceUtil.isStylesheet
 import org.angular2.isCustomCssPropertyBinding
 import org.angular2.lang.Angular2Bundle
 import org.angular2.lang.html.parser.Angular2AttributeNameParser
+import org.angular2.signals.Angular2SignalUtils.INPUT_FUN
+import org.angular2.signals.Angular2SignalUtils.MODEL_FUN
+import org.angular2.signals.Angular2SignalUtils.OUTPUT_FROM_OBSERVABLE_FUN
+import org.angular2.signals.Angular2SignalUtils.OUTPUT_FUN
 import org.angular2.web.scopes.CREATE_COMPONENT_FUN
 import org.angular2.web.scopes.INPUT_BINDING_FUN
 import org.angular2.web.scopes.OUTPUT_BINDING_FUN
@@ -88,7 +91,7 @@ class Angular2IndexingHandler : FrameworkIndexingHandler() {
     val parent = node.treeParent ?: return false
     val parentPropName = getPropertyName(parent)
     val container = if (parentPropName == NAME_PROP || parentPropName == ALIAS_PROP) {
-      parent.treeParent.takeIf { it.elementType === JSStubElementTypes.OBJECT_LITERAL_EXPRESSION }
+      parent.treeParent.takeIf { it.elementType === JSElementTypes.OBJECT_LITERAL_EXPRESSION }
         ?.treeParent
       ?: return false
     }
@@ -97,7 +100,7 @@ class Angular2IndexingHandler : FrameworkIndexingHandler() {
     if (container.elementType === JSElementTypes.ARGUMENT_LIST) {
       val grandParent = container.treeParent
       return (grandParent != null
-              && grandParent.elementType.let { it === JSStubElementTypes.CALL_EXPRESSION || it === JSStubElementTypes.TYPESCRIPT_NEW_EXPRESSION }
+              && grandParent.elementType.let { it === JSElementTypes.CALL_EXPRESSION || it === JSElementTypes.TYPESCRIPT_NEW_EXPRESSION }
               && shouldCreateStubForCallExpression(grandParent))
     }
     val property = if (container.elementType === JSElementTypes.ARRAY_LITERAL_EXPRESSION) {
@@ -110,13 +113,13 @@ class Angular2IndexingHandler : FrameworkIndexingHandler() {
 
   override fun shouldCreateStubForArrayLiteral(node: ASTNode): Boolean {
     return node.treeParent?.treeParent
-      ?.takeIf { it.elementType == TypeScriptStubElementTypes.TYPESCRIPT_VARIABLE }
+      ?.takeIf { it.elementType == TypeScriptElementTypes.TYPESCRIPT_VARIABLE }
       ?.psi?.asSafely<TypeScriptVariable>()
       ?.let { isStandalonePseudoModuleDeclaration(it) } == true
   }
 
   private fun getPropertyName(property: ASTNode): String? {
-    if (property.elementType !== JSStubElementTypes.PROPERTY) return null
+    if (property.elementType !== JSElementTypes.PROPERTY) return null
     val identifier = JSPropertyImpl.findNameIdentifier(property)
     return if (identifier != null) JSStringUtil.unquoteWithoutUnescapingStringLiteralValue(identifier.text) else null
   }
@@ -151,7 +154,7 @@ class Angular2IndexingHandler : FrameworkIndexingHandler() {
     }
   }
 
-  override fun processDecorator(decorator: ES6Decorator, data: JSElementIndexingDataImpl?): JSElementIndexingDataImpl? {
+  override fun processDecorator(decorator: ES6Decorator, data: JSElementIndexingData?): JSElementIndexingData? {
     if (decorator.context.asSafely<JSAttributeList>()?.context is ES6FieldStatementImpl) {
       return when (decorator.decoratorName) {
         HOST_BINDING_DEC -> {
@@ -329,7 +332,7 @@ class Angular2IndexingHandler : FrameworkIndexingHandler() {
 
   private fun isDecoratorCallStringArgStubbed(callNode: ASTNode): Boolean {
     val parent = callNode.treeParent
-    if (parent.elementType !== JSStubElementTypes.ES6_DECORATOR) return false
+    if (parent.elementType !== JSElementTypes.ES6_DECORATOR) return false
     val methodExpression = callNode.firstChildNode
     if (methodExpression.elementType !== JSElementTypes.REFERENCE_EXPRESSION) return false
 
@@ -340,7 +343,7 @@ class Angular2IndexingHandler : FrameworkIndexingHandler() {
   }
 
   private fun isDecoratorLikeFunctionCall(callNode: ASTNode): Boolean {
-    if (callNode.elementType !== JSStubElementTypes.CALL_EXPRESSION) return false
+    if (callNode.elementType !== JSElementTypes.CALL_EXPRESSION) return false
 
     val methodExpression = callNode.firstChildNode
     if (methodExpression.elementType !== JSElementTypes.REFERENCE_EXPRESSION) return false
@@ -356,7 +359,7 @@ class Angular2IndexingHandler : FrameworkIndexingHandler() {
 
   private fun getFunctionReferenceName(callNode: ASTNode): String? =
     callNode
-      .takeIf { it.elementType === JSStubElementTypes.CALL_EXPRESSION }
+      .takeIf { it.elementType === JSElementTypes.CALL_EXPRESSION }
       ?.firstChildNode
       ?.takeIf { it.elementType === JSElementTypes.REFERENCE_EXPRESSION }
       ?.firstChildNode
@@ -365,7 +368,7 @@ class Angular2IndexingHandler : FrameworkIndexingHandler() {
 
   private fun getConstructorReferenceName(callNode: ASTNode): String? =
     callNode
-      .takeIf { it.elementType === JSStubElementTypes.TYPESCRIPT_NEW_EXPRESSION }
+      .takeIf { it.elementType === JSElementTypes.TYPESCRIPT_NEW_EXPRESSION }
       ?.firstChildNode
       ?.takeIf { it.elementType === JSTokenTypes.NEW_KEYWORD }
       ?.treeNext
@@ -376,9 +379,9 @@ class Angular2IndexingHandler : FrameworkIndexingHandler() {
       ?.text
 
   private fun isDirectiveField(fieldNode: ASTNode?): Boolean {
-    if (fieldNode?.elementType !== TypeScriptStubElementTypes.TYPESCRIPT_FIELD) return false
-    val classNode = fieldNode?.treeParent?.treeParent
-                      ?.takeIf { it.elementType === JSStubElementTypes.TYPESCRIPT_CLASS }
+    if (fieldNode?.elementType !== TypeScriptElementTypes.TYPESCRIPT_FIELD) return false
+    val classNode = fieldNode.treeParent?.treeParent
+                      ?.takeIf { TS_CLASS_TOKENS.contains(it.elementType) }
                     ?: return false
     return hasDecorator(classNode.psi as TypeScriptClass, COMPONENT_DEC, DIRECTIVE_DEC) != null
   }
@@ -400,8 +403,8 @@ class Angular2IndexingHandler : FrameworkIndexingHandler() {
 
   private fun createJSImplicitElementForCustomCssPropertyIfNeeded(
     info: Angular2AttributeNameParser.AttributeInfo,
-    provider: PsiElement, outData: JSElementIndexingDataImpl?,
-  ): JSElementIndexingDataImpl? =
+    provider: PsiElement, outData: JSElementIndexingData?,
+  ): JSElementIndexingData? =
     if (isCustomCssPropertyBinding(info))
       (outData ?: JSElementIndexingDataImpl())
         .apply {
@@ -459,12 +462,12 @@ class Angular2IndexingHandler : FrameworkIndexingHandler() {
     if (attributeList.hasModifier(JSAttributeList.ModifierType.DECLARE)) {
       // export declare const foo = readonly [typeof a, typeof b]
       // export declare const foo = [typeof a, typeof b]
-      val tuple = variable.node.children().find { it.elementType == TypeScriptStubElementTypes.TUPLE_TYPE }
+      val tuple = variable.node.children().find { it.elementType == TypeScriptElementTypes.TUPLE_TYPE }
       return tuple != null && tuple.children()
-        .filter { it.elementType == TypeScriptStubElementTypes.TUPLE_MEMBER_ELEMENT }
+        .filter { it.elementType == TypeScriptElementTypes.TUPLE_MEMBER_ELEMENT }
         .map { it.firstChildNode }
         .all {
-          it?.elementType == TypeScriptStubElementTypes.TYPEOF_TYPE
+          it?.elementType == TypeScriptElementTypes.TYPEOF_TYPE
           && it.lastChildNode?.elementType == JSElementTypes.REFERENCE_EXPRESSION
         }
     }
@@ -472,9 +475,9 @@ class Angular2IndexingHandler : FrameworkIndexingHandler() {
       // export const foo = [a,b] as const
       // export const foo = [a,b]
       val arr = variable.node.children()
-                  .find { it.elementType == JSStubElementTypes.TYPE_AS_EXPRESSION }
+                  .find { it.elementType == JSElementTypes.TYPE_AS_EXPRESSION }
                   ?.takeIf {
-                    it.lastChildNode?.elementType == TypeScriptStubElementTypes.CONST_TYPE
+                    it.lastChildNode?.elementType == TypeScriptElementTypes.CONST_TYPE
                   }
                   ?.firstChildNode
                   ?.takeIf { it.elementType == JSElementTypes.ARRAY_LITERAL_EXPRESSION }
@@ -516,8 +519,8 @@ private const val MODULE_TYPE = "M;;;"
 
 private const val STYLESHEET_INDEX_PREFIX = "ss/"
 
-val TS_CLASS_TOKENS: TokenSet = TokenSet.create(JSStubElementTypes.TYPESCRIPT_CLASS,
-                                                JSStubElementTypes.TYPESCRIPT_CLASS_EXPRESSION)
+val TS_CLASS_TOKENS: TokenSet = TokenSet.create(JSElementTypes.TYPESCRIPT_CLASS,
+                                                JSElementTypes.TYPESCRIPT_CLASS_EXPRESSION)
 
 private val STUBBED_PROPERTIES = setOf(
   TEMPLATE_URL_PROP, STYLE_URLS_PROP, STYLE_URL_PROP, SELECTOR_PROP, INPUTS_PROP, OUTPUTS_PROP)

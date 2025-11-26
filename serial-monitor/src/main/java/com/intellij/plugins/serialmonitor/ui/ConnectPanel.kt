@@ -13,7 +13,7 @@ import com.intellij.plugins.serialmonitor.SerialPortProfile
 import com.intellij.plugins.serialmonitor.service.PortStatus
 import com.intellij.plugins.serialmonitor.service.SerialPortsListener
 import com.intellij.plugins.serialmonitor.service.SerialPortsListener.Companion.SERIAL_PORTS_TOPIC
-import com.intellij.ui.JBSplitter
+import com.intellij.ui.OnePixelSplitter
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.Content
@@ -21,13 +21,12 @@ import com.intellij.ui.content.ContentFactory
 import com.intellij.ui.dsl.builder.Align.Companion.FILL
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.util.application
+import com.intellij.util.ui.JBUI
 import org.jetbrains.annotations.Nls
-import javax.swing.event.ListSelectionEvent
-import javax.swing.event.ListSelectionListener
 
 internal val SERIAL_MONITOR = Key<SerialMonitor>(SerialMonitor::javaClass.name)
 
-internal class ConnectPanel(private val toolWindow: ToolWindow) : JBSplitter(false, 0.4f, 0.1f, 0.9f) {
+internal class ConnectPanel(private val toolWindow: ToolWindow) : OnePixelSplitter(false, 0.4f, 0.1f, 0.9f) {
 
   private val ports = ConnectableList(this)
   private var disposable: Disposable = Disposer.newDisposable()
@@ -50,32 +49,27 @@ internal class ConnectPanel(private val toolWindow: ToolWindow) : JBSplitter(fal
         profileSettings(ports, disposable)
 
     if (panel != null) {
-      secondComponent = JBScrollPane(panel)
+      secondComponent = JBScrollPane(panel).apply { border = JBUI.Borders.empty() }
       invalidate()
     }
   }
 
   init {
+    setAndLoadSplitterProportionKey("ConnectPanel.splitterProportionKey")
     firstComponent = panel {
       row {
         cell(listToolbar.component)
       }
-      row { scrollCell(ports).align(FILL) }.resizableRow()
-      ports.rescanProfiles()
+      row {
+        cell(JBScrollPane(ports))
+          .align(FILL)
+          .applyToComponent {
+            border = JBUI.Borders.empty()
+          }
+      }.resizableRow()
     }
-    ports.addListSelectionListener(object : ListSelectionListener {
-      override fun valueChanged(e: ListSelectionEvent?) {
-        selectionChanged()
-      }
-    })
+    ports.addListSelectionListener { selectionChanged() }
     secondComponent = JBPanel<JBPanel<*>>()
-    application.messageBus.connect(toolWindow.disposable)
-      .subscribe(SERIAL_PORTS_TOPIC, object : SerialPortsListener {
-        override fun portsStatusChanged() {
-          application.invokeLater({ ports.rescanProfiles() },
-                                  { toolWindow.isDisposed })
-        }
-      })
   }
 
   private fun contentByPortName(portName: String?): Content? {
@@ -87,6 +81,21 @@ internal class ConnectPanel(private val toolWindow: ToolWindow) : JBSplitter(fal
       }
   }
 
+  private fun monitorByProfile(profile: SerialPortProfile): SerialMonitor? {
+    return toolWindow.contentManager.contents
+      .mapNotNull { it.getUserData(SERIAL_MONITOR) }
+      .firstOrNull {
+        it.portProfile == profile
+      }
+  }
+
+  /**
+   * Returns the [SerialMonitor] with which the port is currently opened in this panel, if any.
+   */
+  fun getOpenedMonitor(portName: String): SerialMonitor? {
+    return contentByPortName(portName)?.getUserData(SERIAL_MONITOR)
+  }
+
   fun openConsole(portName: String?) {
     val content = contentByPortName(portName)
     toolWindow.getContentManager().setSelectedContent(content ?: return)
@@ -96,11 +105,24 @@ internal class ConnectPanel(private val toolWindow: ToolWindow) : JBSplitter(fal
     contentByPortName(portName)?.getUserData(SERIAL_MONITOR)?.disconnect()
   }
 
+  fun notifyProfileChanged(profile: SerialPortProfile) {
+    monitorByProfile(profile)?.notifyProfileChanged()
+  }
+
+  fun reconnectProfile(profile: SerialPortProfile,
+                       name: @Nls String = profile.defaultName()) {
+    val openedTab = contentByPortName(profile.portName)
+    if (openedTab != null) {
+      toolWindow.getContentManager().removeContent(openedTab, true)
+    }
+    connectProfile(profile, name)
+  }
+
   fun connectProfile(profile: SerialPortProfile,
                      name: @Nls String = profile.defaultName()) {
     val contentManager = toolWindow.getContentManager()
     val panel = SimpleToolWindowPanel(false, true)
-    var content = ContentFactory.getInstance().createContent(panel, name, true)
+    val content = ContentFactory.getInstance().createContent(panel, name, true)
     content.putUserData(ToolWindow.SHOW_CONTENT_ICON, true)
     val serialMonitor = SerialMonitor(toolWindow.getProject(), name, profile)
     content.putUserData(SERIAL_MONITOR, serialMonitor)
@@ -110,6 +132,7 @@ internal class ConnectPanel(private val toolWindow: ToolWindow) : JBSplitter(fal
     contentManager.addContent(content)
     val handler = object : SerialPortsListener {
       override fun portsStatusChanged() {
+        // TODO: do not invoke later, use coroutines?
         application.invokeLater(
           {
             val status = serialMonitor.getStatus()
@@ -118,7 +141,7 @@ internal class ConnectPanel(private val toolWindow: ToolWindow) : JBSplitter(fal
           { toolWindow.isDisposed })
       }
     }
-    application.messageBus.connect(content).subscribe<SerialPortsListener>(SERIAL_PORTS_TOPIC, handler)
+    application.messageBus.connect(content).subscribe(SERIAL_PORTS_TOPIC, handler)
 
     serialMonitor.connect()
     contentManager.setSelectedContent(content, true)

@@ -1,37 +1,41 @@
 package org.angular2.web.scopes
 
-import com.intellij.javascript.webSymbols.decorateWithJsKindIcon
-import com.intellij.javascript.webSymbols.decorateWithSymbolType
+import com.intellij.polySymbols.js.decorateWithJsKindIcon
+import com.intellij.polySymbols.js.decorateWithSymbolType
 import com.intellij.lang.javascript.psi.ecma6.ES6Decorator
 import com.intellij.model.Pointer
+import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.PolySymbolQualifiedKind
+import com.intellij.polySymbols.PolySymbolQualifiedName
+import com.intellij.polySymbols.completion.PolySymbolCodeCompletionItem
+import com.intellij.polySymbols.js.JS_STRING_LITERALS
+import com.intellij.polySymbols.js.JS_SYMBOLS
+import com.intellij.polySymbols.query.PolySymbolCodeCompletionQueryParams
+import com.intellij.polySymbols.query.PolySymbolQueryExecutor
+import com.intellij.polySymbols.query.PolySymbolQueryStack
+import com.intellij.polySymbols.query.PolySymbolScope
+import com.intellij.polySymbols.utils.PolySymbolIsolatedMappingScope
+import com.intellij.polySymbols.utils.PolySymbolScopeWithCache
 import com.intellij.psi.PsiFile
 import com.intellij.psi.createSmartPointer
 import com.intellij.psi.util.PsiModificationTracker
-import com.intellij.util.containers.Stack
-import com.intellij.webSymbols.*
-import com.intellij.webSymbols.WebSymbol.Companion.JS_STRING_LITERALS
-import com.intellij.webSymbols.WebSymbol.Companion.JS_SYMBOLS
-import com.intellij.webSymbols.completion.WebSymbolCodeCompletionItem
-import com.intellij.webSymbols.query.WebSymbolsCodeCompletionQueryParams
-import com.intellij.webSymbols.query.WebSymbolsQueryExecutor
-import com.intellij.webSymbols.utils.WebSymbolsIsolatedMappingScope
 import org.angular2.Angular2Framework
 import org.angular2.entities.Angular2EntitiesProvider
 
 class ViewChildrenScope(
   decorator: ES6Decorator,
   private val resolveToMultipleSymbols: Boolean,
-) : WebSymbolsIsolatedMappingScope<ES6Decorator>(
+) : PolySymbolIsolatedMappingScope<ES6Decorator>(
   mapOf(JS_STRING_LITERALS to JS_SYMBOLS), Angular2Framework.ID, decorator
 ) {
 
-  override fun isExclusiveFor(qualifiedKind: WebSymbolQualifiedKind): Boolean =
+  override fun isExclusiveFor(qualifiedKind: PolySymbolQualifiedKind): Boolean =
     qualifiedKind == JS_STRING_LITERALS
 
-  override fun acceptSymbol(symbol: WebSymbol): Boolean =
+  override fun acceptSymbol(symbol: PolySymbol): Boolean =
     true
 
-  override val subScopeBuilder: (WebSymbolsQueryExecutor, ES6Decorator) -> List<WebSymbolsScope>
+  override val subScopeBuilder: (PolySymbolQueryExecutor, ES6Decorator) -> List<PolySymbolScope>
     get() = if (resolveToMultipleSymbols) { executor, decorator ->
       listOfNotNull(
         Angular2EntitiesProvider.getComponent(decorator)
@@ -47,7 +51,7 @@ class ViewChildrenScope(
       )
     }
 
-  override fun createPointer(): Pointer<out WebSymbolsScope> {
+  override fun createPointer(): Pointer<out PolySymbolScope> {
     val locationPtr = location.createSmartPointer()
     val resolveToMultipleSymbols = this.resolveToMultipleSymbols
     return Pointer {
@@ -57,23 +61,23 @@ class ViewChildrenScope(
   }
 
   private class ReferenceVariablesFlattenedScope(file: PsiFile, private val resolveToMultipleSymbols: Boolean)
-    : WebSymbolsScopeWithCache<PsiFile, Boolean>(null, file.project, file, resolveToMultipleSymbols) {
+    : PolySymbolScopeWithCache<PsiFile, Boolean>(null, file.project, file, resolveToMultipleSymbols) {
 
     override fun getCodeCompletions(
-      qualifiedName: WebSymbolQualifiedName,
-      params: WebSymbolsCodeCompletionQueryParams,
-      scope: Stack<WebSymbolsScope>,
-    ): List<WebSymbolCodeCompletionItem> =
-      super.getCodeCompletions(qualifiedName, params, scope)
+      qualifiedName: PolySymbolQualifiedName,
+      params: PolySymbolCodeCompletionQueryParams,
+      stack: PolySymbolQueryStack,
+    ): List<PolySymbolCodeCompletionItem> =
+      super.getCodeCompletions(qualifiedName, params, stack)
         .map { it.decorateWithSymbolType(dataHolder, it.symbol).decorateWithJsKindIcon() }
 
-    override fun initialize(consumer: (WebSymbol) -> Unit, cacheDependencies: MutableSet<Any>) {
+    override fun initialize(consumer: (PolySymbol) -> Unit, cacheDependencies: MutableSet<Any>) {
       cacheDependencies.add(PsiModificationTracker.MODIFICATION_COUNT)
       ReferenceVariablesStructuredScope(dataHolder).flattenSymbols(resolveToMultipleSymbols)
         .forEach(consumer)
     }
 
-    override fun provides(qualifiedKind: WebSymbolQualifiedKind): Boolean =
+    override fun provides(qualifiedKind: PolySymbolQualifiedKind): Boolean =
       qualifiedKind == JS_SYMBOLS
 
     override fun createPointer(): Pointer<ReferenceVariablesFlattenedScope> {

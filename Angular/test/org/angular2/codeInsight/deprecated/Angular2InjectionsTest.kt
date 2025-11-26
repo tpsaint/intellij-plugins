@@ -25,11 +25,11 @@ import com.intellij.psi.util.CachedValueProvider
 import com.intellij.testFramework.UsefulTestCase
 import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.ui.UIUtil
-import com.intellij.webSymbols.context.WebSymbolsContext
-import com.intellij.webSymbols.context.WebSymbolsContextProvider
-import com.intellij.webSymbols.context.impl.WebSymbolsContextProviderExtensionPoint
-import com.intellij.webSymbols.testFramework.moveToOffsetBySignature
-import com.intellij.webSymbols.testFramework.resolveReference
+import com.intellij.polySymbols.context.PolyContext
+import com.intellij.polySymbols.context.PolyContextProvider
+import com.intellij.polySymbols.context.impl.PolyContextProviderExtensionPoint
+import com.intellij.polySymbols.testFramework.moveToOffsetBySignature
+import com.intellij.polySymbols.testFramework.resolveReference
 import junit.framework.TestCase
 import org.angular2.Angular2CodeInsightFixtureTestCase
 import org.angular2.Angular2TestModule
@@ -234,10 +234,10 @@ class Angular2InjectionsTest : Angular2CodeInsightFixtureTestCase() {
 
   fun testCustomContextProvider() {
     val disposable = Disposer.newDisposable()
-    WebSymbolsContext.WEB_SYMBOLS_CONTEXT_EP
+    PolyContext.POLY_SYMBOLS_CONTEXT_EP
       .point!!
       .registerExtension(
-        WebSymbolsContextProviderExtensionPoint(WebSymbolsContext.KIND_FRAMEWORK, "angular", object : WebSymbolsContextProvider {
+        PolyContextProviderExtensionPoint(PolyContext.KIND_FRAMEWORK, "angular", object : PolyContextProvider {
           override fun isEnabled(project: Project, directory: VirtualFile): CachedValueProvider.Result<Int?> {
             return CachedValueProvider.Result.create(1, ModificationTracker.EVER_CHANGED)
           }

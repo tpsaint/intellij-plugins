@@ -9,27 +9,48 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="intellij.libraries.guava" />
+    <orderEntry type="library" name="cucumber-core-1" level="project" />
+    <orderEntry type="module" module-name="intellij.cucumber.jvmFormatter" />
     <orderEntry type="module" module-name="intellij.gherkin" />
-    <orderEntry type="module" module-name="intellij.platform.core" />
+    <orderEntry type="module" module-name="intellij.java" />
+    <orderEntry type="module" module-name="intellij.java.execution" />
+    <orderEntry type="module" module-name="intellij.java.execution.impl" />
+    <orderEntry type="module" module-name="intellij.java.impl" />
+    <orderEntry type="module" module-name="intellij.java.indexing" />
+    <orderEntry type="module" module-name="intellij.java.psi" />
     <orderEntry type="module" module-name="intellij.java.psi.impl" />
+    <orderEntry type="module" module-name="intellij.junit" />
+    <orderEntry type="module" module-name="intellij.junit.rt" />
+    <orderEntry type="module" module-name="intellij.platform.analysis" />
+    <orderEntry type="module" module-name="intellij.platform.core" />
+    <orderEntry type="module" module-name="intellij.platform.core.ui" />
+    <orderEntry type="module" module-name="intellij.platform.editor.ui" />
+    <orderEntry type="module" module-name="intellij.platform.execution.impl" />
     <orderEntry type="module" module-name="intellij.platform.ide.core.impl" />
     <orderEntry type="module" module-name="intellij.platform.ide.impl" />
+    <orderEntry type="module" module-name="intellij.platform.ide.util.io" />
+    <orderEntry type="module" module-name="intellij.platform.indexing" />
+    <orderEntry type="module" module-name="intellij.platform.jps.model" />
     <orderEntry type="module" module-name="intellij.platform.lang" />
-    <orderEntry type="module" module-name="intellij.java.impl" />
-    <orderEntry type="module" module-name="intellij.java.execution.impl" />
-    <orderEntry type="module" module-name="intellij.java.execution" />
+    <orderEntry type="module" module-name="intellij.platform.lang.core" />
+    <orderEntry type="module" module-name="intellij.platform.projectModel" />
     <orderEntry type="module" module-name="intellij.platform.smRunner" />
-    <orderEntry type="module" module-name="intellij.java.indexing" />
-    <orderEntry type="module" module-name="intellij.java" />
-    <orderEntry type="module" module-name="intellij.cucumber.jvmFormatter" />
-    <orderEntry type="module" module-name="intellij.gradle.tests" scope="TEST" />
-    <orderEntry type="module" module-name="intellij.java.psi" />
-    <orderEntry type="library" name="Guava" level="project" />
-    <orderEntry type="module" module-name="intellij.platform.testFramework" scope="TEST" />
-    <orderEntry type="module" module-name="intellij.java.testFramework" scope="TEST" />
-    <orderEntry type="library" scope="TEST" name="easymock" level="project" />
+    <orderEntry type="module" module-name="intellij.platform.usageView" />
+    <orderEntry type="module" module-name="intellij.platform.util.jdom" />
     <orderEntry type="library" scope="TEST" name="Objenesis" level="project" />
     <orderEntry type="library" scope="TEST" name="cucumber-core-2" level="project" />
+    <orderEntry type="library" scope="TEST" name="easymock" level="project" />
+    <orderEntry type="module" module-name="intellij.gradle.common" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.gradle.java.tests" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.gradle.tests" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.java.testFramework" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.maven" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.maven.testFramework" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.refactoring" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.testFramework" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.platform.testFramework.junit5" scope="TEST" />
+    <orderEntry type="module" module-name="intellij.tools.ide.metrics.benchmark" scope="TEST" />
     <orderEntry type="module-library">
       <library name="cucumber-expressions" type="repository">
         <properties maven-id="io.cucumber:cucumber-expressions:6.1.2">
@@ -66,7 +87,6 @@
         </SOURCES>
       </library>
     </orderEntry>
-    <orderEntry type="library" name="gherkin" level="project" />
     <orderEntry type="module-library" scope="TEST">
       <library name="cucumber-core-3" type="repository">
         <properties include-transitive-deps="false" maven-id="io.cucumber:cucumber-core:3.0.2">
@@ -121,8 +141,6 @@
         </SOURCES>
       </library>
     </orderEntry>
-    <orderEntry type="module" module-name="intellij.junit.rt" />
-    <orderEntry type="module" module-name="intellij.junit" />
     <orderEntry type="module-library" scope="TEST">
       <library name="cucumber-java-5" type="repository">
         <properties include-transitive-deps="false" maven-id="io.cucumber:cucumber-java:5.0.0-RC1">
@@ -138,6 +156,24 @@
         <JAVADOC />
         <SOURCES>
           <root url="jar://$MAVEN_REPOSITORY$/io/cucumber/cucumber-java/5.0.0-RC1/cucumber-java-5.0.0-RC1-sources.jar!/" />
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" scope="TEST">
+      <library name="cucumber-java8-3" type="repository">
+        <properties include-transitive-deps="false" maven-id="io.cucumber:cucumber-java8:3.0.0">
+          <verification>
+            <artifact url="file://$MAVEN_REPOSITORY$/io/cucumber/cucumber-java8/3.0.0/cucumber-java8-3.0.0.jar">
+              <sha256sum>5e2c4890995554bc78381631e1bb9f8aa954940ca7e8427280665501b5f8e1d2</sha256sum>
+            </artifact>
+          </verification>
+        </properties>
+        <CLASSES>
+          <root url="jar://$MAVEN_REPOSITORY$/io/cucumber/cucumber-java8/3.0.0/cucumber-java8-3.0.0.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES>
+          <root url="jar://$MAVEN_REPOSITORY$/io/cucumber/cucumber-java8/3.0.0/cucumber-java8-3.0.0-sources.jar!/" />
         </SOURCES>
       </library>
     </orderEntry>
@@ -196,6 +232,60 @@
       </library>
     </orderEntry>
     <orderEntry type="module-library" scope="TEST">
+      <library name="cucumber-core-7" type="repository">
+        <properties include-transitive-deps="false" maven-id="io.cucumber:cucumber-core:7.22.1">
+          <verification>
+            <artifact url="file://$MAVEN_REPOSITORY$/io/cucumber/cucumber-core/7.22.1/cucumber-core-7.22.1.jar">
+              <sha256sum>b3a32e1f8022364e38c3b37fcb2b55fda8620176cc0862f747083222b222b09f</sha256sum>
+            </artifact>
+          </verification>
+        </properties>
+        <CLASSES>
+          <root url="jar://$MAVEN_REPOSITORY$/io/cucumber/cucumber-core/7.22.1/cucumber-core-7.22.1.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES>
+          <root url="jar://$MAVEN_REPOSITORY$/io/cucumber/cucumber-core/7.22.1/cucumber-core-7.22.1-sources.jar!/" />
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" scope="TEST">
+      <library name="cucumber-java-7" type="repository">
+        <properties include-transitive-deps="false" maven-id="io.cucumber:cucumber-java:7.22.1">
+          <verification>
+            <artifact url="file://$MAVEN_REPOSITORY$/io/cucumber/cucumber-java/7.22.1/cucumber-java-7.22.1.jar">
+              <sha256sum>e9a74b62eac3e77e96ed8db6bd777d6d9f0b2e3a7ee472ba0ffaf5991d1b0ead</sha256sum>
+            </artifact>
+          </verification>
+        </properties>
+        <CLASSES>
+          <root url="jar://$MAVEN_REPOSITORY$/io/cucumber/cucumber-java/7.22.1/cucumber-java-7.22.1.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES>
+          <root url="jar://$MAVEN_REPOSITORY$/io/cucumber/cucumber-java/7.22.1/cucumber-java-7.22.1-sources.jar!/" />
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" scope="TEST">
+      <library name="cucumber-java8-7" type="repository">
+        <properties include-transitive-deps="false" maven-id="io.cucumber:cucumber-java8:7.22.1">
+          <verification>
+            <artifact url="file://$MAVEN_REPOSITORY$/io/cucumber/cucumber-java8/7.22.1/cucumber-java8-7.22.1.jar">
+              <sha256sum>b46aca9b1f1c2927db29550ef50718063d257fa75d7f588284a6fe74972b678c</sha256sum>
+            </artifact>
+          </verification>
+        </properties>
+        <CLASSES>
+          <root url="jar://$MAVEN_REPOSITORY$/io/cucumber/cucumber-java8/7.22.1/cucumber-java8-7.22.1.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES>
+          <root url="jar://$MAVEN_REPOSITORY$/io/cucumber/cucumber-java8/7.22.1/cucumber-java8-7.22.1-sources.jar!/" />
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" scope="TEST">
       <library name="cucumber-java-5.5" type="repository">
         <properties include-transitive-deps="false" maven-id="io.cucumber:cucumber-java:5.5.0">
           <verification>
@@ -231,13 +321,6 @@
         </SOURCES>
       </library>
     </orderEntry>
-    <orderEntry type="module" module-name="intellij.maven" scope="TEST" />
-    <orderEntry type="module" module-name="intellij.platform.core.ui" />
-    <orderEntry type="module" module-name="intellij.platform.ide.util.io" />
-    <orderEntry type="module" module-name="intellij.platform.util.jdom" />
-    <orderEntry type="module" module-name="intellij.maven.testFramework" scope="TEST" />
-    <orderEntry type="module" module-name="intellij.gradle.common" scope="TEST" />
-    <orderEntry type="module" module-name="intellij.gradle.java.tests" scope="TEST" />
-    <orderEntry type="library" name="cucumber-core-1" level="project" />
+    <orderEntry type="module" module-name="intellij.platform.testFramework.junit5.codeInsight" scope="TEST" />
   </component>
 </module>

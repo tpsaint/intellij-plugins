@@ -3,10 +3,12 @@ package org.angular2.codeInsight.template
 
 import com.intellij.codeInsight.completion.CompletionUtil
 import com.intellij.lang.javascript.psi.JSPsiElementBase
-import com.intellij.lang.javascript.psi.JSReferenceExpression
 import com.intellij.lang.javascript.psi.resolve.JSResolveResult
 import com.intellij.lang.javascript.psi.stubs.JSImplicitElement
 import com.intellij.lang.javascript.psi.stubs.impl.JSImplicitElementImpl
+import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.js.JS_SYMBOLS
+import com.intellij.polySymbols.utils.withNavigationTarget
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.ResolveResult
@@ -14,13 +16,9 @@ import com.intellij.psi.util.*
 import com.intellij.psi.xml.XmlAttribute
 import com.intellij.psi.xml.XmlTag
 import com.intellij.util.containers.Stack
-import com.intellij.webSymbols.WebSymbol
-import com.intellij.webSymbols.utils.qualifiedKind
-import com.intellij.webSymbols.utils.withNavigationTarget
 import org.angular2.Angular2InjectionUtils
 import org.angular2.codeInsight.blocks.BLOCK_FOR
 import org.angular2.codeInsight.blocks.BLOCK_LET
-import org.angular2.codeInsight.blocks.PARAMETER_LET
 import org.angular2.lang.expr.psi.Angular2BlockParameter
 import org.angular2.lang.expr.psi.Angular2RecursiveVisitor
 import org.angular2.lang.expr.psi.Angular2TemplateBindings
@@ -31,8 +29,7 @@ import org.angular2.web.ELEMENT_NG_TEMPLATE
 import org.jetbrains.annotations.NonNls
 import java.util.function.Consumer
 
-class Angular2TemplateElementsScopeProvider : Angular2TemplateScopesProvider() {
-
+private class Angular2TemplateElementsScopeProvider : Angular2TemplateScopesProvider() {
   override fun getScopes(element: PsiElement, hostElement: PsiElement?): List<Angular2TemplateScope> {
     val hostFile = CompletionUtil.getOriginalOrSelf(hostElement ?: element).containingFile
 
@@ -65,7 +62,7 @@ class Angular2TemplateElementsScopeProvider : Angular2TemplateScopesProvider() {
     override val source: PsiElement
       get() = root
 
-    override val symbols = ArrayList<WebSymbol>()
+    override val symbols = ArrayList<PolySymbol>()
 
     override fun resolve(consumer: Consumer<in ResolveResult>) {
       elements.forEach { el -> consumer.accept(JSResolveResult(el)) }
@@ -75,8 +72,8 @@ class Angular2TemplateElementsScopeProvider : Angular2TemplateScopesProvider() {
       elements.add(element)
     }
 
-    fun add(symbol: WebSymbol) {
-      assert(symbol.qualifiedKind == WebSymbol.JS_SYMBOLS)
+    fun add(symbol: PolySymbol) {
+      assert(symbol.qualifiedKind == JS_SYMBOLS)
       symbols.add(symbol)
     }
 
@@ -145,7 +142,7 @@ class Angular2TemplateElementsScopeProvider : Angular2TemplateScopesProvider() {
       currentScope().add(element)
     }
 
-    fun addSymbol(symbol: WebSymbol) {
+    fun addSymbol(symbol: PolySymbol) {
       currentScope().add(symbol)
     }
 
@@ -296,15 +293,15 @@ class Angular2TemplateElementsScopeProvider : Angular2TemplateScopesProvider() {
 @NonNls
 private const val LEGACY_TEMPLATE_TAG = "template"
 
-fun isTemplateTag(tag: XmlTag?): Boolean {
+internal fun isTemplateTag(tag: XmlTag?): Boolean {
   return tag != null && isTemplateTag(tag.localName)
 }
 
-fun isTemplateTag(tagName: String?): Boolean {
+internal fun isTemplateTag(tagName: String?): Boolean {
   return ELEMENT_NG_TEMPLATE.equals(tagName!!, ignoreCase = true) || LEGACY_TEMPLATE_TAG.equals(tagName, ignoreCase = true)
 }
 
-fun getTemplateElementsScopeFor(element: PsiElement): Angular2TemplateScope? =
+internal fun getTemplateElementsScopeFor(element: PsiElement): Angular2TemplateScope? =
   Angular2TemplateScopesResolver
     .getScopes(element, listOf(Angular2TemplateElementsScopeProvider()))
     .firstOrNull()

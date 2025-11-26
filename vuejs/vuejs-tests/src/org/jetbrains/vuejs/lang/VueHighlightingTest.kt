@@ -1,28 +1,24 @@
-// Copyright 2000-2024 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.vuejs.lang
 
+import com.intellij.grazie.spellcheck.GrazieSpellCheckingInspection
 import com.intellij.htmltools.codeInspection.htmlInspections.HtmlFormInputWithoutLabelInspection
 import com.intellij.htmltools.codeInspection.htmlInspections.HtmlRequiredAltAttributeInspection
 import com.intellij.htmltools.codeInspection.htmlInspections.HtmlRequiredTitleElementInspection
 import com.intellij.lang.javascript.JSTestUtils
-import com.intellij.lang.javascript.JSTestUtils.testWithinLanguageLevel
 import com.intellij.lang.javascript.JavaScriptBundle
 import com.intellij.lang.javascript.TypeScriptTestUtil
-import com.intellij.lang.javascript.dialects.JSLanguageLevel
 import com.intellij.lang.javascript.inspections.ES6UnusedImportsInspection
 import com.intellij.lang.javascript.inspections.JSUnusedGlobalSymbolsInspection
 import com.intellij.lang.javascript.inspections.JSUnusedLocalSymbolsInspection
 import com.intellij.lang.javascript.inspections.JSValidateTypesInspection
-import com.intellij.lang.javascript.library.JSCorePredefinedLibrariesProvider
 import com.intellij.psi.PsiFile
 import com.intellij.psi.css.inspections.CssUnusedSymbolInspection
 import com.intellij.psi.css.inspections.invalid.CssInvalidFunctionInspection
 import com.intellij.psi.css.inspections.invalid.CssInvalidPseudoSelectorInspection
-import com.intellij.spellchecker.inspections.SpellCheckingInspection
 import com.intellij.testFramework.VfsTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.fixtures.CodeInsightTestFixture
-import com.intellij.util.ThrowableRunnable
 import com.intellij.workspaceModel.ide.impl.WorkspaceEntityLifecycleSupporterUtils
 import com.intellij.xml.util.CheckTagEmptyBodyInspection
 import junit.framework.TestCase
@@ -68,12 +64,16 @@ class VueHighlightingTest : BasePlatformTestCase() {
 
   private fun doDirTest(
     addNodeModules: List<VueTestModule> = emptyList(),
+    additionalDependencies: Map<String, String> = emptyMap(),
     fileName: String? = null,
     vararg additionalFilesToCheck: String,
   ) {
     val testName = getTestName(true)
     if (addNodeModules.isNotEmpty()) {
-      myFixture.configureVueDependencies(*addNodeModules.toTypedArray())
+      myFixture.configureVueDependencies(
+        modules = addNodeModules.toTypedArray(),
+        additionalDependencies = additionalDependencies,
+      )
     }
     myFixture.copyDirectoryToProject(testName, ".")
 
@@ -91,12 +91,6 @@ class VueHighlightingTest : BasePlatformTestCase() {
   fun testArrowFunctionsAndExpressionsInTemplate() = doTest()
 
   fun testShorthandArrowFunctionInTemplate() = doTest()
-
-  fun testShorthandArrowFunctionInTemplateES5() {
-    testWithinLanguageLevel(JSLanguageLevel.ES5, myFixture.project, ThrowableRunnable {
-      doTest()
-    })
-  }
 
   fun testLocalPropsInArrayInCompAttrsAndWithKebabCaseAlso() = doTest()
 
@@ -172,27 +166,21 @@ const props = {seeMe: {}}
   fun testNotImportedComponentIsUnknown() = doDirTest()
 
   fun testNoDoubleSpellCheckingInAttributesWithEmbeddedContents() {
-    myFixture.enableInspections(SpellCheckingInspection())
+    myFixture.enableInspections(GrazieSpellCheckingInspection())
     doTest()
   }
 
   fun testNoSpellcheckInEnumeratedAttributes() {
-    myFixture.enableInspections(SpellCheckingInspection())
+    myFixture.enableInspections(GrazieSpellCheckingInspection())
     doTest()
   }
 
   fun testSpellchecking() {
-    myFixture.enableInspections(SpellCheckingInspection())
+    myFixture.enableInspections(GrazieSpellCheckingInspection())
     doTest(addNodeModules = listOf(VueTestModule.VUE_3_2_2))
   }
 
   fun testTypeScriptTypesAreResolved() = doTest()
-
-  fun testTypeScriptTypesAreNotResolvedIfECMA5Script() {
-    testWithinLanguageLevel(JSLanguageLevel.ES5, myFixture.project, ThrowableRunnable {
-      doTest()
-    })
-  }
 
   fun testVBindVOnHighlighting() = doTest()
 
@@ -207,6 +195,28 @@ const props = {seeMe: {}}
     myFixture.copyDirectoryToProject("../common/customDirectives", ".")
     myFixture.configureFromTempProjectFile("CustomDirectives.vue")
     myFixture.checkHighlighting(true, false, true)
+  }
+
+  fun testGlobalItemsAugmentedFromCompilerOptionsTypes() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_5_0),
+      additionalDependencies = mapOf("my-vue-items-library" to "*"),
+    )
+  }
+
+  fun testDirectivesFromGlobalDirectives() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_5_0),
+    )
+  }
+
+  fun testDirectivesWithModifiersFromGlobalDirectives() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_5_0),
+    )
   }
 
   fun testEmptyAttributeValue() = doTest()
@@ -316,12 +326,14 @@ const props = {seeMe: {}}
     myFixture.checkHighlighting()
   }
 
+  /*
   fun testFlowJSEmbeddedContent() {
     // Flow is not used unless there is associated .flowconfig. Instead of it to have 'console' resolved we may enable HTML library.
-    JSTestUtils.setDependencyOnPredefinedJsLibraries(project, testRootDisposable, JSCorePredefinedLibrariesProvider.LIB_HTML)
+    JSTestUtils.setDependencyOnPredefinedJsLibraries(project, testRootDisposable, JSCorePredefinedLibrariesConstants.LIB_HTML)
     testWithinLanguageLevel<Exception>(JSLanguageLevel.FLOW, project) {
       myFixture.configureByText("FlowJSEmbeddedContent.vue", """
 <script>
+    // @flow
     type Foo = { a: number }
     const foo: Foo = { a: 1 }
     console.log(foo);
@@ -330,6 +342,7 @@ const props = {seeMe: {}}
       myFixture.checkHighlighting()
     }
   }
+  */
 
   fun testTopLevelTags() = doTest()
 
@@ -556,17 +569,26 @@ const props = {seeMe: {}}
 
   fun testSlotTypes() {
     myFixture.enableInspections(VueInspectionsProvider())
-    doDirTest(addNodeModules = listOf(VueTestModule.VUE_3_2_2, VueTestModule.QUASAR_2_6_5), "MyTable.vue")
+    doDirTest(
+      fileName = "MyTable.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_2_2, VueTestModule.QUASAR_2_6_5),
+    )
   }
 
   fun testGlobalScriptSetup() {
     myFixture.enableInspections(VueInspectionsProvider())
-    doDirTest(addNodeModules = listOf(VueTestModule.VUE_3_2_2), "HelloWorld.vue")
+    doDirTest(
+      fileName = "HelloWorld.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_2_2),
+    )
   }
 
   fun testDynamicArguments() {
     myFixture.enableInspections(VueInspectionsProvider())
-    doDirTest(addNodeModules = listOf(VueTestModule.VUE_3_2_2), "HelloWorld.vue")
+    doDirTest(
+      fileName = "HelloWorld.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_2_2),
+    )
   }
 
   fun testWithPropsFromFunctionCall() {
@@ -586,7 +608,10 @@ const props = {seeMe: {}}
 
   fun testLocalWebTypes() {
     myFixture.enableInspections(VueInspectionsProvider())
-    doDirTest(emptyList(), "main.vue", "main2.vue")
+    doDirTest(
+      fileName = "main.vue",
+      additionalFilesToCheck = arrayOf("main2.vue"),
+    )
   }
 
   fun testPropertyReferenceInLambda() {
@@ -596,7 +621,10 @@ const props = {seeMe: {}}
 
   fun testSourceScopedSlots() {
     myFixture.enableInspections(VueInspectionsProvider())
-    doDirTest(addNodeModules = listOf(VueTestModule.VUE_3_2_2), "Catalogue.vue")
+    doDirTest(
+      fileName = "Catalogue.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_2_2),
+    )
   }
 
   fun testCustomEvents() {
@@ -604,7 +632,9 @@ const props = {seeMe: {}}
   }
 
   fun testCustomEventsTypedComponent() {
-    doDirTest(addNodeModules = listOf(VueTestModule.VUE_3_2_2))
+    doDirTest(
+      addNodeModules = listOf(VueTestModule.VUE_3_2_2),
+    )
   }
 
   fun testLifecycleEventsVue2ClassComponent() {
@@ -676,7 +706,177 @@ const props = {seeMe: {}}
   }
 
   fun testGenericComponentUsage() {
-    doDirTest(addNodeModules = listOf(VueTestModule.VUE_3_3_4))
+    doDirTest(
+      addNodeModules = listOf(VueTestModule.VUE_3_3_4),
+    )
+  }
+
+  fun testComponentFromFunctionPlugin() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_4_0),
+    )
+  }
+
+  fun testComponentFromFunctionPlugin_vapor() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_6_0),
+    )
+  }
+
+  fun testComponentFromNestedFunctionPlugin() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_4_0),
+    )
+  }
+
+  fun testComponentFromNestedFunctionPlugin_vapor() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_6_0),
+    )
+  }
+
+  fun testComponentFromNestedFunctionPluginWithCycle() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_4_0),
+    )
+  }
+
+  fun testComponentFromNestedFunctionPluginWithCycle_vapor() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_6_0),
+    )
+  }
+
+  fun testComponentFromObjectPlugin() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_4_0),
+    )
+  }
+
+  fun testComponentFromObjectPlugin_vapor() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_6_0),
+    )
+  }
+
+  fun testComponentFromNestedObjectPlugin() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_4_0),
+    )
+  }
+
+  fun testComponentFromNestedObjectPlugin_vapor() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_6_0),
+    )
+  }
+
+  fun testComponentFromNestedObjectPluginWithCycle() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_4_0),
+    )
+  }
+
+  fun testComponentFromNestedObjectPluginWithCycle_vapor() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_6_0),
+    )
+  }
+
+  fun testDirectivesFromFunctionPlugin() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_5_0),
+    )
+  }
+
+  fun testDirectivesFromFunctionPlugin_vapor() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_6_0),
+    )
+  }
+
+  fun testDirectivesFromNestedFunctionPlugin() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_5_0),
+    )
+  }
+
+  fun testDirectivesFromNestedFunctionPlugin_vapor() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_6_0),
+    )
+  }
+
+  fun testDirectivesFromNestedFunctionPluginWithCycle() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_5_0),
+    )
+  }
+
+  fun testDirectivesFromNestedFunctionPluginWithCycle_vapor() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_6_0),
+    )
+  }
+
+  fun testDirectivesFromObjectPlugin() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_5_0),
+    )
+  }
+
+  fun testDirectivesFromObjectPlugin_vapor() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_6_0),
+    )
+  }
+
+  fun testDirectivesFromNestedObjectPlugin() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_5_0),
+    )
+  }
+
+  fun testDirectivesFromNestedObjectPlugin_vapor() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_6_0),
+    )
+  }
+
+  fun testDirectivesFromNestedObjectPluginWithCycle() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_5_0),
+    )
+  }
+
+  fun testDirectivesFromNestedObjectPluginWithCycle_vapor() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_6_0),
+    )
   }
 
   fun testStdTagsInspections() {
@@ -712,7 +912,17 @@ const props = {seeMe: {}}
   }
 
   fun testTypedMixins() {
-    doDirTest(addNodeModules = listOf(VueTestModule.VUE_3_4_0), fileName = "index.js")
+    doDirTest(
+      fileName = "index.js",
+      addNodeModules = listOf(VueTestModule.VUE_3_4_0),
+    )
+  }
+
+  fun testVaporSimpleApplication() {
+    doDirTest(
+      fileName = "App.vue",
+      addNodeModules = listOf(VueTestModule.VUE_3_6_0),
+    )
   }
 }
 

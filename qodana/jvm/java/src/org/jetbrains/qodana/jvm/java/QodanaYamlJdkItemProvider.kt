@@ -6,6 +6,7 @@ import com.intellij.openapi.projectRoots.JavaSdkVersionUtil
 import com.intellij.openapi.roots.ProjectRootManager
 import org.intellij.lang.annotations.Language
 import org.jetbrains.qodana.settings.APPLIED_IN_CI_COMMENT
+import org.jetbrains.qodana.settings.DefaultQodanaYamlContext
 import org.jetbrains.qodana.settings.QodanaYamlItem
 import org.jetbrains.qodana.settings.QodanaYamlItemProvider
 
@@ -14,7 +15,7 @@ class QodanaYamlJdkItemProvider : QodanaYamlItemProvider {
     private const val ID = "jdk"
   }
 
-  override suspend fun provide(project: Project): QodanaYamlItem? {
+  override suspend fun provide(project: Project, context: DefaultQodanaYamlContext): QodanaYamlItem? {
     val projectJdk = ProjectRootManager.getInstance(project).projectSdk
     if (projectJdk?.sdkType !is JavaSdkType) return null
 
@@ -23,7 +24,7 @@ class QodanaYamlJdkItemProvider : QodanaYamlItemProvider {
     @Language("YAML")
     val content = """
       
-      projectJDK: "${jdkVersion.maxLanguageLevel.feature()}" #$APPLIED_IN_CI_COMMENT
+      projectJDK: "${jdkVersion.maxLanguageLevel.feature()}" #${APPLIED_IN_CI_COMMENT}
     """.trimIndent()
     return QodanaYamlItem(ID, 120, content)
   }

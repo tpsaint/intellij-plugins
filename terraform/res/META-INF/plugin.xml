@@ -31,6 +31,48 @@
     ]]></description>
 
   <change-notes><![CDATA[
+  2025.2
+  <ul>
+    <li>
+      Added support for <em>for_each</em> in import blocks, enhancing configurability and flexibility.
+    </li>
+    <li>
+      Introduced Keycloak provider compatibility, expanding the range of supported providers.
+    </li>
+    <li>
+      Improved <strong>code formatting</strong> for Terraform files, now enabled by default to ensure consistent and clean formatting.
+    </li>
+    <li>
+      Resolved binary detection issues on Windows when multiple Terraform executables were present, ensuring reliable tool selection.
+    </li>
+    <li>
+      Terraform tools: Initialize, Format Files, Generate Providers Metadata are now accessible directly from the in-file context menu, streamlining infrastructure operations.
+    </li>
+    <li>
+      Improved provider-defined functions support, including fixed highlighting issues, added go-to declaration documentation.
+    </li>
+    <li>
+      Enhanced Terraform file recognition, ensuring accurate handling of configuration templates.
+    </li>
+    <li>
+      Added support for the provider_meta block, enabling richer provider configurations.
+    </li>
+    <li>
+      Object variables now benefit from auto-completion, simplifying variable usage in configurations.
+    </li>
+    <li>
+      Resolved bugs in the Terraform reformat file feature, improving formatting reliability.
+    </li>
+    <li>
+      Improved syntax highlighting for better readability of provider-defined functions.
+    </li>
+    <li>
+      Added support for Google Cloud beta resources, reducing confusion with the stable Google provider.
+    </li>
+    <li>
+      Terraform plugin now supports <em>ephemeral</em> block.
+    </li>
+  </ul>
     2025.1
     <ul>
       <li>
@@ -139,20 +181,23 @@
     ]]>
   </change-notes>
 
-  <content>
+  <content namespace="jetbrains">
     <module name="intellij.terraform/watchers"/>
+    <module name="intellij.terraform/copyright"/>
     <module name="intellij.terraform.template"/>
   </content>
 
   <dependencies>
     <plugin id="com.intellij.modules.lang"/>
+    <module name="intellij.spellchecker"/>
     <module name="intellij.platform.vcs.impl"/>
   </dependencies>
 
   <resource-bundle>messages.HCLBundle</resource-bundle>
 
   <extensions defaultExtensionNs="com.intellij">
-    <fileType name="HCL" language="HCL" extensions="hcl;nomad" implementationClass="org.intellij.terraform.hcl.HCLFileType" fieldName="INSTANCE"/>
+    <fileType name="HCL" language="HCL" extensions="hcl;nomad" implementationClass="org.intellij.terraform.hcl.HCLFileType"
+              fieldName="INSTANCE"/>
     <lang.parserDefinition language="HCL" implementationClass="org.intellij.terraform.hcl.HCLParserDefinition"/>
 
     <lang.syntaxHighlighterFactory language="HCL" implementationClass="org.intellij.terraform.hcl.HCLSyntaxHighlighterFactory"/>
@@ -172,7 +217,8 @@
 
     <codeInsight.typeInfo language="HIL" implementationClass="org.intellij.terraform.hcl.codeinsight.hint.HCL2TypeProvider"/>
     <codeInsight.typeInfo language="HCL" implementationClass="org.intellij.terraform.hcl.codeinsight.hint.HCL2TypeProvider" id="hcl2"/>
-    <codeInsight.typeInfo language="HCL" implementationClass="org.intellij.terraform.hcl.codeinsight.hint.HCLTypeProvider" order="after hcl2"/>
+    <codeInsight.typeInfo language="HCL" implementationClass="org.intellij.terraform.hcl.codeinsight.hint.HCLTypeProvider"
+                          order="after hcl2"/>
 
     <!-- Annotators -->
     <annotator language="HCL" implementationClass="org.intellij.terraform.hcl.codeinsight.HCLLiteralAnnotator"/>
@@ -198,8 +244,7 @@
     <vetoRenameCondition implementation="org.intellij.terraform.config.refactoring.TfVetoRenameCondition"/>
 
     <!-- Formatter -->
-    <codeStyleSettingsProvider implementation="org.intellij.terraform.hcl.formatter.HCLCodeStyleSettingsProvider"/>
-    <langCodeStyleSettingsProvider implementation="org.intellij.terraform.hcl.formatter.HCLLanguageCodeStyleSettingsProvider"/>
+    <langCodeStyleSettingsProvider implementation="org.intellij.terraform.hcl.formatter.HclLanguageCodeStyleSettingsProvider"/>
     <lang.formatter language="HCL" implementationClass="org.intellij.terraform.hcl.formatter.HCLFormattingBuilderModel"/>
     <formattingService implementation="org.intellij.terraform.hcl.formatter.TfAsyncFormattingService"/>
     <lang.quoteHandler language="HCL" implementationClass="org.intellij.terraform.hcl.formatter.HCLQuoteHandler"/>
@@ -231,7 +276,7 @@
     <lang.foldingBuilder language="HIL" implementationClass="org.intellij.terraform.hil.formatter.HILFoldingBuilder"/>
     <psi.referenceContributor language="HIL" implementation="org.intellij.terraform.hil.psi.ILReferenceContributor"/>
     <psi.referenceContributor language="HCL" implementation="org.intellij.terraform.hil.psi.ILReferenceContributor"/>
-    <completion.contributor language="HIL" implementationClass="org.intellij.terraform.hil.codeinsight.HILCompletionContributor"/>
+    <completion.contributor language="HIL" implementationClass="org.intellij.terraform.hil.codeinsight.HilCompletionContributor"/>
     <lang.elementManipulator forClass="org.intellij.terraform.hil.psi.ILVariable"
                              implementationClass="org.intellij.terraform.hil.psi.ILVariableManipulator"/>
     <lang.elementManipulator forClass="org.intellij.terraform.hil.psi.ILLiteralExpression"
@@ -247,7 +292,8 @@
     <languageInjector implementation="org.intellij.terraform.hil.ILLanguageInjector"/>
 
     <!-- Terraform Config language -->
-    <fileType name="Terraform" language="HCL-Terraform" extensions="tf;tfvars" implementationClass="org.intellij.terraform.config.TerraformFileType" fieldName="INSTANCE"/>
+    <fileType name="Terraform" language="HCL-Terraform" extensions="tf;tfvars"
+              implementationClass="org.intellij.terraform.config.TerraformFileType" fieldName="INSTANCE"/>
     <lang.parserDefinition language="HCL-Terraform" implementationClass="org.intellij.terraform.config.TfParserDefinition"/>
     <lang.syntaxHighlighterFactory language="HCL-Terraform" implementationClass="org.intellij.terraform.config.TfSyntaxHighlighterFactory"/>
 
@@ -255,7 +301,8 @@
     <lang.foldingBuilder language="HCL-Terraform" implementationClass="org.intellij.terraform.hcl.editor.HCLFoldingBuilder"/>
     <lang.commenter language="HCL-Terraform" implementationClass="org.intellij.terraform.hcl.editor.HCLCommenter"/>
     <!-- TODO: Better structure view provider-->
-    <lang.psiStructureViewFactory language="HCL-Terraform" implementationClass="org.intellij.terraform.hcl.structureView.HCLStructureViewFactory"/>
+    <lang.psiStructureViewFactory language="HCL-Terraform"
+                                  implementationClass="org.intellij.terraform.hcl.structureView.HCLStructureViewFactory"/>
     <lang.braceMatcher language="HCL-Terraform" implementationClass="org.intellij.terraform.hcl.codeinsight.HCLBraceMatcher"/>
     <lang.findUsagesProvider language="HCL-Terraform" implementationClass="org.intellij.terraform.config.findUsages.TfFindUsagesProvider"/>
     <useScopeEnlarger implementation="org.intellij.terraform.config.TfOutputsAndVariablesUseScopeEnlarger"/>
@@ -264,7 +311,6 @@
     <codeInsight.codeVisionSettingsPreviewLanguage modelId="references" language="HCL-Terraform"/>
     <psi.referenceContributor language="HCL" implementation="org.intellij.terraform.config.psi.TfReferenceContributor"/>
 
-    <platform.backend.documentation.targetProvider implementation="org.intellij.terraform.config.documentation.TfDocTargetProvider"/>
     <platform.backend.documentation.psiTargetProvider implementation="org.intellij.terraform.config.documentation.TfPsiDocTargetProvider"/>
 
     <registryKey key="terraform.registry.connection.timeout" defaultValue="1000"
@@ -297,14 +343,15 @@
     <vfs.asyncListener implementation="org.intellij.terraform.config.model.local.LocalSchemaVfsListener"/>
     <projectFileScanner implementation="org.intellij.terraform.config.model.local.LocalSchemaIndexableFileScanner"/>
 
-    <!-- Code Inspections -->
-    <!-- HCL used instead HCL-Terraform, to apply to all psi elements. .hcl files filtered out in #buildVisito method -->
     <lang.inspectionSuppressor language="HCL" implementationClass="org.intellij.terraform.config.inspection.HCLInspectionSuppressor"/>
-    <localInspection language="HCL" applyToDialects="true" shortName="HCLBlockMissingProperty" bundle="messages.HCLBundle"
+    <!-- HCL compatible inspections: Terraform, OpenTofu and Terragrunt -->
+    <localInspection language="HCL" applyToDialects="true" shortName="HclBlockMissingProperty" bundle="messages.HCLBundle"
                      key="missing.resource.property.inspection.display.name"
-                     groupKey="terraform.files.inspection.group.display.name" enabledByDefault="true" level="WARNING"
+                     groupKey="hcl.files.inspection.group.display.name" enabledByDefault="true" level="WARNING"
                      suppressId="MissingProperty"
-                     implementationClass="org.intellij.terraform.config.inspection.HCLBlockMissingPropertyInspection"/>
+                     implementationClass="org.intellij.terraform.config.inspection.HclBlockMissingPropertyInspection"/>
+
+    <!-- Terraform/OpenTofu inspections -->
     <localInspection language="HCL" applyToDialects="true" shortName="HCLBlockConflictingProperties" bundle="messages.HCLBundle"
                      key="conflicting.resource.property.inspection.display.name"
                      groupKey="terraform.files.inspection.group.display.name" enabledByDefault="true" level="ERROR"
@@ -359,26 +406,22 @@
                      groupKey="terraform.files.inspection.group.display.name" enabledByDefault="true" level="WARNING"
                      implementationClass="org.intellij.terraform.config.inspection.TfUnusedElementsInspection"/>
 
-    <!--region Tf Duplicates-->
+    <!--region Duplicates-->
     <localInspection language="HCL" applyToDialects="true" shortName="TfDuplicatedProvider" bundle="messages.HCLBundle"
                      key="duplicated.provider.inspection.display.name"
-                     groupPath="Terraform"
-                     groupKey="terraform.files.duplicates.inspection.group.display.name" enabledByDefault="true" level="ERROR"
+                     groupKey="terraform.files.inspection.group.display.name" enabledByDefault="true" level="ERROR"
                      implementationClass="org.intellij.terraform.config.inspection.TfDuplicatedProviderInspection"/>
     <localInspection language="HCL" applyToDialects="true" shortName="TfDuplicatedVariable" bundle="messages.HCLBundle"
                      key="duplicated.variable.inspection.display.name"
-                     groupPath="Terraform"
-                     groupKey="terraform.files.duplicates.inspection.group.display.name" enabledByDefault="true" level="ERROR"
+                     groupKey="terraform.files.inspection.group.display.name" enabledByDefault="true" level="ERROR"
                      implementationClass="org.intellij.terraform.config.inspection.TfDuplicatedVariableInspection"/>
     <localInspection language="HCL" applyToDialects="true" shortName="TfDuplicatedOutput" bundle="messages.HCLBundle"
                      key="duplicated.output.inspection.display.name"
-                     groupPath="Terraform"
-                     groupKey="terraform.files.duplicates.inspection.group.display.name" enabledByDefault="true" level="ERROR"
+                     groupKey="terraform.files.inspection.group.display.name" enabledByDefault="true" level="ERROR"
                      implementationClass="org.intellij.terraform.config.inspection.TfDuplicatedOutputInspection"/>
     <localInspection language="HCL" applyToDialects="true" shortName="TfDuplicatedBlockProperty" bundle="messages.HCLBundle"
                      key="duplicated.block.property.inspection.display.name"
-                     groupPath="Terraform"
-                     groupKey="terraform.files.duplicates.inspection.group.display.name" enabledByDefault="true" level="ERROR"
+                     groupKey="terraform.files.inspection.group.display.name" enabledByDefault="true" level="ERROR"
                      implementationClass="org.intellij.terraform.config.inspection.TfDuplicatedBlockPropertyInspection"/>
     <!--endregion Duplicates-->
 
@@ -471,7 +514,8 @@
     <checkinHandlerFactory implementation="org.intellij.terraform.config.actions.TfFmtCheckinFactory" order="last"/>
     <macro implementation="org.intellij.terraform.macros.TfExecutableMacro"/>
 
-    <notificationGroup id="Terraform Execution" displayType="TOOL_WINDOW" toolWindowId="Run" bundle="messages.HCLBundle" key="notification.group.terraform.execution"/>
+    <notificationGroup id="Terraform Execution" displayType="TOOL_WINDOW" toolWindowId="Run" bundle="messages.HCLBundle"
+                       key="notification.group.terraform.execution"/>
 
     <dependencySupport kind="executable" coordinate="terraform"/>
 
@@ -479,9 +523,12 @@
     <internalFileTemplate name="Main"/>
     <internalFileTemplate name="Outputs"/>
     <internalFileTemplate name="Variables"/>
+    <internalFileTemplate name="Terragrunt File"/>
+    <internalFileTemplate name="Terragrunt Stack"/>
 
     <!--OpenTofu support-->
-    <fileType name="OpenTofu" language="HCL-Terraform" extensions="tofu" implementationClass="org.intellij.terraform.opentofu.OpenTofuFileType" fieldName="INSTANCE"/>
+    <fileType name="OpenTofu" language="HCL-Terraform" extensions="tofu"
+              implementationClass="org.intellij.terraform.opentofu.OpenTofuFileType" fieldName="INSTANCE"/>
 
     <fileTypeUsageSchemaDescriptor schema="OpenTofu"
                                    implementationClass="org.intellij.terraform.config.editor.OpenTofuJsonFileTypeUsageSchemaDescriptor"/>
@@ -492,7 +539,7 @@
                                    implementationClass="org.intellij.terraform.config.editor.TfJsonFileTypeUsageSchemaDescriptor"/>
 
     <fileTypeUsageSchemaDescriptor schema="Terragrunt"
-                                   implementationClass="org.intellij.terraform.config.editor.TfTerragruntTypeUsageSchemaDescriptor"/>
+                                   implementationClass="org.intellij.terraform.config.editor.TerragruntTypeUsageSchemaDescriptor"/>
 
     <statistics.projectUsagesCollector implementation="org.intellij.terraform.TfUsageCollector"/>
     <statistics.counterUsagesCollector implementationClass="org.intellij.terraform.TfUsageTriggerCollector"/>
@@ -518,6 +565,17 @@
                      enabledByDefault="true" level="ERROR"
     />
 
+    <!--Terragrunt support-->
+    <fileType name="Terragrunt" language="HCL" patterns="*terragrunt.hcl;*root.hcl;*terragrunt.stack.hcl"
+              implementationClass="org.intellij.terraform.terragrunt.TerragruntFileType" fieldName="INSTANCE"/>
+    <localInspection bundle="messages.HCLBundle" language="HCL"
+                     applyToDialects="true"
+                     implementationClass="org.intellij.terraform.terragrunt.inspection.TerragruntDuplicatedBlocksInspection"
+                     key="terragrunt.duplicated.blocks.inspection.display.name"
+                     groupKey="terragrunt.files.inspection.group.display.name"
+                     enabledByDefault="true" level="WARNING"/>
+
+    <completion.contributor language="HCL" implementationClass="org.intellij.terraform.terragrunt.codeinsight.TerragruntCompletionContributor"/>
   </extensions>
 
   <projectListeners>
@@ -526,7 +584,6 @@
 
   <actions>
     <action icon="AllIcons.General.Warning" id="TfInitRequiredAction" class="org.intellij.terraform.config.actions.TfInitRequiredAction"/>
-    <action id="Terraform.InstallTerraform" class="org.intellij.terraform.install.InstallTfAction"/>
 
     <action id="NewTerraformFile" class="org.intellij.terraform.config.actions.TfCreateFileFromTemplateAction"
             icon="org.intellij.terraform.TerraformIcons.Terraform">

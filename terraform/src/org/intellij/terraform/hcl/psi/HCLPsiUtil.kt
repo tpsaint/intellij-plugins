@@ -1,4 +1,4 @@
-// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2025 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.intellij.terraform.hcl.psi
 
 import com.intellij.lang.injection.InjectedLanguageManager
@@ -7,15 +7,27 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiReference
 import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.psi.util.parentOfType
 import com.intellij.psi.util.siblings
+import org.intellij.terraform.config.Constants.HCL_CONNECTION_IDENTIFIER
+import org.intellij.terraform.config.Constants.HCL_LIFECYCLE_IDENTIFIER
+import org.intellij.terraform.config.Constants.HCL_POSTCONDITION_BLOCK_IDENTIFIER
+import org.intellij.terraform.config.Constants.HCL_PROVISIONER_IDENTIFIER
+import org.intellij.terraform.config.model.Module
+import org.intellij.terraform.config.model.Variable
+import org.intellij.terraform.config.model.getTerraformModule
+import org.intellij.terraform.config.patterns.TfPsiPatterns
+import org.intellij.terraform.hcl.psi.common.BaseExpression
+import org.intellij.terraform.hcl.psi.common.Identifier
 import org.intellij.terraform.hcl.psi.common.IndexSelectExpression
 import org.intellij.terraform.hcl.psi.common.SelectExpression
+import org.intellij.terraform.hil.psi.impl.getHCLHost
 
 /**
  * Various helper methods for working with PSI of JSON language.
  */
-object HCLPsiUtil {
-  internal fun getIdentifierPsi(element: HCLElement): PsiElement? = when (element) {
+internal object HCLPsiUtil {
+  fun getIdentifierPsi(element: HCLElement): PsiElement? = when (element) {
     is HCLProperty -> element.firstChild
     is HCLBlock -> element.children.lastOrNull { it !is HCLObject }
     else -> null
@@ -183,11 +195,112 @@ object HCLPsiUtil {
     return property.parent is HCLObject && property.parent?.parent is HCLParameterList
   }
 
+  fun PsiElement.getRequiredProviderProperty(): HCLProperty? {
+    val providerProperty = when (this) {
+      is HCLProperty -> this
+      is Identifier if this.parent is HCLProperty -> this.parent as HCLProperty
+      else -> return null
+    }
+
+    val requiredProvidersObject = providerProperty.parent as? HCLObject ?: return null
+    val providerBlock = requiredProvidersObject.parent as? HCLBlock ?: return null
+    if (!TfPsiPatterns.RequiredProvidersBlock.accepts(providerBlock)) {
+      return null
+    }
+    return providerProperty
+  }
+
   @JvmStatic
   fun PsiElement.getPrevSiblingNonWhiteSpace(): PsiElement? =
-    this.siblings(forward = false, withSelf = false).firstOrNull { it !is PsiWhiteSpace}
+    this.siblings(forward = false, withSelf = false).firstOrNull { it !is PsiWhiteSpace }
 
   @JvmStatic
   fun PsiElement.getNextSiblingNonWhiteSpace(): PsiElement? =
-    this.siblings(forward = true, withSelf = false).firstOrNull { it !is PsiWhiteSpace}
+    this.siblings(forward = true, withSelf = false).firstOrNull { it !is PsiWhiteSpace }
+}
+
+internal fun getTerraformModule(element: BaseExpression): Module? {
+  val host = element.getHCLHost() ?: return null
+  return host.getTerraformModule()
+}
+
+internal fun getLocalDefinedVariables(element: BaseExpression): List<Variable> {
+  return getTerraformModule(element)?.getAllVariables() ?: emptyList()
+}
+
+internal fun getDefinedLocalsInModule(element: BaseExpression): List<String> {
+  return getTerraformModule(element)?.getAllLocals()?.map { it.first } ?: emptyList()
+}
+
+internal fun getHclBlockForSelfContext(position: BaseExpression): HCLBlock? {
+  val host = position.getHCLHost() ?: return null
+  return getProvisionerOfResource(host) ?: getConnectionOfResource(host) ?: getPostConditionOfBlock(host)
+}
+
+internal fun getProvisionerOfResource(host: HCLElement): HCLBlock? {
+  val provisioner = host.parentOfType<HCLBlock>() ?: return null
+
+  return when (provisioner.getNameElementUnquoted(0)) {
+    HCL_CONNECTION_IDENTIFIER -> getProvisionerOfResource(provisioner)
+    HCL_PROVISIONER_IDENTIFIER -> getParentResourceBlock(provisioner)
+    else -> null
+  }
+}
+
+internal fun getConnectionOfResource(host: HCLElement): HCLBlock? {
+  val connection = host.parentOfType<HCLBlock>() ?: return null
+
+  return when (connection.getNameElementUnquoted(0)) {
+    HCL_CONNECTION_IDENTIFIER -> getParentResourceBlock(connection)
+    else -> null
+  }
+}
+
+internal fun getPostConditionOfBlock(host: HCLElement): HCLBlock? {
+  val postCondition = host.parentOfType<HCLBlock>() ?: return null
+  if (postCondition.getNameElementUnquoted(0) != HCL_POSTCONDITION_BLOCK_IDENTIFIER)
+    return null
+
+  val lifecycle = postCondition.parentOfType<HCLBlock>()
+  if (lifecycle?.getNameElementUnquoted(0) != HCL_LIFECYCLE_IDENTIFIER) {
+    return null
+  }
+
+  val resourceOrData = lifecycle.parentOfType<HCLBlock>()
+  return if (TfPsiPatterns.ResourceRootBlock.accepts(resourceOrData) || TfPsiPatterns.DataSourceRootBlock.accepts(resourceOrData))
+    resourceOrData
+  else null
+}
+
+internal fun getParentResourceBlock(element: HCLElement): HCLBlock? {
+  val resource = element.parentOfType<HCLBlock>()
+  return if (TfPsiPatterns.ResourceRootBlock.accepts(resource)) resource else null
+}
+
+internal fun getResource(position: BaseExpression): HCLBlock? {
+  val host = position.getHCLHost() ?: return null
+  return getParentResourceBlock(host)
+}
+
+internal fun getDataSource(position: BaseExpression): HCLBlock? {
+  val host = position.getHCLHost() ?: return null
+  val dataSource = host.parentOfType<HCLBlock>()
+  return if (TfPsiPatterns.DataSourceRootBlock.accepts(dataSource)) dataSource else null
+}
+
+internal fun getContainingResourceOrDataSource(element: HCLElement?): HCLBlock? {
+  if (element == null) return null
+  return PsiTreeUtil.findFirstParent(element, true) {
+    TfPsiPatterns.DataSourceRootBlock.accepts(it) ||
+    TfPsiPatterns.ResourceRootBlock.accepts(it)
+  } as? HCLBlock
+}
+
+internal fun getContainingResourceOrDataSourceOrModule(element: HCLElement?): HCLBlock? {
+  if (element == null) return null
+  return PsiTreeUtil.findFirstParent(element, true) {
+    TfPsiPatterns.DataSourceRootBlock.accepts(it) ||
+    TfPsiPatterns.ResourceRootBlock.accepts(it) ||
+    TfPsiPatterns.ModuleRootBlock.accepts(it)
+  } as? HCLBlock
 }

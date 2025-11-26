@@ -2,7 +2,9 @@
 package org.jetbrains.astro.inspections.quickfixes
 
 import com.intellij.codeInsight.intention.FileModifier.SafeFieldForPreview
+import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
 import com.intellij.codeInspection.LocalQuickFixOnPsiElement
+import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
@@ -29,12 +31,15 @@ class AstroImportComponentQuickFix(element: PsiElement,
     return AstroBundle.message("astro.quickfix.import.component.family")
   }
 
-  override fun invoke(project: Project, file: PsiFile, startElement: PsiElement, endElement: PsiElement) {
-    val componentSourceEdit = AstroComponentSourceEdit(file as? AstroFileImpl ?: return)
+  override fun invoke(project: Project, psiFile: PsiFile, startElement: PsiElement, endElement: PsiElement) {
+    val componentSourceEdit = AstroComponentSourceEdit(psiFile as? AstroFileImpl ?: return)
     val elementToImport = elementToImportPtr.dereference() as? AstroFileImpl ?: return
 
     componentSourceEdit.insertAstroComponentImport(importName, elementToImport)
     componentSourceEdit.reformatChanges()
   }
 
+  override fun generatePreview(project: Project, previewDescriptor: ProblemDescriptor): IntentionPreviewInfo {
+    return IntentionPreviewInfo.EMPTY
+  }
 }

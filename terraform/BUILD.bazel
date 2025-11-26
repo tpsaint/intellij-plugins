@@ -1,15 +1,15 @@
 ### auto-generated section `build intellij.terraform` start
-load("@rules_jvm//:jvm.bzl", "jvm_library", "jvm_resources", "jvm_test")
+load("@rules_jvm//:jvm.bzl", "jvm_library", "resourcegroup")
 
-jvm_resources(
+resourcegroup(
   name = "terraform_resources",
-  files = glob(["res/**/*"]),
+  srcs = glob(["res/**/*"]),
   strip_prefix = "res"
 )
 
-jvm_resources(
+resourcegroup(
   name = "terraform_test_resources",
-  files = glob(["test-data/**/*"]),
+  srcs = glob(["test-data/**/*"]),
   strip_prefix = "test-data"
 )
 
@@ -17,105 +17,127 @@ jvm_library(
   name = "terraform",
   module_name = "intellij.terraform",
   visibility = ["//visibility:public"],
-  srcs = glob(["gen/**/*.kt", "gen/**/*.java", "src/**/*.kt", "src/**/*.java"], allow_empty = True),
+  srcs = glob(["gen/**/*.kt", "gen/**/*.java", "src/**/*.kt", "src/**/*.java", "src/**/*.form"], allow_empty = True),
+  resources = [":terraform_resources"],
   deps = [
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/code-style-api:codeStyle",
+    "@community//platform/util/concurrency",
+    "@community//platform/core-api:core",
+    "@community//platform/editor-ui-api:editor-ui",
+    "@community//platform/indexing-api:indexing",
+    "@community//platform/macro",
     "@community//platform/projectModel-api:projectModel",
     "@community//platform/editor-ui-ex:editor-ex",
+    "@community//platform/core-impl",
     "@community//platform/indexing-impl",
     "@community//platform/platform-api:ide",
     "@community//platform/platform-impl:ide-impl",
     "@community//platform/ide-core-impl",
+    "@community//platform/refactoring",
     "@community//platform/usageView",
     "@community//platform/lang-impl",
     "@community//platform/execution-impl",
     "//plugins/fileWatcher",
-    "@lib//:jackson",
-    "@lib//:jackson-databind",
+    "@community//libraries/jackson/jackson",
+    "@community//libraries/jackson/databind",
     "@ultimate_lib//:terraform-terraform-metadata",
+    "@community//platform/usageView-impl",
     "@community//platform/vcs-api:vcs",
-    "@lib//:guava",
+    "@community//libraries/guava",
+    "@community//platform/workspace/storage",
     "@community//spellchecker",
     "@community//platform/core-ui",
     "@community//platform/code-style-impl:codeStyle-impl",
     "@community//platform/platform-util-io:ide-util-io",
     "@community//platform/util/jdom",
-    "@lib//:fastutil-min",
+    "@community//libraries/fastutil",
     "@community//platform/vcs-impl",
     "@community//platform/util/coroutines",
     "@community//platform/backend/workspace",
-    "@community//plugins/IntelliLang:langInjection",
-    "@lib//:jackson-module-kotlin",
-    "@lib//:caffeine",
-    "@lib//:jetbrains-markdown",
+    "@community//libraries/jackson/module-kotlin:libraries-jackson-module-kotlin",
+    "@community//libraries/caffeine",
+    "@community//libraries/markdown",
     "@lib//:jna",
     "@community//platform/statistics",
     "@community//platform/eel",
-    "@community//platform/eel-impl",
     "@community//platform/eel-provider",
     "@community//platform/util/progress",
-  ],
-  runtime_deps = [":terraform_resources"]
+    "@community//plugins/copyright",
+  ]
 )
 
 jvm_library(
   name = "terraform_test_lib",
   visibility = ["//visibility:public"],
-  srcs = glob(["test/**/*.kt", "test/**/*.java"], allow_empty = True),
+  srcs = glob(["test/**/*.kt", "test/**/*.java", "test/**/*.form"], allow_empty = True),
+  resources = [":terraform_test_resources"],
   associates = [":terraform"],
   deps = [
+    "@community//platform/analysis-api:analysis",
+    "@community//platform/code-style-api:codeStyle",
+    "@community//platform/util/concurrency",
+    "@community//platform/util/concurrency:concurrency_test_lib",
+    "@community//platform/core-api:core",
+    "@community//platform/editor-ui-api:editor-ui",
+    "@community//platform/indexing-api:indexing",
+    "@community//platform/macro",
     "@community//platform/projectModel-api:projectModel",
     "@community//platform/editor-ui-ex:editor-ex",
+    "@community//platform/core-impl",
     "@community//platform/indexing-impl",
     "@community//platform/platform-api:ide",
     "@community//platform/platform-impl:ide-impl",
-    "@community//platform/platform-impl:ide-impl_test_lib",
     "@community//platform/ide-core-impl",
+    "@community//platform/refactoring",
     "@community//platform/usageView",
     "@community//platform/lang-impl",
     "@community//platform/execution-impl",
     "//plugins/fileWatcher",
     "//plugins/fileWatcher:fileWatcher_test_lib",
-    "@lib//:jackson",
-    "@lib//:jackson-databind",
+    "@community//libraries/jackson/jackson",
+    "@community//libraries/jackson/databind",
     "@ultimate_lib//:terraform-terraform-metadata",
     "@community//platform/testFramework",
     "@community//platform/testFramework:testFramework_test_lib",
     "@lib//:assert_j",
+    "@community//platform/usageView-impl",
     "@community//platform/vcs-api:vcs",
-    "@community//java/testFramework",
-    "@lib//:guava",
+    "@community//libraries/guava",
+    "@community//platform/workspace/storage",
     "@community//spellchecker",
     "@community//spellchecker:spellchecker_test_lib",
+    "@community//plugins/grazie/src:core",
     "@community//platform/core-ui",
     "@community//platform/code-style-impl:codeStyle-impl",
     "@community//platform/platform-util-io:ide-util-io",
     "@community//platform/util/jdom",
-    "@lib//:fastutil-min",
+    "@community//libraries/fastutil",
     "@community//platform/vcs-impl",
     "@community//platform/vcs-impl:vcs-impl_test_lib",
     "@community//platform/util/coroutines",
     "@community//platform/backend/workspace",
-    "@community//plugins/IntelliLang:langInjection",
-    "@lib//:jackson-module-kotlin",
-    "@lib//:caffeine",
-    "@lib//:jetbrains-markdown",
+    "@community//libraries/jackson/module-kotlin:libraries-jackson-module-kotlin",
+    "@community//libraries/caffeine",
+    "@community//libraries/markdown",
     "@lib//:jna",
     "@community//platform/navbar/testFramework",
     "@community//platform/statistics",
     "@community//platform/statistics:statistics_test_lib",
     "@community//platform/eel",
-    "@community//platform/eel-impl",
     "@community//platform/eel-provider",
     "@community//platform/util/progress",
-  ],
-  runtime_deps = [
-    ":terraform_resources",
-    ":terraform_test_resources",
+    "@community//plugins/copyright",
+    "@community//plugins/copyright:copyright_test_lib",
   ]
 )
+### auto-generated section `build intellij.terraform` end
 
-jvm_test(
+### auto-generated section `test intellij.terraform` start
+load("@community//build:tests-options.bzl", "jps_test")
+
+jps_test(
   name = "terraform_test",
   runtime_deps = [":terraform_test_lib"]
 )
-### auto-generated section `build intellij.terraform` end
+### auto-generated section `test intellij.terraform` end

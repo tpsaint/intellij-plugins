@@ -12,20 +12,29 @@ import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.refactoring.rename.PsiElementRenameHandler;
 import com.intellij.refactoring.rename.RenameDialog;
 import com.intellij.refactoring.util.CommonRefactoringUtil;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.cucumber.CucumberBundle;
-import org.jetbrains.plugins.cucumber.psi.*;
+import org.jetbrains.plugins.cucumber.psi.GherkinPsiElement;
+import org.jetbrains.plugins.cucumber.psi.GherkinStep;
+import org.jetbrains.plugins.cucumber.psi.GherkinStepParameter;
+import org.jetbrains.plugins.cucumber.psi.GherkinTableCell;
 
+/**
+ * Handles renaming {@link GherkinStep} PSI elements.
+ *
+ * @see <a href="https://cucumber.io/docs/gherkin/reference#steps">Gherkin Reference | Steps</a>
+ */
+@NotNullByDefault
 public final class GherkinStepRenameHandler extends PsiElementRenameHandler {
   @Override
-  public boolean isAvailableOnDataContext(@NotNull DataContext dataContext) {
+  public boolean isAvailableOnDataContext(DataContext dataContext) {
     PsiElement element = getGherkinStep(dataContext);
     return element != null;
   }
 
   @Override
-  public void invoke(@NotNull Project project, Editor editor, PsiFile file, @NotNull DataContext dataContext) {
+  public void invoke(Project project, Editor editor, PsiFile file, DataContext dataContext) {
     final GherkinStep step = getGherkinStep(dataContext);
     if (step == null) {
       return;
@@ -36,15 +45,16 @@ public final class GherkinStepRenameHandler extends PsiElementRenameHandler {
       return;
     }
 
-
-    final CucumberStepRenameDialog dialog = new CucumberStepRenameDialog(project, step, null, editor);
-    Disposer.register(project, dialog.getDisposable());
+    final GherkinStepRenameDialog dialog = new GherkinStepRenameDialog(project, step, null, editor);
+    Disposer.register(project, dialog.getDisposable()); // FIXME(bartekpacia): Dispose the dialog in the correct way
     RenameDialog.showRenameDialog(dataContext, dialog);
   }
 
-  public @Nullable GherkinStep getGherkinStep(final @Nullable DataContext context) {
+  private static @Nullable GherkinStep getGherkinStep(@Nullable DataContext context) {
     PsiElement element = null;
-    if (context == null) return null;
+    if (context == null) {
+      return null;
+    }
     final Editor editor = CommonDataKeys.EDITOR.getData(context);
     if (editor != null) {
       final PsiFile psiFile = CommonDataKeys.PSI_FILE.getData(context);
@@ -55,16 +65,11 @@ public final class GherkinStepRenameHandler extends PsiElementRenameHandler {
     if (element == null) {
       element = CommonDataKeys.PSI_ELEMENT.getData(context);
     }
-
-    GherkinTable table = PsiTreeUtil.getParentOfType(element, GherkinTable.class);
-    if (table != null) {
-      // There is GherkinInplaceRenameHandler that should handle rename inside the GherkinTable
-      return null;
-    }
     element = PsiTreeUtil.getParentOfType(element, GherkinPsiElement.class, false);
     if (element instanceof GherkinStepParameter || element instanceof GherkinTableCell) {
+      // This handler cares only about renames of steps, not step parameters.
       return null;
     }
-    return element instanceof GherkinStep ? (GherkinStep)element : PsiTreeUtil.getParentOfType(element, GherkinStep.class);
+    return PsiTreeUtil.getParentOfType(element, GherkinStep.class, false);
   }
 }

@@ -3,28 +3,53 @@ package com.intellij.prettierjs
 
 import com.intellij.javascript.nodejs.execution.NodeTargetRun
 import com.intellij.javascript.nodejs.interpreter.NodeCommandLineConfigurator
+import com.intellij.javascript.nodejs.interpreter.NodeInterpreterUtil
+import com.intellij.javascript.nodejs.interpreter.NodeJsInterpreterRef
 import com.intellij.javascript.nodejs.library.yarn.pnp.YarnPnpNodePackage
 import com.intellij.javascript.nodejs.util.NodePackage
-import com.intellij.lang.javascript.service.*
+import com.intellij.lang.javascript.linter.ServiceInactivityTracker
+import com.intellij.lang.javascript.service.JSLanguageServiceBase
+import com.intellij.lang.javascript.service.JSLanguageServiceQueue
+import com.intellij.lang.javascript.service.JSLanguageServiceQueueImpl
+import com.intellij.lang.javascript.service.JSLanguageServiceUtil
 import com.intellij.lang.javascript.service.protocol.*
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.io.FileUtil
+import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.prettierjs.PrettierUtil.getPrettierLanguageServicePath
+import com.intellij.util.PathUtilRt
 import com.intellij.webcore.util.JsonUtil
 import kotlinx.coroutines.future.future
-import java.io.File
 import java.util.concurrent.CompletableFuture
-import java.util.function.Consumer
+import kotlin.io.path.absolutePathString
+import kotlin.io.path.isRegularFile
 
 class PrettierLanguageServiceImpl(
   project: Project,
   private val workDir: VirtualFile,
 ) : JSLanguageServiceBase(project), PrettierLanguageService {
+  private val inactivityTracker: ServiceInactivityTracker
+
+  @Volatile
+  var error: PrettierError? = null
+
+  init {
+    val manager = PrettierLanguageServiceManager.getInstance(project)
+    inactivityTracker = ServiceInactivityTracker.startTracking(manager.cs, manager.inactivityTimeoutMs) {
+      PrettierLanguageServiceManager.getInstance(project).terminateInactiveService(this)
+    }
+  }
+
+  override fun dispose() {
+    inactivityTracker.stopTracking()
+    updateError(null)
+    super.dispose()
+  }
 
   override fun format(
     filePath: String,
@@ -32,41 +57,88 @@ class PrettierLanguageServiceImpl(
     text: String,
     prettierPackage: NodePackage,
     range: TextRange?,
-    cursorOffset: Int,
-  ): CompletableFuture<PrettierLanguageService.FormatResult?>? {
-    val process = process
-    if (process == null || !process.isValid) {
-      return CompletableFuture.completedFuture(
-        PrettierLanguageService.FormatResult.error(PrettierBundle.message("service.not.started.message")))
-    }
-
-    // Prettier may remove a trailing line break in Vue (WEB-56144, WEB-52196, https://github.com/prettier/prettier/issues/13399),
+  ): CompletableFuture<PrettierLanguageService.FormatResult?> { // Prettier may remove a trailing line break in Vue (WEB-56144, WEB-52196, https://github.com/prettier/prettier/issues/13399),
     // even if the range doesn't include that line break. `forceLineBreakAtEof` helps to work around the problem.
     val forceLineBreakAtEof = range != null && range.endOffset < text.length && text.endsWith("\n")
-    val command = ReformatFileCommand(myProject, filePath, prettierPackage, ignoreFilePath, text, range, false, cursorOffset)
-    return project.service<PrettierLanguageServiceManager>().cs.future {
-      val commandResult = process.execute(command)
-      val answer = commandResult?.answer ?: return@future null
-      parseReformatResponse(answer, forceLineBreakAtEof)
+
+    return withServiceAndEnv(prettierPackage, { msg -> PrettierLanguageService.FormatResult.error(msg) }) { process ->
+      val command = ReformatFileCommand(project, filePath, prettierPackage, ignoreFilePath, text, range, false, -1)
+      val answer = process.execute(command)?.answer ?: return@withServiceAndEnv null
+      val res = parseReformatResponse(answer, forceLineBreakAtEof)
+      val newError = when {
+        res.error != null -> PrettierError.ShowDetails(res.error)
+        res.unsupported -> PrettierError.Unsupported(PrettierBundle.message("not.supported.file", PathUtilRt.getFileName(filePath)))
+        else -> null
+      }
+      updateError(newError)
+      res
     }
   }
 
   override fun resolveConfig(
     filePath: String,
     prettierPackage: NodePackage,
-  ): CompletableFuture<PrettierLanguageService.ResolveConfigResult?>? {
-    val filePath = JSLanguageServiceUtil.normalizeNameAndPath(filePath)
-    val process = process
-    if (process == null || !process.isValid) {
-      return CompletableFuture.completedFuture(
-        PrettierLanguageService.ResolveConfigResult.error(PrettierBundle.message("service.not.started.message")))
+  ): CompletableFuture<PrettierLanguageService.ResolveConfigResult?> {
+    val normalizedPath = JSLanguageServiceUtil.normalizeNameAndPath(filePath)
+
+    return withServiceAndEnv(prettierPackage, { msg -> PrettierLanguageService.ResolveConfigResult.error(msg) }) { process ->
+      val command = ResolveConfigCommand(project, normalizedPath, prettierPackage, false)
+      val response = process.execute(command)?.answer ?: return@withServiceAndEnv null
+      val res = parseResolveConfigResponse(response)
+      updateError(res.error?.let { PrettierError.ShowDetails(it) })
+      res
+    }
+  }
+
+  private fun <R> withServiceAndEnv(
+    prettierPackage: NodePackage,
+    errorResult: (String) -> R,
+    body: suspend (process: JSLanguageServiceQueue) -> R?,
+  ): CompletableFuture<R?> {
+    checkEnvAndSetError(prettierPackage)?.let { err ->
+      return CompletableFuture.completedFuture(errorResult(err.message))
+    }
+    return inactivityTracker.useService {
+      PrettierLanguageServiceManager.getInstance(project).cs.future {
+        val process = getProcess()
+        if (process == null || !process.isValid) {
+          val msg = PrettierBundle.message("service.not.started.message")
+          updateError(PrettierError.ShowDetails(msg))
+          return@future errorResult(msg)
+        }
+        body(process)
+      }
+    }
+  }
+
+  private fun checkEnvAndSetError(prettierPackage: NodePackage): PrettierError? {
+    val err = checkNodeAndPackage(project, prettierPackage)
+    if (err != null) updateError(err)
+    return err
+  }
+
+  private fun checkNodeAndPackage(project: Project, nodePackage: NodePackage): PrettierError? {
+    val interpreterRef = NodeJsInterpreterRef.createProjectRef()
+    val nodeJsInterpreter = try {
+      NodeInterpreterUtil.getValidInterpreterOrThrow(interpreterRef.resolve(project))
+    }
+    catch (_: com.intellij.execution.ExecutionException) {
+      return PrettierError.NodeSettings()
     }
 
-    val command = ResolveConfigCommand(myProject, filePath, prettierPackage, false)
-    return project.service<PrettierLanguageServiceManager>().cs.future {
-      val response = process.execute(command)?.answer ?: return@future null
-      parseResolveConfigResponse(response)
+    if (nodePackage.isEmptyPath) {
+      return PrettierError.EditSettings()
     }
+    if (!nodePackage.isValid(project, nodeJsInterpreter)) {
+      return PrettierError.InstallPackage()
+    }
+    val nodePackageVersion = nodePackage.getVersion(project)
+    if (nodePackageVersion != null && nodePackageVersion < PrettierUtil.MIN_VERSION) {
+      return PrettierError.ShowDetails(
+        PrettierBundle.message("error.unsupported.version", PrettierUtil.MIN_VERSION.rawVersion),
+      )
+    }
+    return null
   }
 
   private fun parseReformatResponse(response: JSLanguageServiceAnswer, forceLineBreakAtEof: Boolean): PrettierLanguageService.FormatResult {
@@ -83,7 +155,7 @@ class PrettierLanguageServiceImpl(
     }
 
     var formattedResult = JsonUtil.getChildAsString(jsonObject, "formatted")!!
-    var cursorOffset = JsonUtil.getChildAsInteger(jsonObject, "cursorOffset", -1)
+    val cursorOffset = JsonUtil.getChildAsInteger(jsonObject, "cursorOffset", -1)
     if (forceLineBreakAtEof && !formattedResult.endsWith("\n")) {
       // Prettier may remove a trailing line break in Vue (WEB-56144, WEB-52196, https://github.com/prettier/prettier/issues/13399),
       // even if the range doesn't include that line break. `forceLineBreakAtEof` helps to work around the problem.
@@ -105,50 +177,53 @@ class PrettierLanguageServiceImpl(
     return PrettierLanguageService.ResolveConfigResult.config(prettierConfig)
   }
 
-  override suspend fun createLanguageServiceQueue(): JSLanguageServiceQueue =
-    JSLanguageServiceQueueImpl(myProject,
-                               Protocol(myProject, Consumer { o: Any? -> }),
-                               null,
-                               myDefaultReporter,
-                               JSLanguageServiceDefaultCacheData())
+
+  private fun updateError(newError: PrettierError?) {
+    if (error == newError) return
+    error = newError
+    PrettierLanguageServiceManager.getInstance(myProject).jsLinterStateChanged()
+  }
+
+  override suspend fun createLanguageServiceQueue(): JSLanguageServiceQueue = JSLanguageServiceQueueImpl(myProject, Protocol(myProject), null, myDefaultReporter)
 
   private inner class Protocol(
     project: Project,
-    readyConsumer: Consumer<*>,
-  ) : JSLanguageServiceNodeStdProtocolBase("prettier", project, readyConsumer) {
+  ) : JSLanguageServiceNodeStdProtocolBase("prettier", project) {
     override fun addNodeProcessAdditionalArguments(targetRun: NodeTargetRun) {
       super.addNodeProcessAdditionalArguments(targetRun)
-      targetRun.path(JSLanguageServiceUtil.getPluginDirectory(this.javaClass, "prettierLanguageService")!!.absolutePath)
+      JSLanguageServiceUtil.addNodeProcessArgumentsFromRegistry(targetRun.commandLineBuilder, serviceName) {
+        Registry.stringValue("prettier.service.node.arguments")
+      }
+
+      // Check for Node.js version and add experimental strip types if needed
+      PrettierUtil.addExperimentalStripTypesIfNeeded(targetRun, serviceName)
+      targetRun.path(getPrettierLanguageServicePath().absolutePathString())
     }
 
     override val workingDirectory: String?
       get() {
-        if (ApplicationManager.getApplication()?.isUnitTestMode() == true) {
-          // `myProject.getBasePath()` returns a non-existent directory in unit test mode
+        if (ApplicationManager.getApplication()?.isUnitTestMode() == true) { // `myProject.getBasePath()` returns a non-existent directory in unit test mode
           // The problem is that Yarn PnP can't detect .pnp.cjs when the process is started in a non-existent directory.
           myProject.guessProjectDir()?.let { return it.path }
         }
-        return FileUtil.toSystemDependentName(workDir.getPath())
+        return JSLanguageServiceUtil.normalizePathDoNotFollowSymlinks(workDir)
       }
 
     // PrettierPostFormatProcessor runs under write action. Read action here is not needed and it would block the service startup
     override fun needReadActionToCreateState(): Boolean = false
 
     override fun createState(): JSLanguageServiceInitialState {
-      val service = File(JSLanguageServiceUtil.getPluginDirectory(this.javaClass, "prettierLanguageService"), "prettier-plugin-provider.js")
-      if (!service.exists()) {
+      val service = getPrettierLanguageServicePath().resolve("prettier-plugin-provider.js")
+      if (!service.isRegularFile()) {
         thisLogger().error("prettier language service plugin not found")
       }
       return JSLanguageServiceInitialState().also {
         it.pluginName = "prettier"
-        it.pluginPath = LocalFilePath.create(service.absolutePath)
+        it.pluginPath = LocalFilePath.create(service.absolutePathString())
       }
     }
 
-    override fun dispose() {}
-
-    override fun getNodeCommandLineConfiguratorOptions(project: Project): NodeCommandLineConfigurator.Options =
-      NodeCommandLineConfigurator.defaultOptions(myProject)
+    override fun getNodeCommandLineConfiguratorOptions(project: Project): NodeCommandLineConfigurator.Options = NodeCommandLineConfigurator.defaultOptions(myProject)
   }
 
 
@@ -164,8 +239,8 @@ class PrettierLanguageServiceImpl(
     val cursorOffset: Int,
   ) : JSLanguageServiceObject, JSLanguageServiceSimpleCommand {
     val path: LocalFilePath = LocalFilePath.create(FileUtil.toSystemDependentName(filePath))
-    val prettierPath: LocalFilePath =
-      LocalFilePath.create((prettierPackage as? YarnPnpNodePackage)?.name ?: prettierPackage.systemDependentPath)
+    val prettierPath: LocalFilePath = LocalFilePath.create((prettierPackage as? YarnPnpNodePackage)?.name
+                                                           ?: prettierPackage.systemDependentPath)
     val packageJsonPath: LocalFilePath? = LocalFilePath.create((prettierPackage as? YarnPnpNodePackage)?.let {
       FileUtil.toSystemDependentName(it.getPackageJsonPath(project)!!)
     })
@@ -186,8 +261,8 @@ class PrettierLanguageServiceImpl(
     val flushConfigCache: Boolean,
   ) : JSLanguageServiceObject, JSLanguageServiceSimpleCommand {
     val path: LocalFilePath = LocalFilePath.create(FileUtil.toSystemDependentName(filePath))
-    val prettierPath: LocalFilePath =
-      LocalFilePath.create((prettierPackage as? YarnPnpNodePackage)?.name ?: prettierPackage.systemDependentPath)
+    val prettierPath: LocalFilePath = LocalFilePath.create((prettierPackage as? YarnPnpNodePackage)?.name
+                                                           ?: prettierPackage.systemDependentPath)
     val packageJsonPath: LocalFilePath? = LocalFilePath.create((prettierPackage as? YarnPnpNodePackage)?.let {
       FileUtil.toSystemDependentName(it.getPackageJsonPath(project)!!)
     })

@@ -15,27 +15,28 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.SmartPsiElementPointer
 import com.intellij.psi.createSmartPointer
 import com.intellij.psi.templateLanguages.TemplateDataLanguageMappings
-import org.intellij.terraform.runtime.TfProjectSettings
-import com.intellij.terraform.template.TftplFileType
 import com.intellij.terraform.template.TftplBundle
+import com.intellij.terraform.template.TftplFileType
 import com.intellij.terraform.template.getLanguageByExtension
 import com.intellij.terraform.template.model.findTemplateUsage
+import org.intellij.terraform.runtime.TfProjectSettings
 
 internal class MaybeTfTemplateInspection : LocalInspectionTool() {
   override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
-    if (isFileWithAlreadyOverriddenTemplateType(holder.file.virtualFile)
-        || TfProjectSettings.getInstance(holder.project).isIgnoredTemplateCandidate(holder.file.virtualFile.url)
+    val virtualFile = holder.file.virtualFile
+    if (virtualFile == null || isFileWithAlreadyOverriddenTemplateType(virtualFile)
+        || TfProjectSettings.getInstance(holder.project).isIgnoredTemplateCandidate(virtualFile.url)
         || !isPossibleTemplateFile(holder.file)
     ) {
       return PsiElementVisitor.EMPTY_VISITOR
     }
 
     return object : PsiElementVisitor() {
-      override fun visitFile(file: PsiFile) {
-        holder.registerProblem(file,
+      override fun visitFile(psiFile: PsiFile) {
+        holder.registerProblem(psiFile,
                                TftplBundle.message("inspection.possible.template.name"),
-                               TfConsiderFileATemplateFix(file.virtualFile),
-                               TfIgnoreTemplateCandidateFix(file.createSmartPointer())
+                               TfConsiderFileATemplateFix(psiFile.virtualFile),
+                               TfIgnoreTemplateCandidateFix(psiFile.createSmartPointer())
         )
       }
     }
@@ -73,7 +74,7 @@ internal class TfIgnoreTemplateCandidateFix(private val filePointer: SmartPsiEle
   override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
     val psiFile = filePointer.dereference() ?: return
     TfProjectSettings.getInstance(project).addIgnoredTemplateCandidate(psiFile.virtualFile.url)
-    DaemonCodeAnalyzer.getInstance(project).restart(psiFile)
+    DaemonCodeAnalyzer.getInstance(project).restart(psiFile, this)
   }
 
   override fun generatePreview(project: Project, previewDescriptor: ProblemDescriptor): IntentionPreviewInfo {

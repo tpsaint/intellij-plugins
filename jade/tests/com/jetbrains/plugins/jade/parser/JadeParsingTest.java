@@ -234,6 +234,14 @@ public class JadeParsingTest extends JadeBaseParsingTestCase {
     defaultTest();
   }
 
+  public void testMixinDefaultArgumentValues() {
+    defaultTest();
+  }
+
+  public void testMixinsObjectDestructuring() {
+    defaultTest();
+  }
+
   public void testAngular2() {
     defaultTest();
   }
@@ -253,4 +261,9 @@ public class JadeParsingTest extends JadeBaseParsingTestCase {
   public void testTagsIndentation() {
     defaultTest();
   }
+
+  public void testAttributeWithConditional() {
+    defaultTest();
+  }
+
 }

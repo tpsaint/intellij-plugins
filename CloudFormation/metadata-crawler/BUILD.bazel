@@ -1,17 +1,24 @@
 ### auto-generated section `build intellij.cloudFormation.metadataCrawler` start
-load("@rules_java//java:defs.bzl", "java_library")
-load("@rules_jvm//:jvm.bzl", "jvm_test")
+load("@rules_jvm//:jvm.bzl", "jvm_library")
 
-jvm_test(
-  name = "cloudFormation-metadataCrawler_test",
-  srcs = glob(["src/main/kotlin/**/*.kt", "src/main/kotlin/**/*.java"], allow_empty = True),
+jvm_library(
+  name = "metadata-crawler",
+  visibility = ["//visibility:public"],
+  srcs = glob([], allow_empty = True)
+)
+
+jvm_library(
+  name = "metadata-crawler_test_lib",
+  module_name = "intellij.cloudFormation.metadataCrawler",
+  visibility = ["//visibility:public"],
+  srcs = glob(["src/main/kotlin/**/*.kt", "src/main/kotlin/**/*.java", "src/main/kotlin/**/*.form"], allow_empty = True),
   deps = [
     "@lib//:kotlin-stdlib",
     "//contrib/CloudFormation:cloudFormation",
     "//contrib/CloudFormation:cloudFormation_test_lib",
-    "@lib//:jsoup",
-    "@lib//:gson",
-    "@lib//:commons-io",
+    "@community//libraries/jsoup",
+    "@community//libraries/gson",
+    "@community//libraries/commons/io",
     "@community//platform/util",
     "@community//platform/platform-api:ide",
     "@community//platform/core-ui",
@@ -19,3 +26,12 @@ jvm_test(
   ]
 )
 ### auto-generated section `build intellij.cloudFormation.metadataCrawler` end
+
+### auto-generated section `test intellij.cloudFormation.metadataCrawler` start
+load("@community//build:tests-options.bzl", "jps_test")
+
+jps_test(
+  name = "metadata-crawler_test",
+  runtime_deps = [":metadata-crawler_test_lib"]
+)
+### auto-generated section `test intellij.cloudFormation.metadataCrawler` end

@@ -1,6 +1,6 @@
 package org.angular2.web.scopes
 
-import com.intellij.javascript.webSymbols.symbols.asWebSymbol
+import com.intellij.polySymbols.js.symbols.asJSSymbol
 import com.intellij.lang.javascript.psi.stubs.JSImplicitElement
 import com.intellij.lang.javascript.psi.stubs.impl.JSImplicitElementImpl
 import com.intellij.model.Pointer
@@ -10,10 +10,10 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.createSmartPointer
 import com.intellij.psi.xml.XmlAttribute
 import com.intellij.psi.xml.XmlTag
-import com.intellij.webSymbols.WebSymbol
-import com.intellij.webSymbols.WebSymbol.Companion.JS_SYMBOLS
-import com.intellij.webSymbols.WebSymbolQualifiedKind
-import com.intellij.webSymbols.utils.WebSymbolsStructuredScope
+import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.js.JS_SYMBOLS
+import com.intellij.polySymbols.PolySymbolQualifiedKind
+import com.intellij.polySymbols.utils.PolySymbolStructuredScope
 import org.angular2.codeInsight.template.isTemplateTag
 import org.angular2.lang.html.parser.Angular2AttributeNameParser
 import org.angular2.lang.html.parser.Angular2AttributeType.REFERENCE
@@ -21,19 +21,19 @@ import org.angular2.lang.html.psi.Angular2HtmlBlock
 import org.angular2.lang.html.psi.Angular2HtmlRecursiveElementVisitor
 import org.angular2.lang.html.psi.Angular2HtmlReference
 
-class ReferenceVariablesStructuredScope(location: PsiElement) : WebSymbolsStructuredScope<PsiElement, PsiFile>(location) {
+class ReferenceVariablesStructuredScope(location: PsiElement) : PolySymbolStructuredScope<PsiElement, PsiFile>(location) {
 
   override val rootPsiElement: PsiFile?
     get() = location.containingFile
 
-  override val scopesBuilderProvider: (PsiFile, WebSymbolsPsiScopesHolder) -> PsiElementVisitor?
+  override val scopesBuilderProvider: (PsiFile, PolySymbolPsiScopesHolder) -> PsiElementVisitor?
     get() = { _, holder -> ReferenceVariablesStructuredScopeVisitor(holder) }
 
-  override val providedSymbolKinds: Set<WebSymbolQualifiedKind> = PROVIDED_SYMBOL_KINDS
+  override val providedSymbolKinds: Set<PolySymbolQualifiedKind> = PROVIDED_SYMBOL_KINDS
 
-  fun flattenSymbols(resolveToMultipleSymbols: Boolean): List<WebSymbol> {
+  fun flattenSymbols(resolveToMultipleSymbols: Boolean): List<PolySymbol> {
     val rootScope = getRootScope() ?: return emptyList()
-    val result = mutableListOf<WebSymbol>()
+    val result = mutableListOf<PolySymbol>()
     if (resolveToMultipleSymbols) {
       val stack = mutableListOf(rootScope)
       while (!stack.isEmpty()) {
@@ -68,7 +68,7 @@ class ReferenceVariablesStructuredScope(location: PsiElement) : WebSymbolsStruct
     }
   }
 
-  private class ReferenceVariablesStructuredScopeVisitor(private val holder: WebSymbolsPsiScopesHolder) : Angular2HtmlRecursiveElementVisitor() {
+  private class ReferenceVariablesStructuredScopeVisitor(private val holder: PolySymbolPsiScopesHolder) : Angular2HtmlRecursiveElementVisitor() {
 
     override fun visitXmlTag(tag: XmlTag) {
       val isTemplateTag = tag.children.any { it is XmlAttribute && it.name.startsWith("*") }
@@ -113,14 +113,14 @@ class ReferenceVariablesStructuredScope(location: PsiElement) : WebSymbolsStruct
       isTemplateTag: Boolean,
     ) {
       val `var` = if (attribute is Angular2HtmlReference) {
-        attribute.variable?.asWebSymbol() ?: return
+        attribute.variable?.asJSSymbol() ?: return
       }
       else {
         JSImplicitElementImpl.Builder(info.name, attribute)
           .setType(JSImplicitElement.Type.Variable)
           .setProperties(JSImplicitElement.Property.Constant)
           .toImplicitElement()
-          .asWebSymbol()
+          .asJSSymbol()
       }
       if (isTemplateTag) {
         // References on ng-template are visible within parent scope
@@ -138,7 +138,7 @@ class ReferenceVariablesStructuredScope(location: PsiElement) : WebSymbolsStruct
 
 
   companion object {
-    private val PROVIDED_SYMBOL_KINDS: Set<WebSymbolQualifiedKind> = setOf(JS_SYMBOLS)
+    private val PROVIDED_SYMBOL_KINDS: Set<PolySymbolQualifiedKind> = setOf(JS_SYMBOLS)
   }
 
 }

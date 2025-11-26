@@ -16,10 +16,10 @@ import com.intellij.xml.util.XmlUtil
 import org.angular2.codeInsight.blocks.BLOCK_LET
 import org.angular2.lang.Angular2Bundle
 import org.angular2.lang.expr.parser.Angular2EmbeddedExprTokenType
+import org.angular2.lang.expr.parser.Angular2EmbeddedExprTokenType.Angular2InterpolationExprTokenType
 import org.angular2.lang.expr.parser.Angular2EmbeddedExprTokenType.Companion.createTemplateBindings
 import org.angular2.lang.html.Angular2TemplateSyntax
 import org.angular2.lang.html.lexer.Angular2HtmlTokenTypes
-import org.angular2.lang.html.stub.Angular2HtmlStubElementTypes
 import org.angular2.web.ATTR_NG_NON_BINDABLE
 
 open class Angular2HtmlParsing(private val templateSyntax: Angular2TemplateSyntax, builder: PsiBuilder) : HtmlParsing(builder) {
@@ -34,51 +34,8 @@ open class Angular2HtmlParsing(private val templateSyntax: Angular2TemplateSynta
           parseTag()
           flushIncompleteStackItemsWhile { it is HtmlTagInfo }
         }
-        XmlTokenType.XML_PI_START -> {
-          xmlText = terminateText(xmlText)
-          parseProcessingInstruction()
-        }
-        XmlTokenType.XML_CHAR_ENTITY_REF, XmlTokenType.XML_ENTITY_REF_TOKEN -> {
-          xmlText = startText(xmlText)
-          parseReference()
-        }
-        XmlTokenType.XML_CDATA_START -> {
-          xmlText = startText(xmlText)
-          parseCData()
-        }
-        XmlTokenType.XML_COMMENT_START -> {
-          xmlText = startText(xmlText)
-          parseComment()
-        }
-        XmlTokenType.XML_BAD_CHARACTER -> {
-          xmlText = startText(xmlText)
-          val error = mark()
-          advance()
-          error.error(XmlParserBundle.message("xml.parsing.unescaped.ampersand.or.nonterminated.character.entity.reference"))
-        }
-        XmlTokenType.XML_END_TAG_START -> {
-          val tagEndError = mark()
-          advance()
-          if (token() === XmlTokenType.XML_NAME) {
-            advance()
-            if (token() === XmlTokenType.XML_TAG_END) {
-              advance()
-            }
-          }
-          tagEndError.error(XmlParserBundle.message("xml.parsing.closing.tag.matches.nothing"))
-        }
-        is ICustomParsingType, is ILazyParseableElementType -> {
-          xmlText = terminateText(xmlText)
-          advance()
-        }
         else -> {
-          if (hasCustomTagContent()) {
-            xmlText = parseCustomTagContent(xmlText)
-          }
-          else {
-            xmlText = startText(xmlText)
-            advance()
-          }
+          xmlText = defaultParseTopLevelTokenWithText(xmlText)
         }
       }
     }
@@ -92,6 +49,83 @@ open class Angular2HtmlParsing(private val templateSyntax: Angular2TemplateSynta
 
   override fun hasCustomTagContent(): Boolean {
     return CUSTOM_CONTENT.contains(token())
+  }
+
+  private fun parseTopLevelBlock() {
+    parseBlockStart()
+    if (stackSize() == 0) return
+    var xmlText: Marker? = null
+    while (!eof()) {
+      when (token()) {
+        XmlTokenType.XML_START_TAG_START -> {
+          xmlText = terminateText(xmlText)
+          parseTag()
+        }
+        Angular2HtmlTokenTypes.BLOCK_END -> {
+          xmlText = parseCustomTagContent(xmlText)
+          if (!hasAngularBlockOnStack) {
+            break
+          }
+        }
+        else -> {
+          xmlText = defaultParseTopLevelTokenWithText(xmlText)
+        }
+      }
+    }
+    terminateText(xmlText)
+  }
+
+  private fun defaultParseTopLevelTokenWithText(xmlText: Marker?): Marker? {
+    var xmlText = xmlText
+    when (token()) {
+      XmlTokenType.XML_PI_START -> {
+        xmlText = terminateText(xmlText)
+        parseProcessingInstruction()
+      }
+      XmlTokenType.XML_CHAR_ENTITY_REF, XmlTokenType.XML_ENTITY_REF_TOKEN -> {
+        xmlText = startText(xmlText)
+        parseReference()
+      }
+      XmlTokenType.XML_CDATA_START -> {
+        xmlText = startText(xmlText)
+        parseCData()
+      }
+      XmlTokenType.XML_COMMENT_START -> {
+        xmlText = startText(xmlText)
+        parseComment()
+      }
+      XmlTokenType.XML_BAD_CHARACTER -> {
+        xmlText = startText(xmlText)
+        val error = mark()
+        advance()
+        error.error(XmlParserBundle.message("xml.parsing.unescaped.ampersand.or.nonterminated.character.entity.reference"))
+      }
+      XmlTokenType.XML_END_TAG_START -> {
+        val tagEndError = mark()
+        advance()
+        if (token() === XmlTokenType.XML_NAME) {
+          advance()
+          if (token() === XmlTokenType.XML_TAG_END) {
+            advance()
+          }
+        }
+        tagEndError.error(XmlParserBundle.message("xml.parsing.closing.tag.matches.nothing"))
+      }
+      is ICustomParsingType, is ILazyParseableElementType -> {
+        xmlText = terminateText(xmlText)
+        advance()
+      }
+      else -> {
+        if (hasCustomTagContent()) {
+          xmlText = parseCustomTagContent(xmlText)
+        }
+        else {
+          xmlText = startText(xmlText)
+          advance()
+        }
+      }
+    }
+    return xmlText
   }
 
   private val hasAngularBlockOnStack: Boolean
@@ -119,7 +153,7 @@ open class Angular2HtmlParsing(private val templateSyntax: Angular2TemplateSynta
         }
         val interpolation = mark()
         advance()
-        if (token() === Angular2EmbeddedExprTokenType.INTERPOLATION_EXPR) {
+        if (token() is Angular2InterpolationExprTokenType) {
           advance()
         }
         if (!inNgNonBindableContext()) {
@@ -162,8 +196,8 @@ open class Angular2HtmlParsing(private val templateSyntax: Angular2TemplateSynta
       Angular2HtmlTokenTypes.BLOCK_END -> {
         result = terminateText(result)
         if (hasAngularBlockOnStack) {
-          advance()
           flushIncompleteStackItemsWhile { it !is AngularBlock }
+          advance()
           completeTopStackItem()
         }
         else {
@@ -201,7 +235,7 @@ open class Angular2HtmlParsing(private val templateSyntax: Angular2TemplateSynta
           }
         }
         else if (builder.tokenType == Angular2HtmlTokenTypes.BLOCK_SEMICOLON) {
-          builder.mark().collapse(Angular2EmbeddedExprTokenType.createBlockParameter(blockName, parameterIndex))
+          builder.mark().collapse(Angular2EmbeddedExprTokenType.createBlockParameter(templateSyntax, blockName, parameterIndex))
           builder.advanceLexer()
         }
         else {
@@ -257,7 +291,10 @@ open class Angular2HtmlParsing(private val templateSyntax: Angular2TemplateSynta
 
   override fun parseCustomTopLevelContent(error: Marker?): Marker? {
     val result = flushError(error)
-    terminateText(parseCustomTagContent(null))
+    if (token() == Angular2HtmlTokenTypes.BLOCK_NAME)
+      parseTopLevelBlock()
+    else
+      terminateText(parseCustomTagContent(null))
     return result
   }
 
@@ -298,7 +335,7 @@ open class Angular2HtmlParsing(private val templateSyntax: Angular2TemplateSynta
       attributeElementType = parseAttributeValue(attributeElementType, attributeInfo.name)
     }
     att.done(
-      if (attributeElementType !== Angular2HtmlStubElementTypes.NG_CONTENT_SELECTOR)
+      if (attributeElementType !== Angular2HtmlElementTypes.NG_CONTENT_SELECTOR)
         attributeElementType
       else
         XmlElementType.XML_ATTRIBUTE
@@ -308,7 +345,7 @@ open class Angular2HtmlParsing(private val templateSyntax: Angular2TemplateSynta
   private fun parseAttributeValue(attributeElementType: IElementType, name: String): IElementType {
     var result = attributeElementType
     val attValue = mark()
-    val contentType = getAttributeContentType(result, name)
+    val contentType = getAttributeContentType(templateSyntax, result, name)
     if (token() === XmlTokenType.XML_ATTRIBUTE_VALUE_START_DELIMITER) {
       advance()
       val contentStart = if (contentType != null) mark() else null
@@ -321,8 +358,8 @@ open class Angular2HtmlParsing(private val templateSyntax: Angular2TemplateSynta
             || tt === XmlTokenType.XML_START_TAG_START) {
           break
         }
-        if (tt === Angular2EmbeddedExprTokenType.INTERPOLATION_EXPR && result === XmlElementType.XML_ATTRIBUTE) {
-          result = Angular2HtmlStubElementTypes.PROPERTY_BINDING
+        if (tt is Angular2InterpolationExprTokenType && result === XmlElementType.XML_ATTRIBUTE) {
+          result = Angular2HtmlElementTypes.PROPERTY_BINDING
         }
         when (tt) {
           XmlTokenType.XML_BAD_CHARACTER -> {
@@ -339,7 +376,7 @@ open class Angular2HtmlParsing(private val templateSyntax: Angular2TemplateSynta
         }
       }
       if (contentStart != null) {
-        if (contentType === Angular2HtmlStubElementTypes.NG_CONTENT_SELECTOR) {
+        if (contentType === Angular2HtmlElementTypes.NG_CONTENT_SELECTOR) {
           contentStart.done(contentType)
         }
         else {
@@ -358,7 +395,7 @@ open class Angular2HtmlParsing(private val templateSyntax: Angular2TemplateSynta
         if (contentType != null) {
           val contentStart = mark()
           advance()
-          if (contentType === Angular2HtmlStubElementTypes.NG_CONTENT_SELECTOR) {
+          if (contentType === Angular2HtmlElementTypes.NG_CONTENT_SELECTOR) {
             contentStart.done(contentType)
           }
           else {
@@ -378,7 +415,7 @@ open class Angular2HtmlParsing(private val templateSyntax: Angular2TemplateSynta
     assert(token() === Angular2HtmlTokenTypes.EXPANSION_FORM_START)
     var expansionForm = mark()
     advance()
-    if (!remapTokensUntilComma(Angular2EmbeddedExprTokenType.BINDING_EXPR) /*switch value*/
+    if (!remapTokensUntilComma(Angular2EmbeddedExprTokenType.createBindingExpr(templateSyntax)) /*switch value*/
         || !remapTokensUntilComma(XmlTokenType.XML_DATA_CHARACTERS) /*type*/) {
       markCriticalExpansionFormProblem(expansionForm)
       return
@@ -536,21 +573,21 @@ open class Angular2HtmlParsing(private val templateSyntax: Angular2TemplateSynta
                                                  Angular2HtmlTokenTypes.BLOCK_NAME,
                                                  Angular2HtmlTokenTypes.BLOCK_END)
     private val DATA_TOKENS = TokenSet.create(XmlTokenType.XML_COMMA, XmlTokenType.XML_DATA_CHARACTERS)
-    private fun getAttributeContentType(type: IElementType, name: String): IElementType? =
+    private fun getAttributeContentType(templateSyntax: Angular2TemplateSyntax, type: IElementType, name: String): IElementType? =
       when (type) {
-        Angular2HtmlStubElementTypes.PROPERTY_BINDING, Angular2HtmlStubElementTypes.BANANA_BOX_BINDING -> {
-          Angular2EmbeddedExprTokenType.BINDING_EXPR
+        Angular2HtmlElementTypes.PROPERTY_BINDING, Angular2HtmlElementTypes.BANANA_BOX_BINDING -> {
+          Angular2EmbeddedExprTokenType.createBindingExpr(templateSyntax)
         }
-        Angular2HtmlStubElementTypes.EVENT -> {
-          Angular2EmbeddedExprTokenType.ACTION_EXPR
+        Angular2HtmlElementTypes.EVENT -> {
+          Angular2EmbeddedExprTokenType.createActionExpr(templateSyntax)
         }
-        Angular2HtmlStubElementTypes.TEMPLATE_BINDINGS -> {
-          createTemplateBindings(name)
+        Angular2HtmlElementTypes.TEMPLATE_BINDINGS -> {
+          createTemplateBindings(templateSyntax, name)
         }
-        Angular2HtmlStubElementTypes.NG_CONTENT_SELECTOR -> {
-          Angular2HtmlStubElementTypes.NG_CONTENT_SELECTOR
+        Angular2HtmlElementTypes.NG_CONTENT_SELECTOR -> {
+          Angular2HtmlElementTypes.NG_CONTENT_SELECTOR
         }
-        Angular2HtmlStubElementTypes.REFERENCE, Angular2HtmlStubElementTypes.LET, XmlElementType.XML_ATTRIBUTE -> {
+        Angular2HtmlElementTypes.REFERENCE, Angular2HtmlElementTypes.LET, XmlElementType.XML_ATTRIBUTE -> {
           null
         }
         else -> {

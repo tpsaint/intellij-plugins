@@ -1,8 +1,10 @@
 // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.angular2.entities
 
-import com.intellij.html.webSymbols.HtmlDescriptorUtils.getHtmlNSDescriptor
-import com.intellij.html.webSymbols.WebSymbolsHtmlQueryConfigurator
+import com.intellij.polySymbols.html.HtmlDescriptorUtils.getHtmlNSDescriptor
+import com.intellij.polySymbols.html.StandardHtmlSymbol
+import com.intellij.polySymbols.html.attributes.asHtmlSymbol
+import com.intellij.polySymbols.html.elements.asHtmlSymbol
 import com.intellij.lang.javascript.evaluation.JSTypeEvaluationLocationProvider
 import com.intellij.lang.javascript.psi.ecma6.TypeScriptClass
 import com.intellij.model.Pointer
@@ -12,14 +14,14 @@ import com.intellij.openapi.util.NlsSafe
 import com.intellij.openapi.util.TextRange
 import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.presentation.TargetPresentation
+import com.intellij.polySymbols.PolySymbol
+import com.intellij.polySymbols.PolySymbolQualifiedKind
+import com.intellij.polySymbols.declarations.PolySymbolDeclaration
+import com.intellij.polySymbols.utils.PolySymbolDeclaredInPsi
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.contextOfType
 import com.intellij.refactoring.rename.api.RenameValidationResult
 import com.intellij.refactoring.rename.api.RenameValidator
-import com.intellij.webSymbols.WebSymbol
-import com.intellij.webSymbols.WebSymbolQualifiedKind
-import com.intellij.webSymbols.declarations.WebSymbolDeclaration
-import com.intellij.webSymbols.utils.WebSymbolDeclaredInPsi
 import com.intellij.xml.XmlElementDescriptor
 import org.angular2.Angular2DecoratorUtil.getClassForDecoratorElement
 import org.angular2.codeInsight.documentation.Angular2ElementDocumentationTarget
@@ -27,7 +29,6 @@ import org.angular2.lang.Angular2Bundle
 import org.angular2.web.Angular2Symbol
 import org.angular2.web.NG_DIRECTIVE_ATTRIBUTE_SELECTORS
 import org.angular2.web.NG_DIRECTIVE_ELEMENT_SELECTORS
-import java.util.*
 import java.util.regex.Pattern
 
 class Angular2DirectiveSelectorSymbol(
@@ -36,11 +37,11 @@ class Angular2DirectiveSelectorSymbol(
   override val name: @NlsSafe String,
   private val myElementSelector: String?,
   private val isElementSelector: Boolean,
-) : Angular2Symbol, WebSymbolDeclaredInPsi {
+) : Angular2Symbol, PolySymbolDeclaredInPsi {
 
-  override val priority: WebSymbol.Priority
+  override val priority: PolySymbol.Priority
     // Match HTML elements and attributes priority
-    get() = WebSymbol.Priority.LOW
+    get() = PolySymbol.Priority.LOW
 
   override val psiContext: PsiElement
     get() = myParent.psiParent
@@ -51,16 +52,16 @@ class Angular2DirectiveSelectorSymbol(
   override val project: Project
     get() = sourceElement.project
 
-  override val qualifiedKind: WebSymbolQualifiedKind
+  override val qualifiedKind: PolySymbolQualifiedKind
     get() = if (isElementSelector) NG_DIRECTIVE_ELEMENT_SELECTORS else NG_DIRECTIVE_ATTRIBUTE_SELECTORS
 
-  override val declaration: WebSymbolDeclaration?
+  override val declaration: PolySymbolDeclaration?
     get() = if (referencedSymbol == null) super.declaration else null
 
   /**
    * Selectors should yield to HTML symbols and directive properties
    */
-  val referencedSymbol: WebSymbol? by lazy(LazyThreadSafetyMode.PUBLICATION) {
+  val referencedSymbol: PolySymbol? by lazy(LazyThreadSafetyMode.PUBLICATION) {
     JSTypeEvaluationLocationProvider.assertLocationIsSet()
     getReferencedHtmlSymbol(name, sourceElement, isElementSelector, myElementSelector)
     ?: if (!isElementSelector) getReferencedDirectiveProperty(name, myParent) else null
@@ -77,7 +78,7 @@ class Angular2DirectiveSelectorSymbol(
         .presentation()
     }
 
-  override fun getDocumentationTarget(location: PsiElement?): DocumentationTarget =
+  override fun getDocumentationTarget(location: PsiElement?): DocumentationTarget? =
     Angular2ElementDocumentationTarget.create(
       name, location,
       Angular2EntitiesProvider.getEntity(sourceElement.contextOfType<TypeScriptClass>(true)))
@@ -85,7 +86,7 @@ class Angular2DirectiveSelectorSymbol(
 
   override fun isEquivalentTo(symbol: Symbol): Boolean =
     JSTypeEvaluationLocationProvider.withTypeEvaluationLocation(sourceElement) { referencedSymbol == symbol }
-    || super<WebSymbolDeclaredInPsi>.isEquivalentTo(symbol)
+    || super<PolySymbolDeclaredInPsi>.isEquivalentTo(symbol)
 
   override fun createPointer(): Pointer<Angular2DirectiveSelectorSymbol> {
     val parent = myParent.createPointer()
@@ -115,7 +116,12 @@ class Angular2DirectiveSelectorSymbol(
   }
 
   override fun hashCode(): Int {
-    return Objects.hash(myParent, textRangeInSourceElement, name, myElementSelector, isElementSelector)
+    var result = myParent.hashCode()
+    result = 31 * result + textRangeInSourceElement.hashCode()
+    result = 31 * result + name.hashCode()
+    result = 31 * result + myElementSelector.hashCode()
+    result = 31 * result + isElementSelector.hashCode()
+    return result
   }
 
   override fun validator(): RenameValidator {
@@ -123,7 +129,7 @@ class Angular2DirectiveSelectorSymbol(
   }
 
   private fun getReferencedHtmlSymbol(name: String, sourceElement: PsiElement, isElementSelector: Boolean, elementSelector: String?):
-    WebSymbolsHtmlQueryConfigurator.StandardHtmlSymbol? {
+    StandardHtmlSymbol? {
 
     val psiElement = sourceElement
     val nsDescriptor = getHtmlNSDescriptor(psiElement.project)
@@ -131,7 +137,7 @@ class Angular2DirectiveSelectorSymbol(
       if (isElementSelector) {
         val elementDescriptor = nsDescriptor.getElementDescriptorByName(name)
         if (elementDescriptor != null) {
-          return WebSymbolsHtmlQueryConfigurator.HtmlElementDescriptorBasedSymbol(elementDescriptor, null)
+          return elementDescriptor.asHtmlSymbol(null)
         }
       }
       else {
@@ -147,7 +153,7 @@ class Angular2DirectiveSelectorSymbol(
         if (elementDescriptor != null) {
           val attributeDescriptor = elementDescriptor.getAttributeDescriptor(name, null)
           if (attributeDescriptor != null) {
-            return WebSymbolsHtmlQueryConfigurator.HtmlAttributeDescriptorBasedSymbol(attributeDescriptor, tagName!!)
+            return attributeDescriptor.asHtmlSymbol(tagName!!)
           }
         }
       }
@@ -155,7 +161,7 @@ class Angular2DirectiveSelectorSymbol(
     return null
   }
 
-  private fun getReferencedDirectiveProperty(name: @NlsSafe String, parent: Angular2DirectiveSelectorImpl): WebSymbol? {
+  private fun getReferencedDirectiveProperty(name: @NlsSafe String, parent: Angular2DirectiveSelectorImpl): PolySymbol? {
     val directive = getClassForDecoratorElement(parent.psiParent)
                       ?.let { Angular2EntitiesProvider.getDirective(it) }
                     ?: return null
