@@ -9,6 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "nuxt": "^3.10.3"
+    "nuxt": "^4.0.0"
   }
 }
